@@ -24,8 +24,8 @@ they are **not** web-optimised and do **not** include the flat product renders
 
 ## Fonts (stand-ins)
 
-| Role | Screenshot | Stand-in (next/font/google) |
-| --- | --- | --- |
-| Display headings, nav, buttons, product names | condensed heavy uppercase | **Anton** / **Oswald** |
-| Narrative body copy | regular humanist sans | **Inter** |
-| Logo wordmark | decorative script | **Pinyon Script** (placeholder only) |
+| Role | Screenshot | Stand-in (next/font/google) | Status |
+| --- | --- | --- | --- |
+| Display headings, nav, buttons, product names | condensed heavy uppercase | **Anton** / **Oswald** | ✓ Ready |
+| Narrative body copy | regular humanist sans | **Inter** | ✓ Ready |
+| Logo wordmark | decorative script | **Pinyon Script** (SVG text renderer) | ⏳ Stand-in; replace with red graffiti "DEPT" + black script "Dept" vectors |
