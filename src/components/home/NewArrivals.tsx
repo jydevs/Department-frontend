@@ -8,25 +8,18 @@ import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 export function NewArrivals() {
   return (
     <section className="relative flex min-h-[70vh] items-center justify-center overflow-hidden bg-dept-black">
-      {/* Video background layer */}
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="absolute inset-0 h-full w-full object-cover"
-        aria-hidden="true"
-        poster=""
-      >
-        {/* TODO: añadir el clip real (poster + <source>) */}
-      </video>
-
-      {/* Fallback placeholder image */}
+      {/*
+        Fondo. TODO: sustituir por
+        <video autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover">
+          <source src="/video/new-arrivals.mp4" type="video/mp4" />
+        </video>
+        con el clip real (estética VHS). Mientras tanto, placeholder frío:
+      */}
       <PlaceholderImage
         label="New arrivals — clip de vídeo con estética VHS"
         tone="cold"
         hideLabel
-        className="absolute inset-0 h-full w-full"
+        fill
       />
 
       {/* VHS scanline and vignette overlay */}
