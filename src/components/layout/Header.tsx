@@ -35,19 +35,12 @@ export function Header() {
   const variant = getHeaderVariant(pathname);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Close mobile menu on route change
+  // Cerrar el menú móvil con Escape. (En navegación por enlace se cierra vía onClick.)
   useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [pathname]);
-
-  // Handle Escape key to close mobile menu
-  useEffect(() => {
+    if (!mobileMenuOpen) return;
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && mobileMenuOpen) {
-        setMobileMenuOpen(false);
-      }
+      if (event.key === "Escape") setMobileMenuOpen(false);
     };
-
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
   }, [mobileMenuOpen]);
@@ -68,14 +61,11 @@ export function Header() {
         isOverlay && "bg-gradient-to-b from-black/40 to-transparent",
       )}
     >
-      {/* Scrim overlay for accessibility on overlay variant */}
-      {isOverlay && <div className="absolute inset-0 pointer-events-none" />}
-
       <nav
         aria-label="Principal"
         className={clsx(
           "relative flex items-center justify-between px-6 py-5",
-          "md:px-24 md:py-5",
+          "md:px-10",
         )}
       >
         {/* LEFT: Hamburger menu (mobile) + Nav links (desktop) */}
