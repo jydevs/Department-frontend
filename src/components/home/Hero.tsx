@@ -1,24 +1,28 @@
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 
 /**
- * SCAFFOLD STUB — flesh out in `feature/hero-section`.
- * Full-bleed hero: cold blue-toned photo of two people in balaclavas,
- * headline "UNIFORMS FOR THE UNNOTICED." overlaid bottom-left.
+ * Full-bleed hero section: cold blue-toned background image with "UNIFORMS FOR THE UNNOTICED."
+ * headline overlaid bottom-left. Fills the full viewport height to accommodate the absolute-positioned
+ * header overlay from layout.tsx.
  */
 export function Hero() {
   return (
-    <section className="relative">
+    <section className="relative min-h-screen w-full overflow-hidden">
+      {/* Background image: cold-toned placeholder */}
       <PlaceholderImage
         label="Hero — dos personas con pasamontañas, tono azul frío"
-        ratio="16 / 10"
         tone="cold"
         hideLabel
+        className="absolute inset-0 h-full w-full object-cover"
       />
-      <div className="absolute bottom-10 left-6 max-w-xl">
-        <h1 className="font-display text-5xl text-dept-white sm:text-7xl">
-          Uniforms for the unnoticed.
-        </h1>
-      </div>
+
+      {/* Scrim: gradient for text legibility */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+
+      {/* Headline: positioned bottom-left, above scrim and image */}
+      <h1 className="font-display absolute bottom-8 left-6 md:bottom-12 md:left-10 max-w-[12ch] text-4xl sm:text-6xl lg:text-8xl leading-[0.9] text-dept-white">
+        UNIFORMS FOR THE UNNOTICED.
+      </h1>
     </section>
   );
 }
