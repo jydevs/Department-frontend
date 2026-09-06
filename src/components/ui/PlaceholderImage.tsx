@@ -5,12 +5,17 @@ type Tone = "dark" | "light" | "accent" | "cold";
 interface PlaceholderImageProps {
   /** short description of the real asset that belongs here */
   label: string;
-  /** CSS aspect-ratio, e.g. "3 / 4", "16 / 9", "1 / 1" */
+  /** CSS aspect-ratio, e.g. "3 / 4", "16 / 9", "1 / 1". Ignored when `fill`. */
   ratio?: string;
   tone?: Tone;
   className?: string;
   /** render the label visibly (default) or hide it for decorative fills */
   hideLabel?: boolean;
+  /**
+   * Fill the nearest positioned ancestor (`absolute inset-0`) instead of
+   * sizing itself by `ratio`. Use for full-bleed backgrounds.
+   */
+  fill?: boolean;
   priority?: boolean;
 }
 
@@ -31,14 +36,16 @@ export function PlaceholderImage({
   tone = "dark",
   className,
   hideLabel = false,
+  fill = false,
 }: PlaceholderImageProps) {
   return (
     <div
       role="img"
       aria-label={label}
-      style={{ aspectRatio: ratio }}
+      style={fill ? undefined : { aspectRatio: ratio }}
       className={clsx(
-        "relative flex w-full items-center justify-center overflow-hidden",
+        "flex items-center justify-center overflow-hidden",
+        fill ? "absolute inset-0 h-full w-full" : "relative w-full",
         toneStyles[tone],
         className,
       )}
