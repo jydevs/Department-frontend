@@ -40,6 +40,18 @@ export function Header() {
     setMobileMenuOpen(false);
   }, [pathname]);
 
+  // Handle Escape key to close mobile menu
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [mobileMenuOpen]);
+
   const isOverlay = variant === "overlay";
   const textColor = isOverlay ? "text-dept-white" : "text-dept-black";
   const bgColor = isOverlay ? "" : "bg-dept-white";
