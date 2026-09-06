@@ -16,7 +16,6 @@ interface ProductCardProps {
 export function ProductCard({ product, className }: ProductCardProps) {
   const badgeLabel = product.badge === "agotado" ? "Agotado" : "Oferta";
   const hasBadge = !!product.badge;
-  const hasDiscount = !!product.compareAtPrice;
 
   return (
     <Link
@@ -61,7 +60,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
         {/* Price (right) */}
         <div className="font-condensed text-[12px] text-dept-white whitespace-nowrap text-right">
           <div>{formatCOP(product.price)}</div>
-          {hasDiscount && (
+          {product.compareAtPrice != null && (
             <div className="line-through text-dept-gray-500">
               {formatCOP(product.compareAtPrice)}
             </div>
