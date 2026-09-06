@@ -13,7 +13,7 @@ export function Hero() {
         label="Hero — dos personas con pasamontañas, tono azul frío"
         tone="cold"
         hideLabel
-        className="absolute inset-0 h-full w-full object-cover"
+        fill
       />
 
       {/* Scrim: gradient for text legibility */}
