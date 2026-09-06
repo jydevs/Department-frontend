@@ -10,62 +10,56 @@ interface LogoProps {
    */
   variant?: "red" | "black";
   /**
-   * Visual size of the logo.
-   * - sm: ~20px cap height
-   * - md: ~28px cap height (default)
-   * - lg: ~44px cap height
+   * Visual size (approx. cap height): sm ~20px, md ~28px, lg ~44px.
    * @default "md"
    */
   size?: "sm" | "md" | "lg";
   className?: string;
 }
 
-const SIZE_MAP = {
+const SIZE_MAP: Record<NonNullable<LogoProps["size"]>, number> = {
   sm: 20,
   md: 28,
   lg: 44,
 };
 
-export function Logo({
-  variant = "red",
-  size = "md",
-  className,
-}: LogoProps) {
-  const heightPx = SIZE_MAP[size];
+const VIEWBOX_W = 160;
+const VIEWBOX_H = 48;
+
+export function Logo({ variant = "red", size = "md", className }: LogoProps) {
+  const height = SIZE_MAP[size];
+  const width = (height * VIEWBOX_W) / VIEWBOX_H;
   const isRed = variant === "red";
 
   return (
     <svg
       role="img"
-      viewBox="0 0 150 40"
-      width="auto"
-      height={heightPx}
-      className={clsx("select-none", className)}
-      style={{
-        color: isRed ? "var(--dept-red)" : "var(--dept-black)",
-      }}
+      viewBox={`0 0 ${VIEWBOX_W} ${VIEWBOX_H}`}
+      width={width}
+      height={height}
+      overflow="visible"
+      className={clsx("block select-none", className)}
+      style={{ color: isRed ? "var(--dept-red)" : "var(--dept-black)" }}
     >
       <title>Daregular Dept.</title>
-      <text
-        x="75"
-        y="32"
-        textAnchor="middle"
-        fill="currentColor"
-        fontFamily="var(--font-pinyon), 'Brush Script MT', cursive"
-        fontSize="42"
-        fontWeight={isRed ? "600" : "400"}
-        letterSpacing={isRed ? "-2" : "1"}
-        style={{
-          paintOrder: isRed ? "stroke" : "normal",
-          strokeWidth: isRed ? "1.2" : "0",
-          stroke: isRed ? "currentColor" : "none",
-          transform: isRed ? "rotate(-4deg)" : "none",
-          transformOrigin: "center",
-          dominantBaseline: "middle",
-        }}
-      >
-        Dept
-      </text>
+      <g transform={isRed ? `rotate(-4 ${VIEWBOX_W / 2} ${VIEWBOX_H / 2})` : undefined}>
+        <text
+          x={VIEWBOX_W / 2}
+          y={VIEWBOX_H / 2}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill="currentColor"
+          stroke={isRed ? "currentColor" : undefined}
+          strokeWidth={isRed ? 1.1 : undefined}
+          paintOrder="stroke"
+          fontFamily="var(--font-pinyon), 'Brush Script MT', cursive"
+          fontSize={44}
+          fontWeight={isRed ? 600 : 400}
+          letterSpacing={isRed ? -1 : 1}
+        >
+          Dept
+        </text>
+      </g>
     </svg>
   );
 }
