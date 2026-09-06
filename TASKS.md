@@ -46,7 +46,7 @@ Estado: ⬜ pendiente · 🟦 en progreso · ✅ PR abierto · ✔️ mergeado
 
 | # | Rama | Tarea | Dep. | Estado |
 | --- | --- | --- | --- | --- |
-| 0 | `chore/scaffold-nextjs` | Scaffold Next.js + TS + Tailwind + yarn, tokens de diseño, fuentes, estructura de carpetas, `<PlaceholderImage>`, datos mock (`src/data`), stubs de `Header`/`NewsletterFooter`/`Logo`, `TASKS.md`, `docs/ASSETS.md`. | — | 🟦 |
+| 0 | `chore/scaffold-nextjs` | Scaffold Next.js + TS + Tailwind + yarn, tokens de diseño, fuentes, estructura de carpetas, `<PlaceholderImage>`, datos mock (`src/data`), stubs de `Header`/`NewsletterFooter`/`Logo`, `TASKS.md`, `docs/ASSETS.md`. | — | ✔️ #1 |
 
 > Todo lo demás depende de que la Tanda 0 esté en `main`.
 
@@ -54,16 +54,20 @@ Estado: ⬜ pendiente · 🟦 en progreso · ✅ PR abierto · ✔️ mergeado
 
 | # | Rama | Tarea | Dep. | Estado |
 | --- | --- | --- | --- | --- |
-| 1 | `feature/navbar` | Header real: links HOME/CLOTHES/COMMUNITY a la izquierda, logo centrado, iconos búsqueda/cuenta/carrito a la derecha. Transparente sobre el hero en `/`; fondo claro + logo negro en páginas internas sin imagen. Menú accesible en mobile. | 0 | ⬜ |
-| 2 | `feature/newsletter-footer` | Footer global "ÚNETE A REGULAR MEMBERS ONLY." con input de correo + botón flecha. Se repite en todas las páginas (ya montado en `layout.tsx`). Estados focus/hover, validación básica de email, sin backend. | 0 | ⬜ |
-| 3 | `feature/product-card` | `<ProductCard>` + `<ProductGrid>`. Imagen sobre negro, barra inferior negra (nombre mayúsculas izq. / precio COP der.), badge opcional "Agotado" / "Oferta" (precio tachado + final). Formato de precio con `formatCOP`. Grid responsive. | 0 | ⬜ |
-| 4 | `feature/logo` | `<Logo>` con las dos variantes (roja grafiti / negra script) como SVG o tratamiento tipográfico afinado. Sustituye el stub. | 0 | ⬜ |
+| 1 | `feature/navbar` | Header real: links HOME/CLOTHES/COMMUNITY a la izquierda, logo centrado, iconos búsqueda/cuenta/carrito a la derecha. Transparente sobre el hero en `/`; fondo claro + logo negro en páginas internas sin imagen. Menú accesible en mobile. | 0 | ✔️ #2 |
+| 2 | `feature/newsletter-footer` | Footer global "ÚNETE A REGULAR MEMBERS ONLY." con input de correo + botón flecha. Se repite en todas las páginas (ya montado en `layout.tsx`). Estados focus/hover, validación básica de email, sin backend. | 0 | ✔️ #3 |
+| 3 | `feature/product-card` | `<ProductCard>` + `<ProductGrid>`. Imagen sobre negro, barra inferior negra (nombre mayúsculas izq. / precio COP der.), badge opcional "Agotado" / "Oferta" (precio tachado + final). Formato de precio con `formatCOP`. Grid responsive. | 0 | ✔️ #4 |
+| 4 | `feature/logo` | `<Logo>` con las dos variantes (roja grafiti / negra script) como SVG o tratamiento tipográfico afinado. Sustituye el stub. | 0 | ✔️ #5 |
 
 ### Tanda 2 — Secciones de Home
 
+> `feature/home-stubs` monta las 6 secciones (stubs) en `src/components/home/` y en
+> `src/app/page.tsx` en el orden correcto. Cada tarea de abajo rellena SOLO su
+> componente — sin tocar `page.tsx` — para evitar conflictos.
+
 | # | Rama | Tarea | Dep. | Estado |
 | --- | --- | --- | --- | --- |
-| 5 | `feature/hero-section` | Hero full-bleed: imagen fría azulada (placeholder), overlay "UNIFORMS FOR THE UNNOTICED." grande abajo-izquierda. | 0 | ⬜ |
+| 5 | `feature/hero-section` | Hero full-bleed: imagen fría azulada (placeholder), overlay "UNIFORMS FOR THE UNNOTICED." grande abajo-izquierda. | 0, stubs | ⬜ |
 | 6 | `feature/new-arrivals` | Sección con fondo de video (grano/VHS) — usar `<video>` con placeholder/póster. Texto centrado "NEW ARRIVALS" + subtítulo. | 0 | ⬜ |
 | 7 | `feature/split-banner` | Banner 50/50 WOMEN (fondo rosa grafiti) / MEN (grafiti multicolor). Cada mitad enlaza a `/collections/women` y `/collections/men`. Apila en mobile. | 0 | ⬜ |
 | 8 | `feature/campaign-section` | "RAGS TO RICHES – EXTENDED VERSION": título grande + `<ProductGrid>` con `getCampaignProducts()`. | 0, 3 | ⬜ |
@@ -74,7 +78,7 @@ Estado: ⬜ pendiente · 🟦 en progreso · ✅ PR abierto · ✔️ mergeado
 
 | # | Rama | Tarea | Dep. | Estado |
 | --- | --- | --- | --- | --- |
-| 11 | `feature/home-page` | Ensamblar `/` con las secciones 5–10 en orden. Retirar los placeholders del scaffold. | 5–10 | ⬜ |
+| 11 | `feature/home-page` | Revisión final de `/` ya ensamblada (por `home-stubs`): ritmo vertical, spacing entre secciones, responsive de conjunto. | 5–10 | ⬜ |
 | 12 | `feature/filter-bar` | `<FilterBar>`: dropdowns "Availability" y "Price" (izq.), contador "N artículos" + dropdown "Ordenar" (der.). Accesible; el filtrado real puede ser client-side simple. | 0, 3 | ⬜ |
 | 13 | `feature/collection-page` | Ruta `/collections/[handle]` (all/men/women) con `generateStaticParams`. Hero reducido desaturado + título grande, `<FilterBar>`, `<ProductGrid>`. | 3, 12 | ⬜ |
 | 14 | `feature/account-modal` | `<AccountModal>` overlay: "DAREGULAR MEMBERS" (h1) + botón azul "Iniciar sesión con shop", botón rojo oscuro "OTRAS OPCIONES DE INICIO DE SESIÓN", accesos "Pedidos" / "Perfil". Trap de foco, cierre con Esc. Página `/pages/contact` que lo usa. | 0, 4 | ⬜ |
