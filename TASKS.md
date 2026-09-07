@@ -82,17 +82,17 @@ Estado: ⬜ pendiente · 🟦 en progreso · ✅ PR abierto · ✔️ mergeado
 
 | # | Rama | Tarea | Dep. | Estado |
 | --- | --- | --- | --- | --- |
-| 11 | `feature/home-page` | Revisión final de `/` ya ensamblada (por `home-stubs`): ritmo vertical, spacing entre secciones, responsive de conjunto. | 5–10 | ⬜ |
-| 12 | `feature/filter-bar` | `<FilterBar>`: dropdowns "Availability" y "Price" (izq.), contador "N artículos" + dropdown "Ordenar" (der.). Accesible; el filtrado real puede ser client-side simple. | 0, 3 | ⬜ |
-| 13 | `feature/collection-page` | Ruta `/collections/[handle]` (all/men/women) con `generateStaticParams`. Hero reducido desaturado + título grande, `<FilterBar>`, `<ProductGrid>`. | 3, 12 | ⬜ |
-| 14 | `feature/account-modal` | `<AccountModal>` overlay: "DAREGULAR MEMBERS" (h1) + botón azul "Iniciar sesión con shop", botón rojo oscuro "OTRAS OPCIONES DE INICIO DE SESIÓN", accesos "Pedidos" / "Perfil". Trap de foco, cierre con Esc. Página `/pages/contact` que lo usa. | 0, 4 | ⬜ |
-| 15 | `feature/cart-drawer` | `<CartDrawer>` lateral derecho: "TU CARRITO ESTÁ VACÍO", texto de login, botón rojo "SEGUIR COMPRANDO". Animación de entrada, overlay, cierre con Esc. Abierto desde el icono de carrito del header. | 0, 1 | ⬜ |
+| 11 | `feature/home-page` | Revisión final de `/` ya ensamblada (por `home-stubs`): ritmo vertical, spacing entre secciones, responsive de conjunto. | 5–10 | ✔️ (via #6) |
+| 12 | `feature/filter-bar` | `<FilterBar>`: dropdowns "Availability" y "Price" (izq.), contador "N artículos" + dropdown "Ordenar" (der.). Accesible; el filtrado real puede ser client-side simple. | 0, 3 | ✔️ #15 |
+| 13 | `feature/collection-page` | Ruta `/collections/[handle]` (all/men/women) con `generateStaticParams`. Hero reducido desaturado + título grande, `<FilterBar>`, `<ProductGrid>`. | 3, 12 | ✔️ #16 |
+| 14 | `feature/account-modal` | `<AccountModal>` overlay: "DAREGULAR MEMBERS" (h1) + botón azul "Iniciar sesión con shop", botón rojo oscuro "OTRAS OPCIONES DE INICIO DE SESIÓN", accesos "Pedidos" / "Perfil". Trap de foco, cierre con Esc. Página `/pages/contact` que lo usa. | 0, 4 | ✔️ #17 |
+| 15 | `feature/cart-drawer` | `<CartDrawer>` lateral derecho: "TU CARRITO ESTÁ VACÍO", texto de login, botón rojo "SEGUIR COMPRANDO". Animación de entrada, overlay, cierre con Esc. Abierto desde el icono de carrito del header. | 0, 1 | ✔️ #18 |
 
 ### Tanda 4 — Estado global de overlays
 
 | # | Rama | Tarea | Dep. | Estado |
 | --- | --- | --- | --- | --- |
-| 16 | `feature/overlay-state` | Contexto/estado (client) para abrir/cerrar cart drawer y account modal desde el header; bloqueo de scroll del body; integración final. | 1, 14, 15 | ⬜ |
+| 16 | `feature/overlay-state` | Contexto/estado (client) para abrir/cerrar cart drawer y account modal desde el header; bloqueo de scroll del body; integración final. | 1, 14, 15 | ✔️ #19 |
 
 ---
 
@@ -107,3 +107,18 @@ Tanda 0  →  (merge)  →  Tanda 1 (1,2,3,4 en paralelo)  →  (merge)
 
 Tras cada rama terminada: resumen (qué se hizo, rama, link al PR) y **esperar
 aprobación del humano** antes de la siguiente tanda.
+
+> **Estado: las 4 tandas están mergeadas en `main`.** PRs de cierre extra:
+> #13 (consolidación de la Tanda 2 a `main`), #14 (scaffold Tanda 3).
+
+---
+
+## Pendiente (fuera del alcance de estas tandas)
+
+- **Assets reales**: todas las imágenes son `<PlaceholderImage>`. Faltan las
+  fotos optimizadas (WebP/AVIF), los renders planos de producto, y los dos
+  vectores del logotipo (rojo grafiti / negro script). Ver `docs/ASSETS.md`.
+- **Backend**: newsletter, login ("Iniciar sesión con shop" / opciones), y
+  "Pedidos / Perfil" son solo UI — llevan comentarios `TODO` en el código.
+- **Códigos de marca**: los tokens de color en `globals.css` están muestreados
+  de las capturas; sustituir por los hex oficiales.
