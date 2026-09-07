@@ -67,14 +67,18 @@ Estado: ⬜ pendiente · 🟦 en progreso · ✅ PR abierto · ✔️ mergeado
 
 | # | Rama | Tarea | Dep. | Estado |
 | --- | --- | --- | --- | --- |
-| 5 | `feature/hero-section` | Hero full-bleed: imagen fría azulada (placeholder), overlay "UNIFORMS FOR THE UNNOTICED." grande abajo-izquierda. | 0, stubs | ⬜ |
-| 6 | `feature/new-arrivals` | Sección con fondo de video (grano/VHS) — usar `<video>` con placeholder/póster. Texto centrado "NEW ARRIVALS" + subtítulo. | 0 | ⬜ |
-| 7 | `feature/split-banner` | Banner 50/50 WOMEN (fondo rosa grafiti) / MEN (grafiti multicolor). Cada mitad enlaza a `/collections/women` y `/collections/men`. Apila en mobile. | 0 | ⬜ |
-| 8 | `feature/campaign-section` | "RAGS TO RICHES – EXTENDED VERSION": título grande + `<ProductGrid>` con `getCampaignProducts()`. | 0, 3 | ⬜ |
-| 9 | `feature/editorial-block` | Bloque editorial: imagen grande izquierda + heading + 3 párrafos de copy (texto de la captura) a la derecha. Apila en mobile. | 0 | ⬜ |
-| 10 | `feature/value-props` | Fila de 3 valores con icono + título + subtítulo (INTENTIONAL DESIGN / MADE WITH CARE / A TEAM WITH A GOAL). Iconos SVG inline (ojo / corazón / persona). | 0 | ⬜ |
+| 5 | `feature/hero-section` | Hero full-bleed: imagen fría azulada (placeholder), overlay "UNIFORMS FOR THE UNNOTICED." grande abajo-izquierda. | 0, stubs | ✔️ #7 |
+| 6 | `feature/new-arrivals` | Sección con fondo de video (grano/VHS) — usar `<video>` con placeholder/póster. Texto centrado "NEW ARRIVALS" + subtítulo. | 0 | ✔️ #8 |
+| 7 | `feature/split-banner` | Banner 50/50 WOMEN (fondo rosa grafiti) / MEN (grafiti multicolor). Cada mitad enlaza a `/collections/women` y `/collections/men`. Apila en mobile. | 0 | ✔️ #9 |
+| 8 | `feature/campaign-section` | "RAGS TO RICHES – EXTENDED VERSION": título grande + `<ProductGrid>` con `getCampaignProducts()`. | 0, 3 | ✔️ #10 |
+| 9 | `feature/editorial-block` | Bloque editorial: imagen grande izquierda + heading + 3 párrafos de copy (texto de la captura) a la derecha. Apila en mobile. | 0 | ✔️ #11 |
+| 10 | `feature/value-props` | Fila de 3 valores con icono + título + subtítulo (INTENTIONAL DESIGN / MADE WITH CARE / A TEAM WITH A GOAL). Iconos SVG inline (ojo / corazón / persona). | 0 | ✔️ #12 |
 
 ### Tanda 3 — Composición y páginas internas
+
+> `feature/tanda3-scaffold` monta: `FilterBar` + `CollectionView` stubs, ruta
+> `/collections/[handle]` funcional, `AccountModal` + `CartDrawer` stubs, página
+> `/pages/contact` con harness temporal de overlays. Cada tarea rellena su pieza.
 
 | # | Rama | Tarea | Dep. | Estado |
 | --- | --- | --- | --- | --- |
