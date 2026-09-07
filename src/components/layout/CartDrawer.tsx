@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Right-side cart drawer. Empty state only (no cart logic). API: controlled via
  * `open` / `onClose`. Global wiring to the header cart icon happens in
  * `feature/overlay-state` (Tanda 4).
  *
- * Features:
- * - Slide-in animation from right
- * - Focus management (close button receives focus on open)
- * - Keyboard support (Escape to close)
- * - Click-outside-to-close (backdrop)
+ * - Slide-in from the right (CSS keyframe on mount)
+ * - Focus moves to the close button on open
+ * - Escape and backdrop click close
  */
 interface CartDrawerProps {
   open: boolean;
@@ -19,36 +17,16 @@ interface CartDrawerProps {
 }
 
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
-  const [mounted, setMounted] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Slide-in animation: component mounts when open, unmounts when closed
-  useEffect(() => {
-    if (open) {
-      setMounted(true);
-      // Focus the close button after the component mounts
-      setTimeout(() => {
-        closeButtonRef.current?.focus();
-      }, 0);
-    } else {
-      setMounted(false);
-    }
-  }, [open]);
-
-  // Handle Escape key to close the drawer
   useEffect(() => {
     if (!open) return;
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
+    closeButtonRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
     };
-
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
   if (!open) return null;
@@ -60,7 +38,9 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
       aria-modal="true"
       aria-label="Carrito"
     >
-      {/* Backdrop: click to close (but not if click is inside the panel) */}
+      <style>{`@keyframes cart-drawer-in{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+
+      {/* Backdrop */}
       <button
         type="button"
         aria-label="Cerrar"
@@ -68,45 +48,40 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
         className="absolute inset-0 h-full w-full cursor-default"
       />
 
-      {/* Panel: slides in from right */}
+      {/* Panel */}
       <aside
-        className={`absolute right-0 top-0 h-full w-full max-w-sm bg-dept-white text-dept-black flex flex-col transition-transform duration-300 ${
-          mounted ? "translate-x-0" : "translate-x-full"
-        }`}
+        style={{ animation: "cart-drawer-in 0.3s ease-out" }}
+        className="absolute right-0 top-0 flex h-full w-full max-w-sm flex-col bg-dept-white text-dept-black"
       >
-        {/* Close button: top-right */}
         <div className="flex justify-end p-4">
           <button
             ref={closeButtonRef}
             type="button"
             aria-label="Cerrar"
             onClick={onClose}
-            className="text-2xl leading-none hover:opacity-70 transition-opacity"
+            className="text-2xl leading-none transition-opacity hover:opacity-70"
           >
             ✕
           </button>
         </div>
 
-        {/* Empty cart message: centered */}
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
-          <h2 className="font-display text-2xl">TU CARRITO ESTÁ VACÍO</h2>
+          <h2 className="font-display text-2xl">Tu carrito está vacío</h2>
           <p className="font-body text-sm text-dept-gray-500">
             ¿Tienes una cuenta?{" "}
-            {/* TODO: wire up to account modal or sign-in flow */}
-            <button type="button" className="underline hover:opacity-70 transition-opacity">
+            {/* TODO: abrir el panel de cuenta / flujo de login */}
+            <button type="button" className="underline transition-opacity hover:opacity-70">
               Inicia sesión
-            </button>
-            {" "}para pagar más rápido.
+            </button>{" "}
+            para pagar más rápido.
           </p>
-
-          {/* Continue shopping button */}
-          {/* TODO: add cart items render here */}
+          {/* TODO: render de líneas del carrito cuando exista lógica de carrito */}
           <button
             type="button"
             onClick={onClose}
-            className="mt-2 bg-dept-red px-8 py-3 font-condensed text-sm text-dept-white hover:bg-dept-red-dark transition-colors"
+            className="mt-2 bg-dept-red px-8 py-3 font-condensed text-sm text-dept-white transition-colors hover:bg-dept-red-dark"
           >
-            SEGUIR COMPRANDO
+            Seguir comprando
           </button>
         </div>
       </aside>
