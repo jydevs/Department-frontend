@@ -3,6 +3,7 @@ import { Anton, Oswald, Inter, Pinyon_Script } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { NewsletterFooter } from "@/components/layout/NewsletterFooter";
+import { OverlayProvider } from "@/components/layout/OverlayProvider";
 
 const anton = Anton({
   weight: "400",
@@ -48,9 +49,11 @@ export default function RootLayout({
       className={`${anton.variable} ${oswald.variable} ${inter.variable} ${pinyon.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-dept-black text-dept-white">
-        <Header />
-        <main className="flex-1">{children}</main>
-        <NewsletterFooter />
+        <OverlayProvider>
+          <Header />
+          <main className="flex-1">{children}</main>
+          <NewsletterFooter />
+        </OverlayProvider>
       </body>
     </html>
   );

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { clsx } from "@/lib/clsx";
 import { Logo } from "./Logo";
+import { useOverlay } from "./OverlayProvider";
 
 const NAV_LINKS = [
   { label: "HOME", href: "/" },
@@ -34,6 +35,7 @@ export function Header() {
   const pathname = usePathname();
   const variant = getHeaderVariant(pathname);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { openAccount, openCart } = useOverlay();
 
   // Cerrar el menú móvil con Escape. (En navegación por enlace se cierra vía onClick.)
   useEffect(() => {
@@ -162,7 +164,8 @@ export function Header() {
               "transition-opacity hover:opacity-70",
             )}
             aria-label="Cuenta"
-            /* TODO: wired in feature/overlay-state */
+            aria-haspopup="dialog"
+            onClick={openAccount}
           >
             <svg
               className={clsx("w-5 h-5", textColor)}
@@ -189,7 +192,8 @@ export function Header() {
               "transition-opacity hover:opacity-70",
             )}
             aria-label="Carrito"
-            /* TODO: wired in feature/overlay-state */
+            aria-haspopup="dialog"
+            onClick={openCart}
           >
             <svg
               className={clsx("w-5 h-5", textColor)}

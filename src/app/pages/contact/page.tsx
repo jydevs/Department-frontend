@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { ContactOverlays } from "./ContactOverlays";
 
 export const metadata: Metadata = { title: "Community" };
 
 /**
- * SCAFFOLD — "DAREGULAR MEMBERS" page. The header renders its solid (light)
- * variant here. Polished in `feature/account-modal`.
+ * "DAREGULAR MEMBERS" page. The header renders its solid (light) variant here;
+ * the account panel opens from the header account icon (see `OverlayProvider`).
  */
 export default function ContactPage() {
   return (
@@ -13,7 +12,6 @@ export default function ContactPage() {
       <h1 className="font-display text-4xl text-dept-black md:text-5xl">
         Daregular Members
       </h1>
-      <ContactOverlays />
     </div>
   );
 }
