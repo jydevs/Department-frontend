@@ -13,21 +13,28 @@ const PARAGRAPHS = [
 
 export function EditorialBlock() {
   return (
-    <section className="grid grid-cols-1 gap-8 bg-dept-black px-6 py-16 md:grid-cols-2 md:gap-12">
-      <PlaceholderImage
-        label="Editorial — persona agachada con fajo de billetes, tenis rojos"
-        ratio="3 / 4"
-        tone="dark"
-        hideLabel
-      />
-      <div className="flex flex-col justify-center">
-        <h2 className="font-display text-3xl text-dept-white sm:text-4xl">
-          Rags to Riches – Extended Version
-        </h2>
-        <div className="font-body mt-6 space-y-4 text-sm text-dept-white/80">
-          {PARAGRAPHS.map((p) => (
-            <p key={p.slice(0, 24)}>{p}</p>
-          ))}
+    <section className="bg-dept-black px-6 py-16 md:px-10 md:py-24">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-center md:gap-14">
+        <PlaceholderImage
+          label="Editorial — persona agachada con fajo de billetes, tenis rojos"
+          ratio="3 / 4"
+          tone="dark"
+          hideLabel
+        />
+        <div className="flex flex-col">
+          <h2 className="font-display text-dept-white text-3xl sm:text-4xl lg:text-5xl leading-[0.95]">
+            RAGS TO RICHES – EXTENDED VERSION
+          </h2>
+          <div className="font-body mt-6 space-y-4 text-sm text-dept-white/80 sm:text-base">
+            {PARAGRAPHS.map((p, idx) => (
+              <p
+                key={p.slice(0, 24)}
+                className={idx === 0 ? "text-dept-white font-medium" : undefined}
+              >
+                {p}
+              </p>
+            ))}
+          </div>
         </div>
       </div>
     </section>
