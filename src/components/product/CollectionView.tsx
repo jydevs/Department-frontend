@@ -28,7 +28,7 @@ export function CollectionView({ products }: { products: Product[] }) {
   }, [products, filter]);
 
   return (
-    <div>
+    <div className="min-h-[50vh] w-full bg-dept-black pb-16">
       <FilterBar count={visible.length} value={filter} onChange={setFilter} />
       <ProductGrid products={visible} />
     </div>
