@@ -42,13 +42,17 @@ export default async function CollectionPage({
 
   return (
     <div>
-      <section className="relative h-[40vh] min-h-[280px] w-full overflow-hidden">
+      <section className="relative h-[45vh] min-h-[300px] w-full overflow-hidden">
         <PlaceholderImage
           label={collection.heroImageLabel}
           tone="dark"
           hideLabel
           fill
-          className="grayscale"
+          className="grayscale opacity-80"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/70 to-transparent"
         />
         <h1 className="font-display absolute bottom-6 left-6 text-5xl text-dept-white md:bottom-10 md:left-10 md:text-7xl">
           {collection.title}
