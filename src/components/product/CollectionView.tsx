@@ -28,9 +28,12 @@ export function CollectionView({ products }: { products: Product[] }) {
   }, [products, filter]);
 
   return (
-    <div className="min-h-[50vh] w-full bg-dept-black pb-16">
+    <div className="min-h-[50vh] w-full bg-dept-black pb-[var(--section-y)]">
+      <h2 className="sr-only">Productos</h2>
       <FilterBar count={visible.length} value={filter} onChange={setFilter} />
-      <ProductGrid products={visible} />
+      <div className="pt-10 md:pt-14">
+        <ProductGrid products={visible} priorityCount={4} />
+      </div>
     </div>
   );
 }
