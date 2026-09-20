@@ -11,8 +11,14 @@ export interface Product {
   badge?: ProductBadge;
   /** collection handles this product belongs to */
   collections: CollectionHandle[];
-  /** short label used by the placeholder image until real renders exist */
+  /** short label used as alt text / placeholder label */
   imageLabel: string;
+  /** gallery: [0] = card image, [1] = card hover image (if present) */
+  images: string[];
+  /** sizes offered (mock — no inventory backend) */
+  sizes: string[];
+  /** short product blurb (mock copy) */
+  description: string;
 }
 
 export type CollectionHandle = "all" | "men" | "women";
