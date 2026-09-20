@@ -1,10 +1,16 @@
+import Image from "next/image";
 import { clsx } from "@/lib/clsx";
 
 type Tone = "dark" | "light" | "accent" | "cold";
 
 interface PlaceholderImageProps {
-  /** short description of the real asset that belongs here */
+  /** short description of the real asset that belongs here (used as alt text) */
   label: string;
+  /**
+   * Real image URL. When set, the photo is rendered (object-cover) and the
+   * placeholder box is skipped. When absent, the tinted stand-in is shown.
+   */
+  src?: string;
   /** CSS aspect-ratio, e.g. "3 / 4", "16 / 9", "1 / 1". Ignored when `fill`. */
   ratio?: string;
   tone?: Tone;
@@ -32,12 +38,36 @@ const toneStyles: Record<Tone, string> = {
  */
 export function PlaceholderImage({
   label,
+  src,
   ratio = "3 / 4",
   tone = "dark",
   className,
   hideLabel = false,
   fill = false,
+  priority = false,
 }: PlaceholderImageProps) {
+  if (src) {
+    return (
+      <div
+        style={fill ? undefined : { aspectRatio: ratio }}
+        className={clsx(
+          "overflow-hidden bg-dept-black",
+          fill ? "absolute inset-0 h-full w-full" : "relative w-full",
+          className,
+        )}
+      >
+        <Image
+          src={src}
+          alt={label}
+          fill
+          priority={priority}
+          sizes="100vw"
+          className="object-cover"
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       role="img"
