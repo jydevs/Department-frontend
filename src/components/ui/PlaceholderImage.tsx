@@ -23,6 +23,10 @@ interface PlaceholderImageProps {
    */
   fill?: boolean;
   priority?: boolean;
+  /** `sizes` attribute for next/image (default 100vw) */
+  sizes?: string;
+  /** extra classes for the <img> itself (hover zoom, grayscale…) */
+  imgClassName?: string;
 }
 
 const toneStyles: Record<Tone, string> = {
@@ -45,6 +49,8 @@ export function PlaceholderImage({
   hideLabel = false,
   fill = false,
   priority = false,
+  sizes = "100vw",
+  imgClassName,
 }: PlaceholderImageProps) {
   if (src) {
     return (
@@ -61,8 +67,8 @@ export function PlaceholderImage({
           alt={label}
           fill
           priority={priority}
-          sizes="100vw"
-          className="object-cover"
+          sizes={sizes}
+          className={clsx("object-cover", imgClassName)}
         />
       </div>
     );
