@@ -1,26 +1,48 @@
 # Assets
 
-## Current state: placeholders
+## Current state: lookbook photos wired, product renders still placeholders
 
-Every image slot in the UI renders `<PlaceholderImage>` (`src/components/ui/PlaceholderImage.tsx`)
-— a labelled, tinted box with the correct aspect ratio. No real photography or
-product renders are committed yet.
+`<PlaceholderImage>` (`src/components/ui/PlaceholderImage.tsx`) accepts an optional
+`src`. With `src` it renders the photo through `next/image` (`object-cover`, `alt` =
+`label`); without it, it falls back to the labelled, tinted stand-in box.
 
-## Why
+16 optimised lookbook photos live in `public/images/` (1500×2250 JPG, q80,
+~300–600 KB each, ~6.6 MB total):
 
-The only source material available is `iamgenes de la pagina/` — **70 raw photos,
-~921 MB** (git-ignored). These are campaign / editorial shots at full resolution;
-they are **not** web-optimised and do **not** include the flat product renders
-(garment on black) used in the product cards.
+| Slot | File |
+| --- | --- |
+| Home – hero | `home-hero.jpg` |
+| Home – new arrivals | `new-arrivals.jpg` |
+| Home – split banner | `banner-women.jpg`, `banner-men.jpg` |
+| Home – editorial block | `editorial.jpg` |
+| `/collections/{all,men,women}` hero | `collection-{handle}.jpg` |
+| Product cards (8) | `product-{handle}.jpg` |
 
-## To wire in real assets (future PR)
+## Why they don't match the reference site
 
-1. Pick the shots that match each section of the reference screenshots.
-2. Optimise: resize to sensible widths, convert to WebP/AVIF, target < 300 KB each.
-3. Drop them in `public/images/` and swap `<PlaceholderImage>` for `next/image`.
-4. Obtain the real **product renders** and the two **logo assets**
-   (red graffiti "DEPT", black script "Dept") from the brand owner.
-5. Replace the sampled color tokens in `globals.css` with the official brand codes.
+The source folder `iamgenes de la pagina/` (**70 raw photos, ~921 MB**, git-ignored)
+is a *different photoshoot* from the one on daregulardept.com. It is a daytime
+lookbook against a grey graffiti wall plus a few night group shots. It does **not**
+contain the reference's cold-blue balaclava hero, the banknote-fan editorial shot,
+the pink/multicolour graffiti banners, or the **flat product renders** (garment on
+black) used in the product cards. The current picks are the closest fit by role.
+
+## Still missing
+
+1. The real **product renders** (flat, on black) — the cards currently show model shots.
+2. The reference **hero** (two people in balaclavas, cold blue) and **editorial**
+   (crouching person with banknotes, red sneakers) photos.
+3. The two **logo** vectors (red graffiti "DEPT", black script "Dept").
+4. The official **brand colour codes** — tokens in `globals.css` are sampled by eye.
+
+## Adding / swapping a photo
+
+1. Resize to ≤ 1500 px wide and export JPG/WebP/AVIF, target < 300 KB.
+2. Drop it in `public/images/` using the naming above.
+3. Pass it as `src` to the matching `<PlaceholderImage>`.
+
+> `.gitignore` ignores the raw folders by directory. Don't re-add a global `*.JPG`
+> rule: with `core.ignorecase=true` (Windows) it also ignores `public/images/*.jpg`.
 
 ## Fonts (stand-ins)
 
