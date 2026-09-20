@@ -6,8 +6,8 @@
 `src`. With `src` it renders the photo through `next/image` (`object-cover`, `alt` =
 `label`); without it, it falls back to the labelled, tinted stand-in box.
 
-16 optimised lookbook photos live in `public/images/` (1500×2250 JPG, q80,
-~300–600 KB each, ~6.6 MB total):
+38 optimised lookbook photos live in `public/images/` (JPG, q76–80, ~200–600 KB each,
+~12.5 MB total):
 
 | Slot | File |
 | --- | --- |
@@ -16,7 +16,9 @@
 | Home – split banner | `banner-women.jpg`, `banner-men.jpg` |
 | Home – editorial block | `editorial.jpg` |
 | `/collections/{all,men,women}` hero | `collection-{handle}.jpg` |
-| Product cards (8) | `product-{handle}.jpg` |
+| Product cards (8) | `product-{handle}.jpg` (+ `-2`, `-3` = hover / PDP gallery) |
+| Community gallery (10) | `community-01..10.jpg` |
+| New arrivals background | `community-02.jpg` |
 
 ## Why they don't match the reference site
 

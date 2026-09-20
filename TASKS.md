@@ -122,3 +122,23 @@ aprobación del humano** antes de la siguiente tanda.
   "Pedidos / Perfil" son solo UI — llevan comentarios `TODO` en el código.
 - **Códigos de marca**: los tokens de color en `globals.css` están muestreados
   de las capturas; sustituir por los hex oficiales.
+
+---
+
+## Rediseño 2026 (`feature/redesign-2026`)
+
+Sistema de diseño y páginas nuevas, verificadas con capturas headless (desktop + móvil),
+axe (a11y) y flujos E2E sobre el build de producción.
+
+- **Sistema**: escala tipográfica fluida (`text-display-*`), tokens de ritmo (`--gutter`, `--section-y`),
+  motion (`Reveal`, `Marquee`, parallax por scroll, máscara de titulares), grano de película,
+  `Button`, foco visible y `prefers-reduced-motion`.
+- **Chrome**: header fijo con ticker, se oculta al bajar, contador de carrito, búsqueda (`/` o ⌘K)
+  y menú móvil a pantalla completa; footer completo con wordmark gigante; 404 de marca.
+- **Home**: hero con reveal + CTAs, banda de marquee, new arrivals con parallax, colecciones 50/50,
+  campaña en grid 3-up, manifiesto y valores en filas con hairlines.
+- **Tienda completa**: ficha `/products/[handle]` (galería, tallas, cantidad, barra sticky móvil),
+  carrito real (localStorage, drawer con líneas/cantidades/subtotal), añadir rápido por talla,
+  segunda foto al hover, buscador a pantalla completa, filtros y colección con tabs, Community con lookbook.
+- **Pendiente**: assets reales (renders planos, hero de pasamontañas, logos vectoriales), checkout / login /
+  newsletter reales (backend), códigos de marca oficiales.
