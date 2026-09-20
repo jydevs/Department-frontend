@@ -11,6 +11,7 @@
   --dept-white: #ffffff;
   --dept-red: #e10e0e;
   --dept-red-dark: #7c0d0d;
+  --dept-red-light: #ff5a52; /* red for small TEXT on black (AA contrast) */
   --dept-blue: #4f7bd6; /* "Iniciar sesión con shop" button */
   --dept-gray-100: #f2f2f2;
   --dept-gray-300: #cfcfcf;
@@ -41,6 +42,7 @@
   --color-dept-white: var(--dept-white);
   --color-dept-red: var(--dept-red);
   --color-dept-red-dark: var(--dept-red-dark);
+  --color-dept-red-light: var(--dept-red-light);
   --color-dept-blue: var(--dept-blue);
   --color-dept-gray-100: var(--dept-gray-100);
   --color-dept-gray-300: var(--dept-gray-300);
@@ -57,7 +59,7 @@
   --font-script: var(--font-pinyon), "Brush Script MT", cursive;
 
   /* fluid display scale */
-  --text-display-2xl: clamp(3.4rem, 12.5vw, 12.5rem);
+  --text-display-2xl: clamp(3.2rem, 11vw, 11.25rem);
   --text-display-2xl--line-height: 0.86;
   --text-display-xl: clamp(2.75rem, 8.2vw, 8rem);
   --text-display-xl--line-height: 0.9;

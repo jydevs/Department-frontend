@@ -92,7 +92,7 @@ export function SearchResultRow({ product, id, active, onHover, onSelect }: Sear
         <span
           aria-hidden
           className={clsx(
-            "shrink-0 font-condensed text-xl text-dept-red transition-[opacity,transform] duration-300 ease-out-expo",
+            "shrink-0 font-condensed text-xl text-dept-red-light transition-[opacity,transform] duration-300 ease-out-expo",
             active ? "translate-x-0 opacity-100" : "-translate-x-2 opacity-0",
           )}
         >

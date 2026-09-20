@@ -234,7 +234,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
           })}
         </div>
         {/* always mounted so the alert is announced when its text appears; reserved height = no layout shift */}
-        <p id={errorId} role="alert" className="mt-2 min-h-5 font-body text-[13px] text-dept-red">
+        <p id={errorId} role="alert" className="mt-2 min-h-5 font-body text-[13px] text-dept-red-light">
           {showError ? "Selecciona una talla" : null}
         </p>
       </div>

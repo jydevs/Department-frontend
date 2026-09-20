@@ -68,7 +68,7 @@ export function ProductCard({
         {!soldOut && <QuickAdd product={product} />}
       </div>
 
-      <div className="mt-3 flex items-start justify-between gap-4 pb-1">
+      <div className="mt-3 flex flex-col gap-1 pb-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <h3 className="font-condensed min-w-0 text-[13px] leading-snug tracking-[0.1em] text-dept-white">
           <Link
             href={`/products/${product.handle}`}
@@ -77,13 +77,13 @@ export function ProductCard({
             {product.name}
           </Link>
         </h3>
-        <p className="font-condensed shrink-0 text-right text-[13px] leading-snug tracking-[0.06em] text-dept-white tabular-nums">
+        <p className="font-condensed shrink-0 text-[13px] sm:text-right leading-snug tracking-[0.06em] text-dept-white tabular-nums">
           {onSale && (
             <span className="mr-2 text-dept-gray-500 line-through">
               {formatCOP(product.compareAtPrice as number)}
             </span>
           )}
-          <span className={clsx(onSale && "text-dept-red")}>{formatCOP(product.price)}</span>
+          <span className={clsx(onSale && "text-dept-red-light")}>{formatCOP(product.price)}</span>
         </p>
       </div>
     </article>

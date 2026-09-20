@@ -103,7 +103,7 @@ export function NewsletterFooter() {
               aria-live="polite"
               className={clsx(
                 "font-condensed mt-4 min-h-5 text-sm tracking-[0.1em]",
-                state === "error" && "text-dept-red",
+                state === "error" && "text-dept-red-light",
                 state === "success" && "text-dept-white",
               )}
             >
