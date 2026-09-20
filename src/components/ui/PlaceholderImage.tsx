@@ -57,8 +57,8 @@ export function PlaceholderImage({
       <div
         style={fill ? undefined : { aspectRatio: ratio }}
         className={clsx(
-          "overflow-hidden bg-dept-black",
-          fill ? "absolute inset-0 h-full w-full" : "relative w-full",
+          "overflow-hidden",
+          fill ? "absolute inset-0 h-full w-full" : "relative w-full bg-dept-black",
           className,
         )}
       >
