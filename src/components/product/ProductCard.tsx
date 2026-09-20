@@ -31,6 +31,7 @@ export function ProductCard({ product, className }: ProductCardProps) {
       <div className="overflow-hidden transition-opacity duration-200 group-hover:opacity-90">
         <PlaceholderImage
           label={product.imageLabel}
+          src={`/images/product-${product.handle}.jpg`}
           ratio="4 / 5"
           tone="dark"
         />

@@ -10,10 +10,12 @@ export function Hero() {
     <section className="relative min-h-screen w-full overflow-hidden">
       {/* Background image: cold-toned placeholder */}
       <PlaceholderImage
-        label="Hero — dos personas con pasamontañas, tono azul frío"
+        label="Grupo del lookbook Rags to Riches, de noche"
+        src="/images/home-hero.jpg"
         tone="cold"
         hideLabel
         fill
+        priority
       />
 
       {/* Scrim: gradient for text legibility */}

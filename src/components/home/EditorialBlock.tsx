@@ -16,7 +16,8 @@ export function EditorialBlock() {
     <section className="bg-dept-black px-6 py-16 md:px-10 md:py-24">
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-center md:gap-14">
         <PlaceholderImage
-          label="Editorial — persona agachada con fajo de billetes, tenis rojos"
+          label="Editorial — pareja del lookbook en las escaleras"
+          src="/images/editorial.jpg"
           ratio="3 / 4"
           tone="dark"
           hideLabel

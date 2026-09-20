@@ -45,9 +45,11 @@ export default async function CollectionPage({
       <section className="relative h-[45vh] min-h-[300px] w-full overflow-hidden">
         <PlaceholderImage
           label={collection.heroImageLabel}
+          src={`/images/collection-${handle}.jpg`}
           tone="dark"
           hideLabel
           fill
+          priority
           className="grayscale opacity-80"
         />
         <div

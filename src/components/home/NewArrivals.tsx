@@ -16,7 +16,8 @@ export function NewArrivals() {
         con el clip real (estética VHS). Mientras tanto, placeholder frío:
       */}
       <PlaceholderImage
-        label="New arrivals — clip de vídeo con estética VHS"
+        label="New arrivals — grupo del lookbook de noche"
+        src="/images/new-arrivals.jpg"
         tone="cold"
         hideLabel
         fill

@@ -11,12 +11,14 @@ const HALVES = [
   {
     label: "Women",
     href: "/collections/women",
+    src: "/images/banner-women.jpg",
     tone: "light" as const,
     overlayClass: "bg-[#e0559b]/35 mix-blend-multiply",
   },
   {
     label: "Men",
     href: "/collections/men",
+    src: "/images/banner-men.jpg",
     tone: "dark" as const,
     overlayClass: "bg-gradient-to-br from-[#2a6df4]/25 via-[#f4a72a]/20 to-[#e01010]/25",
   },
@@ -36,6 +38,7 @@ export function SplitBanner() {
           <div className="relative h-full w-full overflow-hidden transition-transform duration-500 group-hover:scale-[1.03]">
             <PlaceholderImage
               label={`${half.label} — banner de colección`}
+              src={half.src}
               ratio="4 / 5"
               tone={half.tone}
               hideLabel
