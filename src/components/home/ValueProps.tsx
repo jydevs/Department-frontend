@@ -69,7 +69,7 @@ export function ValueProps() {
               </div>
               <div>
                 <h3 className="font-display text-display-md">{value.title}</h3>
-                <p className="mt-3 max-w-[26ch] text-sm text-dept-white/60 transition-colors group-hover:text-dept-black/70">
+                <p className="mt-3 max-w-[36ch] text-sm text-dept-white/60 transition-colors group-hover:text-dept-black/70">
                   {value.subtitle}
                 </p>
               </div>

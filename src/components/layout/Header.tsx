@@ -196,13 +196,13 @@ export function Header() {
                     <Link
                       href={item.href}
                       aria-current={active ? "page" : undefined}
-                      className="link-underline font-condensed inline-flex items-start gap-1 py-1 text-[13px] tracking-[0.2em] text-dept-white"
+                      className="link-underline font-condensed inline-flex items-start gap-1.5 py-1 text-[13px] tracking-[0.2em] text-dept-white"
                     >
                       {item.label}
                       {item.sup && (
-                        <sup className="mt-[-2px] text-[9px] tracking-normal text-dept-gray-300">
+                        <span aria-hidden className="mt-px text-[9px] leading-none tracking-normal text-dept-gray-300">
                           {item.sup}
-                        </sup>
+                        </span>
                       )}
                     </Link>
                   </li>

@@ -64,7 +64,8 @@ export const products: Product[] = [
     price: 120000,
     collections: ["all", "men"],
     imageLabel: "Guerrilla short",
-    images: gallery("guerrilla-short", 3),
+    // photo order tuned so the first shot actually shows the shorts
+    images: ["/images/product-guerrilla-short-2.jpg", "/images/product-guerrilla-short.jpg", "/images/product-guerrilla-short-3.jpg"],
     sizes: SIZES,
     description: "Short de la colección Rags to Riches – Extended Version.",
   },

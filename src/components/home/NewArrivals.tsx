@@ -17,8 +17,8 @@ export function NewArrivals() {
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className="parallax-y absolute -inset-y-[12%] inset-x-0">
           <PlaceholderImage
-            label="Lookbook — el grupo de noche, de pie"
-            src="/images/new-arrivals.jpg"
+            label="Lookbook — pareja con hoodies 404 frente a una persiana metálica"
+            src="/images/community-02.jpg"
             tone="cold"
             hideLabel
             fill
