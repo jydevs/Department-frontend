@@ -26,6 +26,14 @@
   --section-y: clamp(4.5rem, 9vw, 9rem);
   --announce-h: 36px;
   --header-h: 72px;
+  /* fixed chrome (announcement + header). Pages without a full-bleed hero start with pt-[var(--chrome-h)] */
+  --chrome-h: calc(var(--announce-h) + var(--header-h));
+}
+
+@media (max-width: 767px) {
+  :root {
+    --header-h: 60px;
+  }
 }
 
 @theme inline {
