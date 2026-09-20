@@ -1,63 +1,73 @@
 import Link from "next/link";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
+import { Reveal } from "@/components/ui/Reveal";
+import { getCollectionProducts } from "@/data/products";
 
 /**
- * 50/50 split banner with linked collections.
- * WOMEN (pink graffiti) → /collections/women
- * MEN (multicolour graffiti) → /collections/men
- * Stacks vertically on mobile, side-by-side from sm breakpoint.
+ * 50/50 collection entry: WOMEN → /collections/women, MEN → /collections/men.
+ * Photos start slightly desaturated and bloom on hover; a square arrow fills in.
+ * Stacks on mobile.
  */
-const HALVES = [
+const TILES = [
   {
     label: "Women",
-    href: "/collections/women",
+    handle: "women" as const,
     src: "/images/banner-women.jpg",
-    tone: "light" as const,
-    overlayClass: "bg-[#e0559b]/35 mix-blend-multiply",
+    alt: "Colección Women — mujer de pie frente a un muro con grafiti",
   },
   {
     label: "Men",
-    href: "/collections/men",
+    handle: "men" as const,
     src: "/images/banner-men.jpg",
-    tone: "dark" as const,
-    overlayClass: "bg-gradient-to-br from-[#2a6df4]/25 via-[#f4a72a]/20 to-[#e01010]/25",
+    alt: "Colección Men — grupo posando frente a un muro",
   },
 ];
 
 export function SplitBanner() {
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-2">
-      {HALVES.map((half) => (
-        <Link
-          key={half.href}
-          href={half.href}
-          aria-label={`Ver colección ${half.label}`}
-          className="group relative block overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dept-white"
-        >
-          {/* Image wrapper with hover scale effect */}
-          <div className="relative h-full w-full overflow-hidden transition-transform duration-500 group-hover:scale-[1.03]">
-            <PlaceholderImage
-              label={`${half.label} — banner de colección`}
-              src={half.src}
-              ratio="4 / 5"
-              tone={half.tone}
-              hideLabel
-              className="h-full w-full"
-            />
+    <section aria-label="Colecciones" className="grid gap-px bg-white/10 md:grid-cols-2">
+      {TILES.map((tile, i) => {
+        const count = getCollectionProducts(tile.handle).length;
+        return (
+          <Reveal key={tile.handle} delay={i * 120} className="h-full bg-dept-black">
+            <Link
+              href={`/collections/${tile.handle}`}
+              aria-label={`Ver colección ${tile.label}`}
+              className="group relative block aspect-[4/5] overflow-hidden md:aspect-auto md:h-[92svh]"
+            >
+              <PlaceholderImage
+                label={tile.alt}
+                src={tile.src}
+                tone="dark"
+                hideLabel
+                fill
+                sizes="(min-width: 768px) 50vw, 100vw"
+                imgClassName="saturate-[0.8] transition-[transform,filter] duration-[1600ms] ease-out-expo group-hover:scale-105 group-hover:saturate-100"
+              />
+              <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
-            {/* Color overlay */}
-            <span
-              aria-hidden
-              className={`absolute inset-0 pointer-events-none ${half.overlayClass}`}
-            />
-          </div>
-
-          {/* Text label */}
-          <span className="font-display absolute left-1/2 top-8 -translate-x-1/2 text-2xl sm:text-3xl text-dept-white">
-            {half.label}
-          </span>
-        </Link>
-      ))}
+              <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-6 p-[var(--gutter)]">
+                <div>
+                  <p className="font-condensed mb-3 text-[11px] tracking-[0.28em] text-dept-white/80">
+                    0{i + 1} — {String(count).padStart(2, "0")} piezas
+                  </p>
+                  <span className="font-display block text-display-xl text-dept-white transition-transform duration-700 ease-out-expo group-hover:translate-x-2">
+                    {tile.label}
+                  </span>
+                </div>
+                <span
+                  aria-hidden
+                  className="flex h-14 w-14 shrink-0 items-center justify-center border border-white/40 text-dept-white transition-colors duration-500 ease-out-expo group-hover:border-dept-white group-hover:bg-dept-white group-hover:text-dept-black md:h-16 md:w-16"
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7 17L17 7M8 7h9v9" />
+                  </svg>
+                </span>
+              </div>
+            </Link>
+          </Reveal>
+        );
+      })}
     </section>
   );
 }
