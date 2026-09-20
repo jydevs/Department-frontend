@@ -7,6 +7,8 @@ interface MarqueeProps {
   reverse?: boolean;
   /** glyph between items */
   separator?: string;
+  /** colour of the separator glyph (default red) */
+  separatorClassName?: string;
   className?: string;
   /** item typography, e.g. "font-display text-6xl" */
   itemClassName?: string;
@@ -22,6 +24,7 @@ export function Marquee({
   duration = 40,
   reverse = false,
   separator = "✦",
+  separatorClassName = "text-dept-red",
   className,
   itemClassName,
   pauseOnHover = true,
@@ -34,7 +37,7 @@ export function Marquee({
       {items.map((item, i) => (
         <li key={`${item}-${i}`} className="flex shrink-0 items-center">
           <span className={clsx("whitespace-nowrap px-[0.6em]", itemClassName)}>{item}</span>
-          <span aria-hidden className="text-dept-red px-[0.4em] leading-none">
+          <span aria-hidden className={clsx("px-[0.4em] leading-none", separatorClassName)}>
             {separator}
           </span>
         </li>

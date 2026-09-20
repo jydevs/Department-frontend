@@ -146,7 +146,7 @@
   /* outlined display text (marquees, big numerals) */
   .text-outline {
     color: transparent;
-    -webkit-text-stroke: 1.5px currentColor;
+    -webkit-text-stroke: 1.5px var(--stroke, var(--dept-white));
   }
 
   /* underline that draws in from the left on hover */
@@ -244,6 +244,43 @@
   }
 }
 
+@keyframes pop {
+  0% {
+    transform: scale(0.5);
+  }
+  60% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes scrollcue {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(200%);
+  }
+}
+
+/* scroll-driven parallax (progressive enhancement: Chromium / Safari 26) */
+@keyframes parallax-y {
+  from {
+    transform: translateY(-9%);
+  }
+  to {
+    transform: translateY(9%);
+  }
+}
+@supports (animation-timeline: view()) {
+  .parallax-y {
+    animation: parallax-y linear both;
+    animation-timeline: view();
+  }
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;
@@ -283,7 +320,8 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  .marquee-inner {
+  .marquee-inner,
+  .parallax-y {
     animation: none !important;
   }
 }
