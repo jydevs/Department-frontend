@@ -28,6 +28,21 @@ yarn dev          # http://localhost:3000
 | `yarn lint` | ESLint |
 | `yarn typecheck` | `tsc --noEmit` |
 
+## Variables de entorno
+
+| Variable | Default | Uso |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Origen canónico (metadata, Open Graph, sitemap, JSON-LD). Sin `/` final. |
+| `NEXT_PUBLIC_INDEXABLE` | `false` | `true` permite indexación. Por defecto el sitio es `noindex` y `robots.txt` bloquea todo (es una réplica). |
+
+## SEO y producción
+
+- `robots.txt` y `sitemap.xml` generados (`src/app/robots.ts`, `sitemap.ts`).
+- Imagen Open Graph global y por producto (`opengraph-image.tsx`, 1200×630).
+- JSON-LD `Product` y `canonical` en cada ficha.
+- `error.tsx` / `global-error.tsx` con la marca; cabeceras de seguridad en `next.config.ts`.
+- CI (`.github/workflows/ci.yml`): lint + typecheck + build en cada PR.
+
 ## Estructura
 
 ```
