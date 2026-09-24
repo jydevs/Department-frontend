@@ -142,3 +142,9 @@ axe (a11y) y flujos E2E sobre el build de producción.
   segunda foto al hover, buscador a pantalla completa, filtros y colección con tabs, Community con lookbook.
 - **Pendiente**: assets reales (renders planos, hero de pasamontañas, logos vectoriales), checkout / login /
   newsletter reales (backend), códigos de marca oficiales.
+
+### Listo para producción (`feature/production-ready`)
+
+SEO (metadata, OG, sitemap, robots, JSON-LD), `error.tsx`, cabeceras de seguridad, carrito validado
+(tallas / agotados), CI de GitHub y LCP del hero mejorado (Lighthouse móvil: perf 82 → 89).
+Pendiente: despliegue (Vercel), backend, assets reales.

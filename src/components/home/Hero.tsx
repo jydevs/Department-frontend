@@ -35,12 +35,12 @@ export function Hero() {
 
         <h1 className="font-display text-display-2xl text-dept-white">
           <span className="mask-line">
-            <span className="mask-line-inner" style={{ ["--d" as string]: "150ms" }}>
-              Uniforms for
+            <span className="mask-line-inner" style={{ ["--d" as string]: "0ms" }}>
+              Uniforms for{" "}
             </span>
           </span>
           <span className="mask-line">
-            <span className="mask-line-inner" style={{ ["--d" as string]: "290ms" }}>
+            <span className="mask-line-inner" style={{ ["--d" as string]: "70ms" }}>
               the unnoticed<span className="text-dept-red">.</span>
             </span>
           </span>

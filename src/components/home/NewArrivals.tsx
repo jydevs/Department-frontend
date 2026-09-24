@@ -37,7 +37,7 @@ export function NewArrivals() {
           </Reveal>
           <Reveal delay={100}>
             <h2 className="font-display text-display-2xl text-dept-white">
-              New
+              New{" "}
               <span className="text-outline block">Arrivals</span>
             </h2>
           </Reveal>

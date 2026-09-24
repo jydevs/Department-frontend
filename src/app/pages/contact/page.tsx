@@ -19,7 +19,7 @@ export default function CommunityPage() {
         </p>
         <h1 className="font-display text-display-xl text-dept-white">
           <span className="mask-line">
-            <span className="mask-line-inner">Daregular</span>
+            <span className="mask-line-inner">Daregular{" "}</span>
           </span>
           <span className="mask-line">
             <span className="mask-line-inner" style={{ ["--d" as string]: "120ms" }}>

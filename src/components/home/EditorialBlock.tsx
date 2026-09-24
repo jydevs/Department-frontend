@@ -43,7 +43,7 @@ export function EditorialBlock() {
               03 — Manifiesto
             </p>
             <h2 id="editorial-title" className="font-display text-display-lg text-dept-white">
-              Rags to Riches –<br />
+              Rags to Riches –{" "}<br />
               Extended Version
             </h2>
           </Reveal>
