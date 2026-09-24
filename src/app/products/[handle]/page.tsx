@@ -5,6 +5,7 @@ import { Reveal } from "@/components/ui/Reveal";
 import { ProductGallery } from "@/components/product/ProductGallery";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { ProductInfo } from "@/components/product/ProductInfo";
+import { SITE_NAME, absoluteUrl } from "@/lib/site";
 
 type PageProps = { params: Promise<{ handle: string }> };
 
@@ -16,7 +17,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { handle } = await params;
   const product = getProduct(handle);
   if (!product) return {};
-  return { title: product.name, description: product.description };
+  return {
+    title: product.name,
+    description: product.description,
+    alternates: { canonical: `/products/${product.handle}` },
+    openGraph: { type: "website", title: product.name, description: product.description },
+  };
 }
 
 /**
@@ -30,8 +36,32 @@ export default async function ProductPage({ params }: PageProps) {
 
   const related = getRelatedProducts(handle, 4);
 
+  // schema.org Product (rich results). Prices are COP, exactly as shown on the page.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description,
+    image: product.images.map((src) => absoluteUrl(src)),
+    brand: { "@type": "Brand", name: SITE_NAME },
+    url: absoluteUrl(`/products/${product.handle}`),
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "COP",
+      price: product.price,
+      availability:
+        product.badge === "agotado" ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+      url: absoluteUrl(`/products/${product.handle}`),
+    },
+  };
+
   return (
     <article className="pt-[var(--chrome-h)]">
+      <script
+        type="application/ld+json"
+        // JSON.stringify output only; `<` escaped so the payload cannot close the tag
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\u003c") }}
+      />
       <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:items-start">
         <ProductGallery images={product.images} name={product.name} imageLabel={product.imageLabel} />
         <ProductInfo product={product} />
