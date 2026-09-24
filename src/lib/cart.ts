@@ -37,7 +37,9 @@ function sanitize(raw: unknown): CartLine[] {
     if (!entry || typeof entry !== "object") continue;
     const { handle, size, qty } = entry as Record<string, unknown>;
     if (typeof handle !== "string" || typeof size !== "string" || typeof qty !== "number") continue;
-    if (!getProduct(handle)) continue;
+    const product = getProduct(handle);
+    if (!product || !product.sizes.includes(size) || product.badge === "agotado") continue;
+    if (!Number.isFinite(qty)) continue;
     out.push({ handle, size, qty: Math.min(MAX_QTY, Math.max(1, Math.floor(qty))) });
   }
   return out.length ? out : EMPTY;
@@ -89,18 +91,23 @@ const getServerSnapshot = () => EMPTY;
 
 /* ── actions ─────────────────────────────────────────────── */
 
-export function addToCart(handle: string, size: string, qty = 1) {
+/** Returns false (and does nothing) for unknown / sold-out products or sizes that don't exist. */
+export function addToCart(handle: string, size: string, qty = 1): boolean {
   load();
+  const product = getProduct(handle);
+  if (!product || !product.sizes.includes(size) || product.badge === "agotado") return false;
+  qty = Math.min(MAX_QTY, Math.max(1, Math.floor(qty) || 1));
   const i = lines.findIndex((l) => l.handle === handle && l.size === size);
   if (i === -1) {
     commit([...lines, { handle, size, qty: Math.min(MAX_QTY, qty) }]);
   } else {
     commit(lines.map((l, j) => (j === i ? { ...l, qty: Math.min(MAX_QTY, l.qty + qty) } : l)));
   }
+  return true;
 }
 
 export function setLineQty(handle: string, size: string, qty: number) {
-  if (qty <= 0) return removeFromCart(handle, size);
+  if (!Number.isFinite(qty) || qty <= 0) return removeFromCart(handle, size);
   commit(
     lines.map((l) =>
       l.handle === handle && l.size === size ? { ...l, qty: Math.min(MAX_QTY, qty) } : l,
