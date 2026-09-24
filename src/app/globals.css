@@ -310,7 +310,7 @@
 }
 .mask-line-inner {
   display: block;
-  animation: mask-up 1.1s var(--ease-out-expo) both;
+  animation: mask-up 0.8s var(--ease-out-expo) both;
   animation-delay: var(--d, 0ms);
 }
 

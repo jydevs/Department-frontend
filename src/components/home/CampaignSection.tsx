@@ -19,7 +19,7 @@ export function CampaignSection() {
             02 — Campaña
           </p>
           <h2 id="campaign-title" className="font-display text-display-xl text-dept-white">
-            Rags to Riches
+            Rags to Riches{" "}
             <span className="text-outline block">Extended Version</span>
           </h2>
         </Reveal>
