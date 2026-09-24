@@ -11,12 +11,14 @@ import {
 } from "react";
 import { AccountModal } from "./AccountModal";
 import { CartDrawer } from "./CartDrawer";
+import { SearchOverlay } from "./SearchOverlay";
 
-type Overlay = "account" | "cart" | null;
+type Overlay = "account" | "cart" | "search" | null;
 
 interface OverlayContextValue {
   openAccount: () => void;
   openCart: () => void;
+  openSearch: () => void;
   close: () => void;
   current: Overlay;
 }
@@ -24,9 +26,9 @@ interface OverlayContextValue {
 const OverlayContext = createContext<OverlayContextValue | null>(null);
 
 /**
- * Holds which global overlay (account panel / cart drawer) is open and renders
- * both. The header icons call `openAccount` / `openCart`; anything under the
- * provider can read the context via `useOverlay()`.
+ * Holds which global overlay (account panel / cart drawer / search) is open and
+ * renders all three. The header icons call `openAccount` / `openCart` /
+ * `openSearch`; anything under the provider can read the context via `useOverlay()`.
  */
 export function OverlayProvider({ children }: { children: ReactNode }) {
   const [current, setCurrent] = useState<Overlay>(null);
@@ -34,6 +36,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   const close = useCallback(() => setCurrent(null), []);
   const openAccount = useCallback(() => setCurrent("account"), []);
   const openCart = useCallback(() => setCurrent("cart"), []);
+  const openSearch = useCallback(() => setCurrent("search"), []);
 
   // lock body scroll while an overlay is open
   useEffect(() => {
@@ -46,8 +49,8 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   }, [current]);
 
   const value = useMemo(
-    () => ({ openAccount, openCart, close, current }),
-    [openAccount, openCart, close, current],
+    () => ({ openAccount, openCart, openSearch, close, current }),
+    [openAccount, openCart, openSearch, close, current],
   );
 
   return (
@@ -55,6 +58,7 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
       {children}
       <AccountModal open={current === "account"} onClose={close} />
       <CartDrawer open={current === "cart"} onClose={close} />
+      <SearchOverlay open={current === "search"} onClose={close} />
     </OverlayContext.Provider>
   );
 }

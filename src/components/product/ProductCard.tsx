@@ -3,70 +3,89 @@ import type { Product } from "@/data/types";
 import { formatCOP } from "@/lib/format";
 import { clsx } from "@/lib/clsx";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
+import { QuickAdd } from "./QuickAdd";
 
 interface ProductCardProps {
   product: Product;
+  /** `sizes` for the photo — pass the real column width for the slot */
+  sizes?: string;
+  priority?: boolean;
   className?: string;
 }
 
 /**
- * Product card: image, name, price, and optional badge.
- * Server component. No client interactivity.
+ * Product card: photo (cross-fades to the second shot on hover), badge,
+ * quick-add-by-size bar, then name + price. The whole card is one link
+ * (stretched-link pattern) so the quick-add buttons stay valid HTML siblings.
  */
-export function ProductCard({ product, className }: ProductCardProps) {
-  const badgeLabel = product.badge === "agotado" ? "Agotado" : "Oferta";
-  const hasBadge = !!product.badge;
+export function ProductCard({
+  product,
+  sizes = "(min-width: 1024px) 25vw, 50vw",
+  priority = false,
+  className,
+}: ProductCardProps) {
+  const soldOut = product.badge === "agotado";
+  const onSale = product.badge === "oferta" && product.compareAtPrice != null;
+  const [first, second] = product.images;
 
   return (
-    <Link
-      href={`/products/${product.handle}`}
-      aria-label={`${product.name} — ${formatCOP(product.price)}`}
-      className={clsx(
-        "group relative flex flex-col bg-dept-black text-dept-white no-underline",
-        "transition-opacity duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-dept-white",
-        className,
-      )}
-    >
-      {/* Image */}
-      <div className="overflow-hidden transition-opacity duration-200 group-hover:opacity-90">
+    <article className={clsx("group relative", className)}>
+      <div className="relative overflow-hidden bg-dept-gray-900">
         <PlaceholderImage
           label={product.imageLabel}
+          src={first}
           ratio="4 / 5"
           tone="dark"
+          sizes={sizes}
+          priority={priority}
+          imgClassName={clsx(
+            "transition-[transform,opacity] duration-700 ease-out-expo group-hover:scale-[1.04]",
+            second && "group-hover:opacity-0",
+            soldOut && "opacity-60 grayscale",
+          )}
         />
+        {second && (
+          <PlaceholderImage
+            label={`${product.imageLabel} — segunda vista`}
+            src={second}
+            fill
+            sizes={sizes}
+            imgClassName="scale-[1.04] opacity-0 transition-[transform,opacity] duration-700 ease-out-expo group-hover:scale-100 group-hover:opacity-100"
+          />
+        )}
+
+        {product.badge && (
+          <span
+            className={clsx(
+              "font-condensed absolute left-3 top-3 z-10 px-2.5 py-1 text-[10px] leading-none tracking-[0.2em]",
+              soldOut ? "bg-dept-white text-dept-black" : "bg-dept-red text-dept-white",
+            )}
+          >
+            {soldOut ? "Agotado" : "Oferta"}
+          </span>
+        )}
+
+        {!soldOut && <QuickAdd product={product} />}
       </div>
 
-      {/* Badge (if present) */}
-      {hasBadge && (
-        <div
-          className={clsx(
-            "absolute top-2 left-2 font-condensed uppercase px-2 py-px text-[10px] tracking-wider",
-            product.badge === "agotado"
-              ? "bg-dept-black text-dept-white"
-              : "bg-dept-red text-dept-white",
+      <div className="mt-3 flex flex-col gap-1 pb-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <h3 className="font-condensed min-w-0 text-[13px] leading-snug tracking-[0.1em] text-dept-white">
+          <Link
+            href={`/products/${product.handle}`}
+            className="link-underline after:absolute after:inset-0 after:z-10 after:content-['']"
+          >
+            {product.name}
+          </Link>
+        </h3>
+        <p className="font-condensed shrink-0 text-[13px] sm:text-right leading-snug tracking-[0.06em] text-dept-white tabular-nums">
+          {onSale && (
+            <span className="mr-2 text-dept-gray-500 line-through">
+              {formatCOP(product.compareAtPrice as number)}
+            </span>
           )}
-        >
-          {badgeLabel}
-        </div>
-      )}
-
-      {/* Bottom info bar */}
-      <div className="border-t border-white/15 px-3 py-2.5 flex flex-row justify-between items-start gap-3">
-        {/* Name (left) */}
-        <span className="font-condensed text-[12px] leading-tight text-dept-white flex-1">
-          {product.name}
-        </span>
-
-        {/* Price (right) */}
-        <div className="font-condensed text-[12px] text-dept-white whitespace-nowrap text-right">
-          <div>{formatCOP(product.price)}</div>
-          {product.compareAtPrice != null && (
-            <div className="line-through text-dept-gray-500">
-              {formatCOP(product.compareAtPrice)}
-            </div>
-          )}
-        </div>
+          <span className={clsx(onSale && "text-dept-red-light")}>{formatCOP(product.price)}</span>
+        </p>
       </div>
-    </Link>
+    </article>
   );
 }

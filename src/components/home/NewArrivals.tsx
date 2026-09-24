@@ -1,45 +1,56 @@
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
+import { Button } from "@/components/ui/Button";
+import { Reveal } from "@/components/ui/Reveal";
+import { products } from "@/data/products";
 
 /**
- * New Arrivals section with VHS-style video background.
- * Full-bleed hero section featuring centered heading and tagline
- * overlaid on a grainy video backdrop with scanline effect.
+ * "New arrivals": a full-bleed night shot with a scroll-driven parallax, giant
+ * outlined type and a single CTA. (Was a video slot in the reference — swap the
+ * photo for a <video autoPlay muted loop playsInline> once the clip exists.)
  */
 export function NewArrivals() {
   return (
-    <section className="relative flex min-h-[70vh] items-center justify-center overflow-hidden bg-dept-black">
-      {/*
-        Fondo. TODO: sustituir por
-        <video autoPlay muted loop playsInline className="absolute inset-0 h-full w-full object-cover">
-          <source src="/video/new-arrivals.mp4" type="video/mp4" />
-        </video>
-        con el clip real (estética VHS). Mientras tanto, placeholder frío:
-      */}
-      <PlaceholderImage
-        label="New arrivals — clip de vídeo con estética VHS"
-        tone="cold"
-        hideLabel
-        fill
-      />
+    <section
+      id="new-arrivals"
+      className="relative isolate flex min-h-[92svh] items-end overflow-hidden"
+    >
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="parallax-y absolute -inset-y-[12%] inset-x-0">
+          <PlaceholderImage
+            label="Lookbook — pareja con hoodies 404 frente a una persiana metálica"
+            src="/images/community-02.jpg"
+            tone="cold"
+            hideLabel
+            fill
+          />
+        </div>
+      </div>
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-black/90 via-black/40 to-black/30" />
 
-      {/* VHS scanline and vignette overlay */}
-      <div
-        className="pointer-events-none absolute inset-0 bg-black/30"
-        aria-hidden="true"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 3px)",
-        }}
-      />
+      <div className="grid w-full items-end gap-10 px-gutter py-section md:grid-cols-[1fr_auto]">
+        <div>
+          <Reveal>
+            <p className="font-condensed mb-6 flex items-center gap-3 text-[11px] tracking-[0.28em] text-dept-white/80">
+              <span aria-hidden className="h-px w-10 bg-dept-red" />
+              01 — Nuevos ingresos · {String(products.length).padStart(2, "0")} piezas
+            </p>
+          </Reveal>
+          <Reveal delay={100}>
+            <h2 className="font-display text-display-2xl text-dept-white">
+              New
+              <span className="text-outline block">Arrivals</span>
+            </h2>
+          </Reveal>
+        </div>
 
-      {/* Centered content */}
-      <div className="relative z-10 px-6 text-center">
-        <h2 className="font-display text-dept-white text-4xl sm:text-6xl lg:text-7xl">
-          NEW ARRIVALS
-        </h2>
-        <p className="font-body mx-auto mt-4 max-w-sm text-sm text-dept-white/80">
-          We were not born to follow rules, but to rewrite them.
-        </p>
+        <Reveal delay={220} className="max-w-sm">
+          <p className="font-condensed text-lg leading-snug tracking-[0.1em] text-dept-white md:text-xl">
+            We were not born to follow rules, but to rewrite them.
+          </p>
+          <Button href="/collections/all" variant="solid" size="lg" arrow className="mt-8">
+            Ver novedades
+          </Button>
+        </Reveal>
       </div>
     </section>
   );
