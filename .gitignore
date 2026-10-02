@@ -52,3 +52,6 @@ next-env.d.ts
 
 # Claude Code desktop worktrees
 /.claude/
+
+# Codebase memory index (auto-generated)
+/.codebase-memory/
