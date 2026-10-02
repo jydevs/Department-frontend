@@ -26,7 +26,6 @@ const stepBtn =
 function CartPanel({ onClose }: { onClose: () => void }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const { items, count, subtotal, setQty, remove } = useCart();
-  const [checkoutNote, setCheckoutNote] = useState(false);
 
   useEffect(() => {
     closeButtonRef.current?.focus();

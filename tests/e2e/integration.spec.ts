@@ -367,7 +367,7 @@ test.describe('7. Performance', () => {
   test('7.4 Lighthouse performance score > 70', async ({ page }) => {
     await page.goto('/');
     const metrics = await page.evaluate(() => {
-      const nav = window.performance.getEntriesByType('navigation')[0] as any;
+      const nav = window.performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
       return {
         DOMContentLoaded: nav.domContentLoadedEventEnd - nav.domContentLoadedEventStart,
         loadComplete: nav.loadEventEnd - nav.loadEventStart,

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const mockFetch = vi.fn();
-global.fetch = mockFetch as any;
+global.fetch = mockFetch as unknown as typeof fetch;
 
 describe('API Client - Request Base', () => {
   beforeEach(() => {
@@ -15,7 +15,7 @@ describe('API Client - Request Base', () => {
       status: 200,
     });
 
-    const response = await fetch('http://api/test', {
+    await fetch('http://api/test', {
       method: 'GET',
       headers: {
         'Authorization': 'Bearer token',
@@ -41,7 +41,7 @@ describe('API Client - Request Base', () => {
       status: 201,
     });
 
-    const response = await fetch('http://api/test', {
+    await fetch('http://api/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: 'test' }),

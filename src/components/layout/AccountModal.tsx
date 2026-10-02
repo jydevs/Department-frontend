@@ -17,7 +17,7 @@ const ghostBtn =
   "font-condensed flex flex-1 items-center justify-center gap-2 border border-white/20 py-3 text-[11px] tracking-[0.2em] text-dept-white transition-colors duration-300 ease-out-expo hover:border-dept-white hover:bg-dept-white hover:text-dept-black";
 
 function AccountPanel({ onClose }: { onClose: () => void }) {
-  const firstButtonRef = useRef<HTMLButtonElement>(null);
+  const firstButtonRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
     firstButtonRef.current?.focus();
@@ -49,7 +49,7 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
         <p className="font-condensed text-[11px] tracking-[0.28em] text-dept-gray-500">Cuenta</p>
 
         <a
-          ref={firstButtonRef as any}
+          ref={firstButtonRef}
           href="/account/login"
           onClick={onClose}
           className="font-condensed mt-4 block text-center w-full bg-dept-blue py-3.5 text-sm tracking-[0.14em] text-dept-white transition-[filter] duration-300 hover:brightness-110"

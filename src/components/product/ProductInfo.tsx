@@ -97,23 +97,21 @@ export function ProductInfo({ product }: ProductInfoProps) {
   /* ── add to cart ─────────────────────────────────────── */
 
   /** Missing size: flag it inline, nudge the chips, optionally bring them into view. */
-  const requireSize = (reveal: boolean) => {
+  const requireSize = () => {
     setShowError(true);
     const group = groupRef.current;
     if (!group) return;
-    if (reveal) {
-      group.scrollIntoView({
-        block: "center",
-        behavior: prefersReducedMotion() ? "auto" : "smooth",
-      });
-      chipRefs.current[0]?.focus({ preventScroll: true });
-    }
+    group.scrollIntoView({
+      block: "center",
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+    chipRefs.current[0]?.focus({ preventScroll: true });
     if (!prefersReducedMotion() && typeof group.animate === "function") {
       group.animate(SHAKE_KEYFRAMES, { duration: 420, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
     }
   };
 
-  const handleAdd = (reveal: boolean) => {
+  const handleAdd = () => {
     if (soldOut) return;
     const chosenSize = size || sizes[0] || "M";
     if (!size) {
@@ -281,7 +279,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
           size="lg"
           arrow={!soldOut}
           disabled={soldOut}
-          onClick={() => handleAdd(false)}
+          onClick={() => handleAdd()}
           className="w-full"
           data-testid="add-to-cart-btn"
         >
@@ -295,7 +293,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
           price={price}
           targetRef={ctaRef}
           hasSize={size !== null}
-          onAction={() => handleAdd(true)}
+          onAction={() => handleAdd()}
         />
       )}
     </div>
