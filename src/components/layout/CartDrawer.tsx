@@ -38,7 +38,13 @@ function CartPanel({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="Carrito">
+    <div
+      data-testid="cart-drawer"
+      className="fixed inset-0 z-[60]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Carrito"
+    >
       <style>{`@keyframes cart-drawer-in{from{transform:translateX(100%)}to{transform:translateX(0)}}@keyframes cart-fade-in{from{opacity:0}to{opacity:1}}`}</style>
 
       {/* Backdrop */}
@@ -82,7 +88,14 @@ function CartPanel({ onClose }: { onClose: () => void }) {
               ¿Tienes una cuenta? <span className="text-dept-white underline underline-offset-4">Inicia sesión</span> para
               pagar más rápido.
             </p>
-            <Button variant="red" size="lg" arrow onClick={onClose} className="mt-2">
+            <Button
+              variant="red"
+              size="lg"
+              arrow
+              onClick={onClose}
+              data-testid="continue-shopping-btn"
+              className="mt-2"
+            >
               Seguir comprando
             </Button>
           </div>
@@ -152,6 +165,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                       </div>
                       <button
                         type="button"
+                        data-testid="remove-item-btn"
                         onClick={() => remove(item.handle, item.size)}
                         className="link-underline font-condensed text-[11px] tracking-[0.2em] text-dept-gray-300 hover:text-dept-white"
                       >
@@ -166,22 +180,21 @@ function CartPanel({ onClose }: { onClose: () => void }) {
             <div className="border-t border-white/10 px-6 py-6">
               <div className="flex items-baseline justify-between">
                 <span className="font-condensed text-[11px] tracking-[0.24em] text-dept-gray-300">Subtotal</span>
-                <span className="font-display text-display-md tabular-nums">{formatCOP(subtotal)}</span>
+                <span data-testid="cart-subtotal" className="font-display text-display-md tabular-nums">{formatCOP(subtotal)}</span>
               </div>
               <Button
+                href="/checkout"
                 variant="red"
                 size="lg"
                 arrow
                 className="mt-5 w-full"
-                onClick={() => setCheckoutNote(true)}
+                onClick={onClose}
               >
                 Finalizar compra
               </Button>
-              <p role="status" className="font-condensed mt-3 min-h-4 text-center text-[11px] tracking-[0.18em] text-dept-gray-300">
-                {checkoutNote ? "El checkout aún no está conectado." : ""}
-              </p>
               <button
                 type="button"
+                data-testid="continue-shopping-btn"
                 onClick={onClose}
                 className="link-underline font-condensed mx-auto mt-2 block text-[11px] tracking-[0.2em] text-dept-white/70 hover:text-dept-white"
               >

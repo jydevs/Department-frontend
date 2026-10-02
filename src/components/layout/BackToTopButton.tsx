@@ -5,8 +5,13 @@ export function BackToTopButton() {
   return (
     <button
       type="button"
+      data-testid="back-to-top"
       aria-label="Volver arriba"
-      onClick={() => window.scrollTo({ top: 0 })}
+      onClick={() => {
+        window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }}
       className="group/top font-condensed inline-flex items-center gap-2 text-[11px] tracking-[0.2em] text-dept-gray-500 transition-colors duration-300 ease-out-expo hover:text-dept-white focus-visible:text-dept-white"
     >
       Volver arriba

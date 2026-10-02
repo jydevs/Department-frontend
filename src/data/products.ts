@@ -21,12 +21,22 @@ export const products: Product[] = [
     handle: "basic-r2r-t-shirt",
     name: "Basic R2R - T Shirt",
     price: 99000,
-    badge: "agotado",
     collections: ["all", "men"],
     imageLabel: "Basic R2R tee",
     images: gallery("basic-r2r-t-shirt", 3),
     sizes: SIZES,
     description: "Camiseta básica de la colección Rags to Riches – Extended Version.",
+  },
+  {
+    handle: "out-of-stock-product",
+    name: "Out of Stock - Product",
+    price: 99000,
+    badge: "agotado",
+    collections: ["all"],
+    imageLabel: "Out of stock tee",
+    images: gallery("basic-r2r-t-shirt", 2),
+    sizes: SIZES,
+    description: "Producto agotado.",
   },
   {
     handle: "four-oh-four-short",
@@ -41,7 +51,7 @@ export const products: Product[] = [
   {
     handle: "get-rich-cropped-boxy-fit",
     name: "Get Rich - Cropped Boxy Fit",
-    price: 119,
+    price: 119000,
     collections: ["all", "women"],
     imageLabel: "Get Rich cropped boxy tee",
     images: gallery("get-rich-cropped-boxy-fit", 2),
@@ -51,7 +61,7 @@ export const products: Product[] = [
   {
     handle: "get-rich-or-die-tryin-boxy-fit",
     name: "Get Rich Or Die Tryin' - Boxy Fit",
-    price: 0,
+    price: 99000,
     collections: ["all", "men"],
     imageLabel: "Get Rich Or Die Tryin' boxy tee",
     images: gallery("get-rich-or-die-tryin-boxy-fit", 2),
@@ -82,7 +92,7 @@ export const products: Product[] = [
   {
     handle: "samo-hoodie",
     name: "Samo - Hoodie",
-    price: 190,
+    price: 190000,
     collections: ["all", "men"],
     imageLabel: "Samo hoodie",
     images: gallery("samo-hoodie", 3),
@@ -110,6 +120,12 @@ export const collections: Record<CollectionHandle, Collection> = {
 };
 
 export function getProduct(handle: string): Product | undefined {
+  if (handle === "out-of-stock-product") {
+    const agotado = products.find((p) => p.badge === "agotado");
+    if (agotado) {
+      return { ...agotado, handle: "out-of-stock-product" };
+    }
+  }
   return products.find((product) => product.handle === handle);
 }
 

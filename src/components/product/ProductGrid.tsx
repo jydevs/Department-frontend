@@ -42,6 +42,7 @@ export function ProductGrid({ products, className, columns = 4, priorityCount = 
 
   return (
     <ul
+      data-testid="product-grid"
       className={clsx(
         "grid gap-x-3 gap-y-12 px-gutter md:gap-x-4 md:gap-y-16",
         gridClasses,

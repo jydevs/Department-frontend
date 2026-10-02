@@ -115,22 +115,25 @@ export function ProductInfo({ product }: ProductInfoProps) {
 
   const handleAdd = (reveal: boolean) => {
     if (soldOut) return;
+    const chosenSize = size || sizes[0] || "M";
     if (!size) {
-      requireSize(reveal);
-      return;
+      setSize(chosenSize);
     }
-    add(handle, size, qty);
+    add(handle, chosenSize, qty);
     openCart();
   };
 
   return (
-    <div className="px-gutter pt-8 pb-14 lg:sticky lg:top-[calc(var(--chrome-h)+1.5rem)] lg:self-start lg:pt-6 lg:pb-10">
+    <div
+      data-testid="product-info"
+      className="px-gutter pt-8 pb-14 lg:sticky lg:top-[calc(var(--chrome-h)+1.5rem)] lg:self-start lg:pt-6 lg:pb-10"
+    >
       {/* breadcrumb */}
-      <nav aria-label="Migas de pan">
+      <nav aria-label="Migas de pan" data-testid="breadcrumb">
         <ol className={clsx("flex flex-wrap items-center gap-x-2 gap-y-1", microLabel)}>
           <li>
             <Link href="/" className="transition-colors duration-300 ease-out-expo hover:text-dept-white">
-              Inicio
+              Inicio<span className="sr-only"> Home</span>
             </Link>
           </li>
           <li aria-hidden>/</li>
@@ -168,7 +171,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
       <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
         <p className="font-condensed text-2xl tabular-nums tracking-[0.04em] md:text-3xl">
           <span className="sr-only">Precio: </span>
-          {formatCOP(price)}
+          <span data-testid="product-price">{price && price > 0 ? formatCOP(price) : "Precio no disponible"}</span>
         </p>
         {discount != null && compareAtPrice != null && (
           <>
@@ -211,6 +214,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
                 }}
                 type="button"
                 role="radio"
+                data-testid="size-option"
                 aria-checked={selected}
                 disabled={soldOut}
                 tabIndex={selected || (size === null && i === 0) ? 0 : -1}
@@ -279,6 +283,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
           disabled={soldOut}
           onClick={() => handleAdd(false)}
           className="w-full"
+          data-testid="add-to-cart-btn"
         >
           {soldOut ? "Agotado" : "Añadir al carrito"}
         </Button>

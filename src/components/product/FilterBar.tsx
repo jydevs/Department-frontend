@@ -82,6 +82,8 @@ interface DropdownProps<T extends string> {
   /** highlight the trigger while a non-default option is active */
   active?: boolean;
   triggerRef: React.RefObject<HTMLButtonElement | null>;
+  testId?: string;
+  onReset?: () => void;
 }
 
 function Dropdown<T extends string>({
@@ -95,6 +97,8 @@ function Dropdown<T extends string>({
   align = "left",
   active = false,
   triggerRef,
+  testId,
+  onReset,
 }: DropdownProps<T>) {
   const open = openMenu === id;
   return (
@@ -102,6 +106,7 @@ function Dropdown<T extends string>({
       <button
         ref={triggerRef}
         type="button"
+        data-testid={testId}
         aria-expanded={open}
         aria-haspopup="true"
         onClick={() => setOpenMenu(open ? null : id)}
@@ -140,6 +145,17 @@ function Dropdown<T extends string>({
               </button>
             );
           })}
+          {onReset && (
+            <button
+              type="button"
+              data-testid="reset-filters"
+              onClick={onReset}
+              className="flex w-full items-center justify-between border-t border-white/10 px-4 py-3 text-left text-[11px] tracking-[0.18em] text-dept-red hover:bg-white/10 focus-visible:bg-dept-white focus-visible:text-dept-black"
+            >
+              <span>Limpiar filtros</span>
+              <span aria-hidden>✕</span>
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -185,12 +201,17 @@ export function FilterBar({ count, value, onChange }: FilterBarProps) {
         <Dropdown
           id="availability"
           label="Availability"
+          testId="filter-btn"
           options={AVAILABILITY}
           selected={value.availability}
           openMenu={openMenu}
           setOpenMenu={setOpenMenu}
           onSelect={(availability) => {
             onChange({ ...value, availability });
+            setOpenMenu(null);
+          }}
+          onReset={() => {
+            onChange(DEFAULT_FILTER);
             setOpenMenu(null);
           }}
           active={value.availability !== "all"}
@@ -210,6 +231,22 @@ export function FilterBar({ count, value, onChange }: FilterBarProps) {
           active={priceSorted}
           triggerRef={priceRef}
         />
+        {value.availability !== "all" && (
+          <span
+            data-testid="active-filter"
+            className="inline-flex items-center gap-1 border border-white/20 bg-white/5 px-2 py-0.5 text-[10px] text-dept-white"
+          >
+            {value.availability}
+          </span>
+        )}
+        {priceSorted && (
+          <span
+            data-testid="active-filter"
+            className="inline-flex items-center gap-1 border border-white/20 bg-white/5 px-2 py-0.5 text-[10px] text-dept-white"
+          >
+            {value.sort}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-5 sm:gap-7">

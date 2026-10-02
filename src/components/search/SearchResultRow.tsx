@@ -29,6 +29,7 @@ export function SearchResultRow({ product, id, active, onHover, onSelect }: Sear
       <Link
         id={id}
         role="option"
+        data-testid="search-result"
         aria-selected={active}
         tabIndex={-1}
         href={`/products/${product.handle}`}

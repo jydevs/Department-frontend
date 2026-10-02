@@ -47,7 +47,7 @@ function LinkColumn({
 
 export function SiteFooter() {
   return (
-    <footer className="mt-auto bg-dept-black text-dept-white">
+    <footer data-testid="footer" className="mt-auto bg-dept-black text-dept-white">
       <div className="border-t border-white/10">
         <NewsletterFooter />
       </div>

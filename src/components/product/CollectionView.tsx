@@ -28,7 +28,7 @@ export function CollectionView({ products }: { products: Product[] }) {
   }, [products, filter]);
 
   return (
-    <div className="min-h-[50vh] w-full bg-dept-black pb-[var(--section-y)]">
+    <div data-testid="collection-view" className="min-h-[50vh] w-full bg-dept-black pb-[var(--section-y)]">
       <h2 className="sr-only">Productos</h2>
       <FilterBar count={visible.length} value={filter} onChange={setFilter} />
       <div className="pt-10 md:pt-14">

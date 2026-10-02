@@ -14,7 +14,7 @@ const TICKER = [
 /** On-brand 404 — the label literally sells a "404" print, so we lean into it. */
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen flex-col pt-[var(--chrome-h)]">
+    <div data-testid="not-found-page" className="flex min-h-screen flex-col pt-[var(--chrome-h)]">
       <section className="flex flex-1 flex-col justify-center px-gutter py-12 md:py-16">
         <p className="mb-6 text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">
           <span aria-hidden className="mr-3 inline-block h-px w-8 bg-dept-red align-middle" />

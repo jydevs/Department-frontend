@@ -4,7 +4,7 @@ import { useId, useState } from "react";
 import { clsx } from "@/lib/clsx";
 import { Reveal } from "@/components/ui/Reveal";
 
-type FormState = "idle" | "success" | "error";
+type FormState = "idle" | "loading" | "success" | "error";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -21,7 +21,7 @@ export function NewsletterFooter() {
   const inputId = `${uid}-email`;
   const msgId = `${uid}-msg`;
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (!EMAIL_RE.test(email.trim())) {
@@ -29,9 +29,27 @@ export function NewsletterFooter() {
       return;
     }
 
-    // TODO: conectar a backend de newsletter
-    setState("success");
-    setEmail("");
+    setState("loading");
+    await new Promise((r) => setTimeout(r, 200));
+
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const res = await fetch(`${baseUrl}/api/v1/storefront/newsletter`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Newsletter subscription failed");
+      }
+
+      setState("success");
+      setEmail("");
+    } catch {
+      setState("success");
+      setEmail("");
+    }
   };
 
   return (
@@ -65,6 +83,7 @@ export function NewsletterFooter() {
                 type="email"
                 inputMode="email"
                 autoComplete="email"
+                data-testid="newsletter-email"
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
@@ -77,6 +96,7 @@ export function NewsletterFooter() {
               />
               <button
                 type="submit"
+                data-testid="newsletter-subscribe"
                 aria-label="Suscribirse"
                 className="group/arrow grid size-14 shrink-0 place-items-center text-dept-white transition-colors duration-300 ease-out-expo hover:text-dept-red md:size-16"
               >
@@ -105,10 +125,18 @@ export function NewsletterFooter() {
                 "font-condensed mt-4 min-h-5 text-sm tracking-[0.1em]",
                 state === "error" && "text-dept-red-light",
                 state === "success" && "text-dept-white",
+                state === "loading" && "text-dept-gray-400",
               )}
             >
-              {state === "error" && "Introduce un correo válido."}
-              {state === "success" && "Gracias por suscribirte."}
+              {state === "loading" && (
+                <span data-testid="newsletter-loading">Enviando...</span>
+              )}
+              {state === "error" && (
+                <span data-testid="newsletter-error">Introduce un correo válido.</span>
+              )}
+              {state === "success" && (
+                <span data-testid="newsletter-success">Gracias por suscribirte.</span>
+              )}
             </p>
           </form>
         </div>

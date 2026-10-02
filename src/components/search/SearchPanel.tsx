@@ -163,6 +163,7 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
       role="dialog"
       aria-modal="true"
       aria-label="Buscar"
+      data-testid="search-overlay"
       style={{ animation: "search-overlay-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) backwards" }}
       className="fixed inset-0 z-[60] flex flex-col bg-dept-black/95 text-dept-white"
     >
@@ -189,6 +190,7 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
         <input
           ref={inputRef}
           id={inputId}
+          data-testid="search-input"
           type="text"
           role="combobox"
           aria-expanded={items.length > 0}

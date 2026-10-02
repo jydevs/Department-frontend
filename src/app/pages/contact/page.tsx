@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LookbookGallery } from "@/components/community/LookbookGallery";
+import { ContactForm } from "@/components/layout/ContactForm";
 import { Button } from "@/components/ui/Button";
 import { Marquee } from "@/components/ui/Marquee";
 import { Reveal } from "@/components/ui/Reveal";
@@ -34,6 +35,10 @@ export default function CommunityPage() {
           </p>
         </div>
       </header>
+
+      <section aria-label="Formulario de contacto" className="px-gutter py-section border-t border-white/10">
+        <ContactForm />
+      </section>
 
       <section aria-label="Lookbook" className="border-t border-white/10">
         <LookbookGallery />

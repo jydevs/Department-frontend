@@ -42,39 +42,38 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
 
       {/* Panel */}
       <div
+        data-testid="account-modal"
         style={{ animation: "account-in 0.4s cubic-bezier(0.16,1,0.3,1) both" }}
         className="absolute right-[var(--gutter)] top-[calc(var(--chrome-h)+0.5rem)] w-[min(20rem,calc(100vw-2rem))] border border-white/15 bg-dept-black p-5 text-dept-white shadow-2xl"
       >
         <p className="font-condensed text-[11px] tracking-[0.28em] text-dept-gray-500">Cuenta</p>
 
-        {/* TODO: implement login action */}
-        <button
-          ref={firstButtonRef}
-          type="button"
-          className="font-condensed mt-4 w-full bg-dept-blue py-3.5 text-sm tracking-[0.14em] text-dept-white transition-[filter] duration-300 hover:brightness-110"
+        <a
+          ref={firstButtonRef as any}
+          href="/account/login"
+          onClick={onClose}
+          className="font-condensed mt-4 block text-center w-full bg-dept-blue py-3.5 text-sm tracking-[0.14em] text-dept-white transition-[filter] duration-300 hover:brightness-110"
         >
-          Iniciar sesión con <span className="font-semibold lowercase tracking-normal">shop</span>
-        </button>
+          Iniciar sesión
+        </a>
 
-        {/* TODO: implement alternative login options */}
-        <button
-          type="button"
-          className="font-condensed mt-2 w-full bg-dept-red-dark py-3 text-[11px] tracking-[0.18em] text-dept-white transition-colors duration-300 hover:bg-dept-red"
+        <a
+          href="/account/register"
+          onClick={onClose}
+          className="font-condensed mt-2 block text-center w-full bg-dept-red-dark py-3 text-[11px] tracking-[0.18em] text-dept-white transition-colors duration-300 hover:bg-dept-red"
         >
-          Otras opciones de inicio de sesión
-        </button>
+          Crear cuenta
+        </a>
 
         <div className="mt-4 flex gap-2">
-          {/* TODO: navigate to orders */}
-          <button type="button" className={ghostBtn}>
+          <a href="/account/orders" onClick={onClose} className={ghostBtn}>
             <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 8h14l-1.2 12H6.2L5 8z" />
               <path d="M9 8V7a3 3 0 016 0v1" />
             </svg>
             Pedidos
-          </button>
-          {/* TODO: navigate to profile */}
-          <button type="button" className={ghostBtn}>
+          </a>
+          <button type="button" onClick={onClose} className={ghostBtn}>
             <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="8" r="4" />
               <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />

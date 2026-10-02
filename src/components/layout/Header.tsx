@@ -171,6 +171,7 @@ export function Header() {
               aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
               aria-expanded={menuOpen}
               aria-controls="mobile-menu"
+              data-testid="mobile-menu"
               onClick={() => setMenuOpen((v) => !v)}
               className="-ml-3 flex h-11 w-11 flex-col items-center justify-center gap-[6px] md:hidden"
             >
@@ -196,6 +197,7 @@ export function Header() {
                     <Link
                       href={item.href}
                       aria-current={active ? "page" : undefined}
+                      data-testid={item.href === "/collections/all" ? "nav-link-collections" : undefined}
                       className="link-underline font-condensed inline-flex items-start gap-1.5 py-1 text-[13px] tracking-[0.2em] text-dept-white"
                     >
                       {item.label}
@@ -213,6 +215,7 @@ export function Header() {
 
           <Link
             href="/"
+            data-testid="logo"
             aria-label="Daregular Dept. — inicio"
             className="justify-self-center px-2 transition-opacity duration-300 hover:opacity-80"
           >
@@ -220,7 +223,13 @@ export function Header() {
           </Link>
 
           <div className="flex items-center justify-end gap-0.5">
-            <button type="button" aria-label="Buscar" onClick={openSearch} className={iconBtn}>
+            <button
+              type="button"
+              aria-label="Buscar"
+              data-testid="search-button"
+              onClick={openSearch}
+              className={iconBtn}
+            >
               <Icon>
                 <circle cx="11" cy="11" r="7" />
                 <path d="M20 20l-3.5-3.5" />
@@ -229,6 +238,7 @@ export function Header() {
             <button
               type="button"
               aria-label="Cuenta"
+              data-testid="account-button"
               aria-haspopup="dialog"
               onClick={openAccount}
               className={clsx(iconBtn, "hidden sm:flex")}
@@ -241,6 +251,7 @@ export function Header() {
             <button
               type="button"
               aria-label={count ? `Carrito, ${count} artículos` : "Carrito"}
+              data-testid="cart-button"
               aria-haspopup="dialog"
               onClick={openCart}
               className={clsx(iconBtn, "-mr-3")}
@@ -249,14 +260,13 @@ export function Header() {
                 <path d="M5 8h14l-1.2 12H6.2L5 8z" />
                 <path d="M9 8V7a3 3 0 016 0v1" />
               </Icon>
-              {count > 0 && (
-                <span
-                  key={count}
-                  className="absolute right-0.5 top-1 flex h-[17px] min-w-[17px] animate-[pop_0.4s_var(--ease-out-expo)] items-center justify-center bg-dept-red px-1 font-condensed text-[10px] leading-none tracking-normal text-dept-white"
-                >
-                  {count}
-                </span>
-              )}
+              <span
+                key={count}
+                data-testid="cart-counter"
+                className="absolute right-0.5 top-1 flex h-[17px] min-w-[17px] animate-[pop_0.4s_var(--ease-out-expo)] items-center justify-center bg-dept-red px-1 font-condensed text-[10px] leading-none tracking-normal text-dept-white"
+              >
+                {count}
+              </span>
             </button>
           </div>
         </div>

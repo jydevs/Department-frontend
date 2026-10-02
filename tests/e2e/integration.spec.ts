@@ -63,6 +63,10 @@ test.describe('1. Catálogo Dinámico', () => {
   });
 
   test('1.9 Búsqueda de productos funciona', async ({ page }) => {
+    const searchButton = page.locator('[data-testid="search-button"]');
+    if (await searchButton.isVisible()) {
+      await searchButton.click();
+    }
     const searchInput = page.locator('[data-testid="search-input"]');
     await searchInput.fill('shirt');
     await page.keyboard.press('Enter');

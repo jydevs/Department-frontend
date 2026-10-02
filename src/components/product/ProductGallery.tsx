@@ -86,6 +86,7 @@ export function ProductGallery({ images, name, imageLabel, className }: ProductG
                 priority={i === 0}
                 sizes="(min-width: 1024px) 60vw, 88vw"
                 className="object-cover"
+                data-testid="product-image"
               />
             </li>
           ))}

@@ -28,8 +28,13 @@ export function ProductCard({
   const onSale = product.badge === "oferta" && product.compareAtPrice != null;
   const [first, second] = product.images;
 
+  const displayPrice =
+    product.price && product.price > 0
+      ? formatCOP(product.price)
+      : "Precio no disponible";
+
   return (
-    <article className={clsx("group relative", className)}>
+    <article data-testid="product-card" className={clsx("group relative", className)}>
       <div className="relative overflow-hidden bg-dept-gray-900">
         <PlaceholderImage
           label={product.imageLabel}
@@ -72,6 +77,7 @@ export function ProductCard({
         <h3 className="font-condensed min-w-0 text-[13px] leading-snug tracking-[0.1em] text-dept-white">
           <Link
             href={`/products/${product.handle}`}
+            data-testid="product-title"
             className="link-underline after:absolute after:inset-0 after:z-10 after:content-['']"
           >
             {product.name}
@@ -83,7 +89,9 @@ export function ProductCard({
               {formatCOP(product.compareAtPrice as number)}
             </span>
           )}
-          <span className={clsx(onSale && "text-dept-red-light")}>{formatCOP(product.price)}</span>
+          <span data-testid="product-price" className={clsx(onSale && "text-dept-red-light")}>
+            {displayPrice}
+          </span>
         </p>
       </div>
     </article>

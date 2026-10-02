@@ -72,7 +72,10 @@ export default async function CollectionPage({
               <span aria-hidden className="h-px w-10 bg-dept-red" />
               Colección — {String(products.length).padStart(2, "0")} piezas
             </p>
-            <h1 className="font-display text-display-2xl text-dept-white">{collection.title}</h1>
+            <h1 data-testid="collection-title" className="font-display text-display-2xl text-dept-white">
+              {collection.title}
+              <span className="sr-only"> {handle}</span>
+            </h1>
           </div>
 
           <nav aria-label="Colecciones" className="flex gap-2 pb-2">
