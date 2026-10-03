@@ -60,4 +60,4 @@ export interface ApiPublicOrder {
 /* ── contenido (CMS) ── */
 export interface ApiContentDoc<T = unknown> { kind: "settings" | "menu" | "template" | "page"; key: string; title: string | null; data: T; publishedAt?: string | null }
 export interface ApiPageListItem { handle: string; title: string | null; key?: string; seoTitle?: string | null; publishedAt?: string | null }
-export interface ApiRedirect { fromPath: string; toPath: string; statusCode: number }
+export interface ApiRedirect { from: string; to: string; status: number }

@@ -18,6 +18,7 @@ Actualizado: 3 de octubre de 2026 · rama `claude/tender-heisenberg-w6jnxy`.
 - `src/lib/api/*`: configuración por perfil, `sfGet` (servidor, caché ISR por etiquetas, reintentos ante 429/5xx), `apiFetch` (cliente), tipos de DTO, mapeos y mensajes de error en español.
 - `src/lib/cms/*` + `components/cms/SectionRenderer`: render de secciones del CMS; `SiteProvider` entrega ajustes/menús a los componentes cliente.
 - `app/api/revalidate` (webhook firmado HMAC → `revalidateTag`), `app/api/preview` y `exit-preview` (vista previa de borradores con token).
+- `src/proxy.ts` aplica las redirecciones del CMS (`GET /storefront/redirects`, caché en memoria de 60 s, 301/302, conserva la query; no afecta a `/api`, `/admin` ni estáticos). Un cambio en `/admin/redirects` tarda hasta ~2 min en verse (60 s del backend + 60 s del proxy).
 - Productos se generan bajo demanda (ISR); home, layout, colecciones y páginas se prerenderizan, por lo que **el build necesita la API accesible**.
 - En QA el backend debe subir `THROTTLE_LIMIT` (el build hace muchas peticiones desde una IP).
 
@@ -25,7 +26,6 @@ Actualizado: 3 de octubre de 2026 · rama `claude/tender-heisenberg-w6jnxy`.
 
 | Tema | Detalle |
 | --- | --- |
-| Redirecciones del CMS en la tienda | Falta aplicar `GET /storefront/redirects` (proxy/middleware). |
 | Zonas y tarifas de envío en tu BD | El checkout las necesita; créalas en `/admin/shipping`. |
 | Wompi real | Probado solo con pasarela simulada; falta sandbox/producción con llaves. |
 | Tests e2e automatizados | `tests/e2e/integration.spec.ts` ajustado a las rutas nuevas pero **no ejecutado**; no está en CI. |
