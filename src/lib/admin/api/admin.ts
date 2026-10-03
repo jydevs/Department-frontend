@@ -2,10 +2,9 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { api } from "../api-client";
 import { ApiError } from "../errors";
-import { db, nid, wait } from "../mock/db";
 import { useAction, useApi } from "../query";
 import type {
-  Address, AuditEntry, ContactMessage, Customer, CustomerOrder, Discount, DiscountRedemption, EmailTemplate, ImportJob, Page, Role, ShippingRate, ShippingZone, Staff, Subscriber, TaxSettings,
+  Address, AuditEntry, ContactMessage, Customer, CustomerOrder, Discount, DiscountRedemption, EmailTemplate, Page, Role, ShippingRate, ShippingZone, Staff, Subscriber, TaxSettings,
 } from "../types";
 
 /** Exporta CSV neutralizando fórmulas (=, +, -, @, tab, CR) solo en texto; los números se escriben tal cual. */
@@ -211,20 +210,6 @@ export const useAuditLog = (f: AuditFilters, enabled = true) =>
     },
     getNextPageParam: (l) => l.nextCursor ?? undefined,
   });
-
-/* ---------- Importador ---------- */
-export function useImports() { return useQuery({ queryKey: ["imports"], queryFn: () => wait(() => db().imports.map((j) => ({ ...j }))), refetchInterval: (q) => (q.state.data?.some((j) => j.status === "running" || j.status === "queued") ? 800 : false) }); }
-export const useStartImport = () => useAct(({ kind, file, rows, dryRun }: { kind: ImportJob["kind"]; file: string; rows: string[]; dryRun: boolean }) => {
-  const header = rows[0]?.toLowerCase() ?? ""; const need = kind === "products" ? "title" : "email";
-  if (!header.includes(need)) throw new Error(`El CSV debe tener una columna “${need}”`);
-  const body = rows.slice(1).filter((r) => r.trim()); if (!body.length) throw new Error("El CSV no tiene filas");
-  const errors = body.flatMap((r, i) => (r.split(",").some((c) => c.trim() === "") ? [{ row: i + 2, message: "Hay columnas vacías" }] : []));
-  const job: ImportJob = { id: nid("imp"), kind, file, dryRun, status: "running", total: body.length, processed: 0, errors };
-  const d = db(); d.imports.unshift(job);
-  const t = setInterval(() => { if (job.status !== "running") return clearInterval(t); job.processed = Math.min(job.total, job.processed + Math.max(1, Math.ceil(job.total / 8))); if (job.processed >= job.total) { job.status = errors.length && !dryRun ? "failed" : "done"; clearInterval(t); } }, 700);
-  return job;
-}, { invalidate: [["imports"]], success: "Importación iniciada" });
-export const useCancelImport = () => useAct((id: string) => { const j = db().imports.find((x) => x.id === id); if (j && j.status === "running") j.status = "cancelled"; }, { invalidate: [["imports"]], success: "Importación cancelada" });
 
 /* ---------- Mantenimiento ---------- */
 export interface MaintenanceResult { executed: boolean; tasks: { task: string; affected: number; error?: string }[] }

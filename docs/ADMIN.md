@@ -1,47 +1,32 @@
-# Panel de administración `/admin` (fase visual)
+# Panel de administración `/admin`
 
-> Estado general del proyecto y hoja de ruta de la integración: [`ESTADO.md`](ESTADO.md).
+Vistas bajo `/admin` dentro de esta misma app Next.js, con el diseño de la tienda. **Conectado a la API real** (`/api/v1/auth/*` y `/api/v1/admin/*`); ya no hay datos simulados.
 
-Panel de administración integrado en esta misma app Next.js como vistas bajo `/admin` (sin proyecto aparte). **Esta fase es solo visual:**
-todas las pantallas funcionan contra una base de datos simulada en memoria (`src/lib/admin/mock`), sin llamar a ninguna API.
-Los datos se reinician al recargar la página.
+## Acceso y sesión
+- `/admin/login` (correo + contraseña, y código de 2FA o de recuperación cuando la cuenta lo tiene). Sin sesión, `AuthGate` redirige al login con `?next=` (solo rutas internas).
+- Access token en memoria; la sesión se restaura con `POST /auth/refresh` (cookie httpOnly `dept_rt`). Si el refresco falla, se vuelve al login.
+- Permisos: `GET /auth/me` entrega las claves; `Sidebar`, `useCan` y `<Can>` las usan (mismas claves que el backend: `orders:read`, `content:publish`…).
+- Crear el primer propietario en el backend: `OWNER_EMAIL=… OWNER_PASSWORD=… yarn owner:create`.
 
-## Desarrollo
+## Arquitectura
+- `src/lib/admin/api-client.ts`: cliente `api.get/post/put/patch/delete/upload/download`, reintento tras refresh, `ApiError` (code, status, details, requestId).
+- `src/lib/admin/query.ts`: `useApi` (GET con `select` para adaptar DTO→pantalla) y `useAction` (mutación con toast e invalidación).
+- `src/lib/admin/api/*.ts`: un archivo por módulo (`orders`, `catalog`, `media`, `imports`, `content`, `admin`) con hooks y adaptadores `fromApi/toApi`.
+- Concurrencia optimista: `version`/`If-Match` en pedidos, productos y documentos del CMS; ante 409/412 se recarga y se avisa.
+- Editor de CMS: los formularios de sección se generan del JSON Schema de `GET /admin/content/section-types`; la vista previa es un iframe de la tienda real con token de borrador (`/api/preview`).
 
-```bash
-yarn install
-yarn dev        # tienda: http://localhost:3000 · panel: http://localhost:3000/admin
-                # sin login en esta fase: abre directo
-yarn typecheck && yarn lint && yarn build
-```
+## Módulos
+Dashboard, pedidos, productos, colecciones, inventario, medios, importador, contenido (ajustes `site`, menús, plantillas, páginas, versiones, publicar/programar), redirecciones, clientes, descuentos, envíos e impuestos, newsletter, mensajes de contacto, plantillas de correo, personal y roles, auditoría, mantenimiento y mi cuenta (contraseña y 2FA).
 
-## Qué incluye (31 pantallas)
+## Funciones del diseño original que la API no respalda (retiradas)
+- Pedidos: orden por columna (el backend ordena por más reciente), lista de etiquetas global, reembolso automático en pasarela (solo se registra).
+- Productos: stock en el editor (va en Inventario), volver a borrador, borrar metafields, facetas de etiqueta/proveedor/tipo.
+- Colecciones: contador de productos en lista, "más vendido" como orden.
+- Clientes: editar correo, columnas de pedidos/gasto en la lista. Personal: reset de contraseña/2FA y borrado (existe desactivar).
+- Redirecciones: contador de visitas. Descuentos: código y tipo no editables tras crearlos.
 
-Inicio (KPIs y gráficas SVG) · Pedidos (lista, detalle, envío, reembolso, cancelación, notas, etiquetas) · Productos (editor con variantes, galería, SEO, metafields, acciones masivas) · Inventario (niveles, ajustes, historial, ubicaciones) · Colecciones (manuales e inteligentes) · Clientes (CSV, anonimizar) · Descuentos · Contenido (resumen, ajustes y tema, menús, plantillas y páginas con editor de secciones, historial y diff, publicar/programar) · Biblioteca de medios y `MediaPicker` · Redirecciones · Newsletter · Mensajes · Plantillas de correo · Envíos e impuestos · Personal y roles · Auditoría · Importador · Mantenimiento · Mi cuenta (contraseña, 2FA).
-
-## Calidad verificada
-
-typecheck/lint/build en verde; axe (WCAG A/AA) sin violaciones en tema oscuro y claro; sin scroll horizontal en 390 px y 820 px; auditoría independiente (Opus) con todos los hallazgos altos corregidos, salvo los ligados a permisos/roles. Detalle en [`ESTADO.md`](ESTADO.md) §3.
-
-## Cómo conectar la API real después
-
-- `src/lib/admin/api-client.ts` ya implementa el cliente (token en memoria, refresh por cookie, `ApiError`).
-- Cada módulo expone sus hooks en `src/lib/admin/api/*.ts`; hoy usan `useMock`/`useAction` (`src/lib/admin/query.ts`).
-  Para conectar, reemplaza el cuerpo de cada hook por `api.get/post/...` manteniendo la firma.
-- `src/lib/admin/auth.tsx` entrega un usuario propietario fijo (no hay login en la fase visual); sustituir por `POST /auth/refresh` + `GET /auth/me` y reañadir la pantalla de login.
-- Variable: `NEXT_PUBLIC_API_URL` (por defecto `http://localhost:4000`). Los tipos del mock no coinciden 1:1 con los DTO del backend: cada módulo necesita un adaptador (ver `ESTADO.md` §5).
-
-## Pendiente / simulado
-
-- Vista previa de plantillas: wireframe en vivo del borrador; el botón “Abrir en la tienda” usa un token simulado.
-- 2FA: se muestra secreto + URI `otpauth` (sin QR todavía).
-- Subida de medios: se guardan como data-URI en memoria.
-
-## Estructura
-
-- `src/app/admin/**` — rutas (`/admin/orders`, `/admin/content/templates/home`, …).
-- `src/components/admin/**` — kit UI y componentes por módulo. `src/lib/admin/**` — datos simulados, hooks y utilidades.
-- `src/components/layout/StoreChrome.tsx` oculta header/footer de la tienda dentro de `/admin`.
-- Los estilos del panel viven al final de `globals.css`: las variables y clases propias (`.adm-*`) cuelgan de `.admin-root` y las reglas van en `@layer base/components` para no pisar utilidades de Tailwind. Los tokens de color (`bg-surface`, `text-muted`, `border-line`, `bg-accent`, …) se declaran en el `@theme` global; sus nombres no existen en la tienda, y sus valores solo se resuelven dentro de `.admin-root`.
-- Reutilizan la identidad de la tienda (negro, rojo Dept., Anton/Oswald, esquinas rectas).
-- `/admin` está en `Disallow` de `robots.txt` y con `noindex`. **No tiene autenticación ni control de permisos en esta fase** (sin base de datos de roles): hay que protegerlo antes de desplegarlo.
+## Notas para backend
+- El detalle de producto no incluye `version` de variante (el front la sondea ante 409).
+- Las respuestas vacías (200 sin cuerpo) y 202 se toleran en `api-client`.
+- `audit.diff` tiene formas distintas según el módulo; el cambio de rol muestra UUID.
+- Login con límite de intentos (429) tras varios inicios seguidos.

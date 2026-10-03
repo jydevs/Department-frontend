@@ -31,7 +31,7 @@ yarn dev          # http://localhost:3000
 ## Panel de administración (`/admin`)
 
 Panel integrado en esta misma app (vistas bajo `/admin`, sin proyecto aparte), con el mismo diseño de la tienda.
-**Fase visual:** funciona con datos simulados y sin login (aún no consume la API). Ver [`docs/ADMIN.md`](docs/ADMIN.md).
+Conectado a la API real (login, permisos, 2FA). Ver [`docs/ADMIN.md`](docs/ADMIN.md) y [`docs/ENTORNOS.md`](docs/ENTORNOS.md) (QA vs producción).
 
 ```bash
 yarn dev          # tienda http://localhost:3000 · panel http://localhost:3000/admin
@@ -65,11 +65,11 @@ src/
     ui/                primitivas (PlaceholderImage, …)
     admin/             kit UI y módulos del panel /admin
   app/admin/           rutas del panel
-  data/                catálogo mock + tipos
+  data/                tipos del catálogo
   lib/                 utilidades (formato de precios, clsx)
-  lib/admin/           datos simulados, hooks y utilidades del panel
+  lib/admin/           cliente de API, hooks por módulo y utilidades del panel
 docs/ESTADO.md         estado actual, contrato con el backend y hoja de ruta de la integración
-docs/ADMIN.md          panel /admin (fase visual)
+docs/ADMIN.md          panel /admin
 docs/PLAN-PRODUCCION.md plan para llevar frontend y backend a producción
 docs/ASSETS.md         estado de imágenes / fuentes / tokens
 TASKS.md               backlog y plan de ramas

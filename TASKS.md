@@ -158,9 +158,7 @@ Estado detallado y hoja de ruta: [`docs/ESTADO.md`](docs/ESTADO.md). Panel: [`do
 
 | Bloque | Estado |
 | --- | --- |
-| Panel `/admin` visual (31 pantallas, diseño de la tienda, a11y y auditoría corregidas) | ✅ commiteado y pushed |
+| Panel `/admin` (diseño de la tienda, a11y y auditoría corregidas) | ✅ commiteado y pushed |
 | Plan de producción (`docs/PLAN-PRODUCCION.md`) | ✅ |
-| F1 Fundación API · F2 Catálogo · F3 CMS | ⬜ pendiente |
-| F4 Carrito/checkout/pagos · F5 Cuenta/newsletter/contacto | ⬜ pendiente |
-| F6 Panel conectado (login, permisos, módulos) | ⬜ pendiente |
-| F7 E2E, retiro de mocks, despliegue | ⬜ pendiente |
+| F1–F6 Integración con la API (tienda, cuenta, panel, entornos QA/producción) | ✅ commiteado y pushed |
+| F7 E2E automatizados, despliegue | ⬜ pendiente |

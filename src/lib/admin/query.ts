@@ -4,8 +4,6 @@ import { api } from "./api-client";
 import { ApiError } from "./errors";
 import { useToast } from "@/components/admin/ui/Toast";
 import { errorMessage } from "./errors";
-import type { Page } from "./types";
-import { wait } from "./mock/db";
 
 export const makeQueryClient = (): QueryClient =>
   new QueryClient({
@@ -28,14 +26,6 @@ export function useApi<D, R = D>(key: QueryKey, path: string | null, opts: { que
   });
 }
 
-/** Consulta simulada (sustituir por `api.get` al conectar la API real). */
-export function useMock<R>(key: QueryKey, fn: () => R, enabled = true) {
-  return useQuery({ queryKey: key, queryFn: () => wait(() => structuredClone(fn())), enabled });
-}
-/** Lista paginada por offset con `keepPreviousData`. */
-export function usePaged<R>(key: QueryKey, params: { page: number; pageSize: number }, fn: () => Page<R>) {
-  return useQuery({ queryKey: [...key, params], queryFn: () => wait(() => structuredClone(fn())), placeholderData: keepPreviousData });
-}
 /** Mutación con toast de éxito/error e invalidación de claves. */
 export function useAction<V, R = unknown>(fn: (v: V) => R | Promise<R>, opts: { invalidate?: QueryKey[]; success?: string; onSuccess?: (r: R) => void } = {}) {
   const qc = useQueryClient();
