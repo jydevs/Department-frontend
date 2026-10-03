@@ -22,18 +22,18 @@ export function DataTable<R>({ columns, rows, rowKey, loading, error, caption, o
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">{caption}</caption>
-          <thead className="border-b border-line bg-surface2/50 text-xs text-muted">
+          <thead className="adm-label border-b border-line bg-surface2/50 !text-[10px]">
             <tr>
               {selectable && (
                 <th scope="col" className="w-10 px-3 py-2.5">
-                  <input type="checkbox" aria-label="Seleccionar todo" className="size-4 accent-[var(--adm-accent)]" checked={allIds.length > 0 && allIds.every((i) => sel.includes(i))}
+                  <input type="checkbox" aria-label="Seleccionar todo" className="size-[18px] accent-[var(--adm-accent)]" checked={allIds.length > 0 && allIds.every((i) => sel.includes(i))}
                     onChange={(e) => selectable.onChange(e.target.checked ? allIds : [])} />
                 </th>
               )}
               {columns.map((c) => (
-                <th key={c.key} scope="col" aria-sort={sort?.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : undefined} className={clsx("px-3 py-2.5 font-medium", c.align === "right" && "text-right", c.className)}>
+                <th key={c.key} scope="col" aria-sort={sort?.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : undefined} className={clsx("px-3 py-3 font-normal", c.align === "right" && "text-right", c.className)}>
                   {c.sortValue ? (
-                    <button type="button" className="inline-flex items-center gap-1 hover:text-fg" onClick={() => setSort(sort?.key === c.key ? { key: c.key, dir: sort.dir === 1 ? -1 : 1 } : { key: c.key, dir: 1 })}>
+                    <button type="button" className="inline-flex min-h-10 items-center gap-1 uppercase tracking-[inherit] hover:text-fg" onClick={() => setSort(sort?.key === c.key ? { key: c.key, dir: sort.dir === 1 ? -1 : 1 } : { key: c.key, dir: 1 })}>
                       {c.header}{sort?.key === c.key && (sort.dir === 1 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
                     </button>
                   ) : c.header}
@@ -56,7 +56,7 @@ export function DataTable<R>({ columns, rows, rowKey, loading, error, caption, o
                   onKeyDown={(e) => { if (onRowClick && e.key === "Enter" && e.target === e.currentTarget) onRowClick(r); }}>
                   {selectable && (
                     <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" aria-label="Seleccionar fila" className="size-4 accent-[var(--adm-accent)]" checked={sel.includes(id)} onChange={(e) => selectable.onChange(e.target.checked ? [...sel, id] : sel.filter((x) => x !== id))} />
+                      <input type="checkbox" aria-label="Seleccionar fila" className="size-[18px] accent-[var(--adm-accent)]" checked={sel.includes(id)} onChange={(e) => selectable.onChange(e.target.checked ? [...sel, id] : sel.filter((x) => x !== id))} />
                     </td>
                   )}
                   {columns.map((c) => <td key={c.key} className={clsx("px-3 py-2.5 align-middle", c.align === "right" && "text-right", c.className)}>{c.cell(r)}</td>)}
@@ -66,7 +66,7 @@ export function DataTable<R>({ columns, rows, rowKey, loading, error, caption, o
           </tbody>
         </table>
       </div>
-      {error && <p role="alert" className="p-6 text-center text-sm text-red-500">{error}</p>}
+      {error && <p role="alert" className="p-6 text-center text-sm text-accent-text">{error}</p>}
       {!loading && !error && data?.length === 0 && (empty ?? <EmptyState icon={<Inbox className="size-8" />} title="Sin resultados" text="Prueba con otros filtros." />)}
       {pagination && !error && <Pagination {...pagination} />}
     </div>

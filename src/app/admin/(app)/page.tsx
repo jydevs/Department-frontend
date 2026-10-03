@@ -58,7 +58,7 @@ export default function Dashboard() {
       </nav>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card title="Pedidos recientes" className="lg:col-span-2" pad={false} actions={<Link href="/admin/orders" className="adm-label hover:text-fg">Ver todos →</Link>}>
+        <Card title="Pedidos recientes" className="lg:col-span-2" pad={false} actions={<Link href="/admin/orders" className="adm-label inline-block py-2 hover:text-fg">Ver todos →</Link>}>
           {!recent ? <div className="space-y-2 p-4"><Skeleton /><Skeleton /><Skeleton /></div> : (
             <ul>{recent.map((o) => (
               <li key={o.id}><Link href={`/admin/orders/${o.id}`} className="adm-invert flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3.5 last:border-0">

@@ -24,7 +24,7 @@ function Editor({ initial }: { initial: EmailTemplate }) {
       <fieldset disabled={!can} className="space-y-3">
         <Input label="Asunto" value={t.subject} onChange={(e) => setT({ ...t, subject: e.target.value })} />
         <p className="text-xs text-muted">Variables permitidas: {t.variables.map((v) => <code key={v} className="mr-1 rounded bg-surface2 px-1">{`{{${v}}}`}</code>)}</p>
-        {bad.length > 0 && <p role="alert" className="text-xs text-red-500">Variables no permitidas: {bad.join(", ")}</p>}
+        {bad.length > 0 && <p role="alert" className="text-xs text-accent-text">Variables no permitidas: {bad.join(", ")}</p>}
         <Tabs label="Modo" tabs={[{ key: "html", label: "HTML" }, { key: "text", label: "Texto" }, { key: "preview", label: "Vista previa" }]} value={tab} onChange={setTab} />
         {tab === "html" && <Textarea aria-label="HTML" rows={12} className="font-mono text-xs" value={t.html} onChange={(e) => setT({ ...t, html: e.target.value })} />}
         {tab === "text" && <Textarea aria-label="Texto plano" rows={12} className="font-mono text-xs" value={t.text} onChange={(e) => setT({ ...t, text: e.target.value })} />}

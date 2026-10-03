@@ -23,7 +23,7 @@ export function SortableList<I>({ items, getId, onChange, children, grid }: { it
 function Row({ id, children }: { id: string; children: (handle: ReactNode) => ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const handle = (
-    <button type="button" aria-label="Arrastrar para reordenar (o usa espacio y flechas)" className="cursor-grab touch-none rounded p-1 text-muted hover:bg-surface2 active:cursor-grabbing" {...attributes} {...listeners}>
+    <button type="button" aria-label="Arrastrar para reordenar (o usa espacio y flechas)" className="-m-1 cursor-grab touch-none rounded p-2.5 text-muted hover:bg-surface2 active:cursor-grabbing" {...attributes} {...listeners}>
       <GripVertical className="size-4" />
     </button>
   );

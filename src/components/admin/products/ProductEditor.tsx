@@ -62,7 +62,7 @@ export function ProductEditor({ initial }: { initial: Product }) {
                   {(img, handle, idx) => (
                     <div className="overflow-hidden rounded-sm border border-line bg-surface2">
                       <Image src={img.url} alt={img.alt} width={160} height={200} unoptimized className="aspect-[4/5] w-full object-cover" />
-                      <div className="flex items-center justify-between px-1 py-0.5">{handle}{idx === 0 && <span className="text-[10px] text-muted">Principal</span>}<IconButton label="Quitar imagen" className="size-7" onClick={() => set({ images: p.images.filter((i) => i.id !== img.id) })}><X className="size-3.5" /></IconButton></div>
+                      <div className="flex items-center justify-between px-1 py-0.5">{handle}{idx === 0 && <span className="text-[10px] text-muted">Principal</span>}<IconButton label="Quitar imagen" className="!size-9 xl:!size-7" onClick={() => set({ images: p.images.filter((i) => i.id !== img.id) })}><X className="size-3.5" /></IconButton></div>
                     </div>
                   )}
                 </SortableList>

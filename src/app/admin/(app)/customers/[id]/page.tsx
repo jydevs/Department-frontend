@@ -22,7 +22,7 @@ function Editor({ initial }: { initial: Customer }) {
         <Input label="Teléfono" value={c.phone} onChange={(e) => setC({ ...c, phone: e.target.value })} /><TagInput label="Etiquetas" value={c.tags} onChange={(tags) => setC({ ...c, tags })} />
         <Textarea label="Nota interna" rows={3} value={c.note} onChange={(e) => setC({ ...c, note: e.target.value })} /><Checkbox label="Acepta marketing" checked={c.marketing} onChange={(e) => setC({ ...c, marketing: e.target.checked })} />
       </fieldset>
-      {can && !c.anonymized && <div className="mt-5 border-t border-line pt-4"><p className="mb-2 text-sm font-medium text-red-500">Zona de riesgo</p><p className="mb-2 text-xs text-muted">Anonimizar borra los datos personales de forma irreversible (Habeas Data). Los pedidos se conservan sin identificar al cliente.</p>
+      {can && !c.anonymized && <div className="mt-5 border-t border-line pt-4"><p className="mb-2 text-sm font-medium text-accent-text">Zona de riesgo</p><p className="mb-2 text-xs text-muted">Anonimizar borra los datos personales de forma irreversible (Habeas Data). Los pedidos se conservan sin identificar al cliente.</p>
         <Button variant="danger" loading={anon.isPending} onClick={async () => { if (await confirm({ title: "Anonimizar cliente", message: `Se borrarán nombre, correo, teléfono y direcciones de ${c.name}. No se puede deshacer.`, danger: true, confirmLabel: "Anonimizar", typeToConfirm: "ANONIMIZAR" })) anon.mutate(c.id); }}>Anonimizar cliente</Button></div>}
     </Card>
   );

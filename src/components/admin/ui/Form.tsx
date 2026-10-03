@@ -4,14 +4,14 @@ import { Search, X } from "lucide-react";
 import { useEffect, useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 const base = "w-full rounded-sm border border-line bg-surface px-3 text-sm text-fg placeholder:text-muted/70 focus:border-accent disabled:opacity-50";
-const err = "border-red-500";
+const err = "border-accent";
 
 export function Field({ label, hint, error, htmlFor, children, className }: { label: string; hint?: string; error?: string; htmlFor?: string; children: ReactNode; className?: string }) {
   return (
     <div className={clsx("flex flex-col gap-1.5", className)}>
-      <label htmlFor={htmlFor} className="text-xs font-medium text-fg">{label}</label>
+      <label htmlFor={htmlFor} className="adm-label !text-fg">{label}</label>
       {children}
-      {error ? <p role="alert" className="text-xs text-red-500">{error}</p> : hint ? <p className="text-xs text-muted">{hint}</p> : null}
+      {error ? <p role="alert" className="text-xs text-accent-text">{error}</p> : hint ? <p className="text-xs text-muted">{hint}</p> : null}
     </div>
   );
 }
@@ -38,7 +38,7 @@ export function Select({ label, hint, error, className, id, children, ...rest }:
 export function Checkbox({ label, className, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label?: string }) {
   return (
     <label className={clsx("inline-flex cursor-pointer items-center gap-2 text-sm", className)}>
-      <input type="checkbox" className="size-4 accent-[var(--adm-accent)]" {...rest} />
+      <input type="checkbox" className="size-[18px] accent-[var(--adm-accent)]" {...rest} />
       {label}
     </label>
   );
@@ -46,7 +46,7 @@ export function Checkbox({ label, className, ...rest }: Omit<InputHTMLAttributes
 export function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} onClick={() => onChange(!checked)}
-      className={clsx("relative inline-flex h-5 w-9 shrink-0 items-center rounded-full disabled:opacity-50", checked ? "bg-accent" : "bg-line")}>
+      className={clsx("relative inline-flex h-5 w-9 shrink-0 items-center rounded-full before:absolute before:-inset-3 before:content-[''] disabled:opacity-50", checked ? "bg-accent" : "bg-line")}>
       <span className={clsx("inline-block size-4 rounded-full bg-white transition-transform", checked ? "translate-x-[18px]" : "translate-x-0.5")} />
     </button>
   );
@@ -78,12 +78,12 @@ export function TagInput({ value, onChange, label, placeholder = "Escribe y puls
       {value.map((t) => (
         <span key={t} className="inline-flex items-center gap-1 rounded-sm bg-surface2 px-2 py-0.5 text-xs">
           {t}
-          <button type="button" aria-label={`Quitar ${t}`} onClick={() => onChange(value.filter((x) => x !== t))} className="text-muted hover:text-fg"><X className="size-3" /></button>
+          <button type="button" aria-label={`Quitar ${t}`} onClick={() => onChange(value.filter((x) => x !== t))} className="-m-1.5 p-2 text-muted hover:text-fg"><X className="size-3" /></button>
         </span>
       ))}
       <input id={id} value={txt} onChange={(e) => setTxt(e.target.value)} placeholder={placeholder}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); } else if (e.key === "Backspace" && !txt && value.length) onChange(value.slice(0, -1)); }}
-        onBlur={add} className="min-w-24 flex-1 bg-transparent px-1.5 py-1 text-sm outline-none" />
+        onBlur={add} className="min-h-9 min-w-24 flex-1 bg-transparent px-1.5 py-1 text-sm outline-none" />
     </div>
   );
   return label ? <Field label={label} htmlFor={id}>{el}</Field> : el;

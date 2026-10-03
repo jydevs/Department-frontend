@@ -44,7 +44,7 @@ export default function DiscountsPage() {
           </div>
           <label className="flex items-center justify-between text-sm">Un uso por cliente<Switch label="Un uso por cliente" checked={edit.perCustomer} onChange={(v) => set({ perCustomer: v })} /></label>
           <label className="flex items-center justify-between text-sm">Activo<Switch label="Activo" checked={edit.active} onChange={(v) => set({ active: v })} /></label>
-          {err && <p role="alert" className="text-sm text-red-500">{err}</p>}
+          {err && <p role="alert" className="text-sm text-accent-text">{err}</p>}
           {edit.id && <div><h3 className="mb-2 text-sm font-semibold">Redenciones ({edit.used})</h3>{edit.redemptions.length === 0 ? <p className="text-xs text-muted">Sin detalle de redenciones.</p> : <ul className="space-y-1 text-sm">{edit.redemptions.map((r) => <li key={r.orderNumber} className="flex justify-between"><span>#{r.orderNumber} · {r.customer} · <DateTime value={r.at} /></span><Money value={r.amount} /></li>)}</ul>}</div>}
         </fieldset>}
       </Dialog>

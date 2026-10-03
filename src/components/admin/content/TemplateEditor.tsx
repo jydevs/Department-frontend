@@ -56,9 +56,9 @@ export function TemplateEditor({ doc, extra }: { doc: ContentDoc; extra?: React.
                   <button type="button" onClick={() => setSelId(s.id)} aria-current={selId === s.id} className={clsx("min-w-0 flex-1 truncate text-left text-sm", !s.enabled && "text-muted line-through")}>{labelOf(s.type)}</button>
                   {secErrors(s.id) > 0 && <Badge tone="danger">{secErrors(s.id)}</Badge>}
                   {can && <>
-                    <IconButton label={s.enabled ? "Desactivar" : "Activar"} className="size-7" onClick={() => patch(s.id, { enabled: !s.enabled })}>{s.enabled ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}</IconButton>
-                    <IconButton label="Duplicar" className="size-7" onClick={() => dup(s)}><Copy className="size-3.5" /></IconButton>
-                    <IconButton label="Eliminar" className="size-7" onClick={() => void remove(s)}><Trash2 className="size-3.5" /></IconButton>
+                    <IconButton label={s.enabled ? "Desactivar" : "Activar"} className="!size-9 xl:!size-7" onClick={() => patch(s.id, { enabled: !s.enabled })}>{s.enabled ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}</IconButton>
+                    <IconButton label="Duplicar" className="!size-9 xl:!size-7" onClick={() => dup(s)}><Copy className="size-3.5" /></IconButton>
+                    <IconButton label="Eliminar" className="!size-9 xl:!size-7" onClick={() => void remove(s)}><Trash2 className="size-3.5" /></IconButton>
                   </>}
                 </div>
               )}
@@ -73,14 +73,14 @@ export function TemplateEditor({ doc, extra }: { doc: ContentDoc; extra?: React.
                 <div>
                   <div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-semibold">Bloques ({sel.blocks?.length ?? 0}{selType.maxBlocks ? `/${selType.maxBlocks}` : ""})</h3>
                     <div className="flex gap-1">{selType.blockTypes.map((bt) => <Button key={bt.type} size="sm" icon={<Plus className="size-3.5" />} disabled={!!selType.maxBlocks && (sel.blocks?.length ?? 0) >= selType.maxBlocks} onClick={() => patch(sel.id, { blocks: [...(sel.blocks ?? []), { id: `b_${uid()}`, type: bt.type, settings: {} }] })}>{bt.label}</Button>)}</div></div>
-                  {errors[`${sel.id}.blocks`] && <p role="alert" className="mb-2 text-xs text-red-500">{errors[`${sel.id}.blocks`]}</p>}
+                  {errors[`${sel.id}.blocks`] && <p role="alert" className="mb-2 text-xs text-accent-text">{errors[`${sel.id}.blocks`]}</p>}
                   <SortableList items={sel.blocks ?? []} getId={(b) => b.id} onChange={(blocks) => patch(sel.id, { blocks })}>
                     {(b, handle, i) => { const bt = selType.blockTypes.find((x) => x.type === b.type); return (
                       <details className="mb-2 rounded-sm border border-line" open={(sel.blocks?.length ?? 0) <= 3}>
                         <summary className="flex cursor-pointer items-center gap-1 p-2 text-sm">{handle}<span className="flex-1">{bt?.label} {i + 1}</span>
-                          <IconButton label="Mover arriba" className="size-7" disabled={i === 0} onClick={(e) => { e.preventDefault(); const l = [...(sel.blocks ?? [])]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; patch(sel.id, { blocks: l }); }}><ChevronUp className="size-3.5" /></IconButton>
-                          <IconButton label="Mover abajo" className="size-7" disabled={i === (sel.blocks?.length ?? 0) - 1} onClick={(e) => { e.preventDefault(); const l = [...(sel.blocks ?? [])]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; patch(sel.id, { blocks: l }); }}><ChevronDown className="size-3.5" /></IconButton>
-                          <IconButton label="Eliminar bloque" className="size-7" onClick={(e) => { e.preventDefault(); patch(sel.id, { blocks: (sel.blocks ?? []).filter((x) => x.id !== b.id) }); }}><Trash2 className="size-3.5" /></IconButton></summary>
+                          <IconButton label="Mover arriba" className="!size-9 xl:!size-7" disabled={i === 0} onClick={(e) => { e.preventDefault(); const l = [...(sel.blocks ?? [])]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; patch(sel.id, { blocks: l }); }}><ChevronUp className="size-3.5" /></IconButton>
+                          <IconButton label="Mover abajo" className="!size-9 xl:!size-7" disabled={i === (sel.blocks?.length ?? 0) - 1} onClick={(e) => { e.preventDefault(); const l = [...(sel.blocks ?? [])]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; patch(sel.id, { blocks: l }); }}><ChevronDown className="size-3.5" /></IconButton>
+                          <IconButton label="Eliminar bloque" className="!size-9 xl:!size-7" onClick={(e) => { e.preventDefault(); patch(sel.id, { blocks: (sel.blocks ?? []).filter((x) => x.id !== b.id) }); }}><Trash2 className="size-3.5" /></IconButton></summary>
                         <div className="border-t border-line p-3">{bt && <SchemaForm fields={bt.fields} values={b.settings} onChange={(settings) => patch(sel.id, { blocks: (sel.blocks ?? []).map((x) => (x.id === b.id ? { ...x, settings } : x)) })} />}</div>
                       </details>); }}
                   </SortableList>

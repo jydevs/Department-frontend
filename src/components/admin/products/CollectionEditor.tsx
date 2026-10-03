@@ -47,7 +47,7 @@ export function CollectionEditor({ initial }: { initial: Collection }) {
           </div></Card>
           <Card title={c.kind === "manual" ? "Productos (orden manual)" : "Reglas de la colección"}>
             <div className="mb-3 flex gap-2" role="radiogroup" aria-label="Tipo de colección">
-              {(["manual", "smart"] as const).map((k) => <button key={k} type="button" role="radio" aria-checked={c.kind === k} onClick={() => set({ kind: k })} className={`rounded-sm border px-3 py-1.5 text-sm ${c.kind === k ? "border-accent bg-accent/10 text-accent-text" : "border-line text-muted"}`}>{k === "manual" ? "Manual" : "Inteligente"}</button>)}
+              {(["manual", "smart"] as const).map((k) => <button key={k} type="button" role="radio" aria-checked={c.kind === k} onClick={() => set({ kind: k })} className={`font-condensed min-h-10 border px-4 text-xs tracking-[0.12em] ${c.kind === k ? "border-fg bg-fg text-bg" : "border-fg/35 text-muted hover:text-fg"}`}>{k === "manual" ? "Manual" : "Inteligente"}</button>)}
             </div>
             {c.kind === "manual" ? (
               <div className="space-y-3">

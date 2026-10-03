@@ -7,8 +7,8 @@ import { useCallback, useState } from "react";
 import { Button } from "@/components/admin/ui/Button";
 import { DataTable } from "@/components/admin/ui/DataTable";
 import { Badge, Money, PageHeader, StatusBadge } from "@/components/admin/ui/Display";
-import { SearchInput, Select } from "@/components/admin/ui/Form";
-import { useConfirm } from "@/components/admin/ui/Overlay";
+import { Input, SearchInput, Select } from "@/components/admin/ui/Form";
+import { Dialog, useConfirm } from "@/components/admin/ui/Overlay";
 import { useToast } from "@/components/admin/ui/Toast";
 import { Can } from "@/lib/admin/permissions";
 import { errorMessage } from "@/lib/admin/errors";
@@ -23,11 +23,16 @@ export default function ProductsPage() {
   const { data, isLoading, error } = useProducts(f);
   const facets = useProductFacets().data;
   const bulk = useBulkProducts();
-  const run = async (op: "publish" | "archive" | "delete" | "tag") => {
-    let tag: string | undefined;
-    if (op === "tag") { tag = window.prompt("Etiqueta a añadir")?.trim().toLowerCase(); if (!tag) return; }
+  const [tagOpen, setTagOpen] = useState(false);
+  const [tagValue, setTagValue] = useState("");
+  const applyTag = () => {
+    const tag = tagValue.trim().toLowerCase();
+    if (!tag) return;
+    bulk.mutate({ ids: sel, op: "tag", tag }, { onSuccess: () => { setSel([]); setTagOpen(false); setTagValue(""); }, onError: (e) => toast.error(errorMessage(e)) });
+  };
+  const run = async (op: "publish" | "archive" | "delete") => {
     if (op === "delete" && !(await confirm({ title: "Eliminar productos", message: `Se eliminarán ${sel.length} productos de forma permanente.`, danger: true, confirmLabel: "Eliminar" }))) return;
-    bulk.mutate({ ids: sel, op, tag }, { onSuccess: () => setSel([]), onError: (e) => toast.error(errorMessage(e)) });
+    bulk.mutate({ ids: sel, op }, { onSuccess: () => setSel([]), onError: (e) => toast.error(errorMessage(e)) });
   };
   return (
     <>
@@ -42,7 +47,7 @@ export default function ProductsPage() {
         <Can perm="products:write"><div role="toolbar" aria-label="Acciones masivas" className="mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface p-2 text-sm">
           <span className="px-2">{sel.length} seleccionados</span>
           <Button size="sm" loading={bulk.isPending} onClick={() => void run("publish")}>Publicar</Button><Button size="sm" onClick={() => void run("archive")}>Archivar</Button>
-          <Button size="sm" onClick={() => void run("tag")}>Añadir etiqueta</Button><Button size="sm" variant="danger" onClick={() => void run("delete")}>Eliminar</Button>
+          <Button size="sm" onClick={() => { setTagValue(""); setTagOpen(true); }}>Añadir etiqueta</Button><Button size="sm" variant="danger" onClick={() => void run("delete")}>Eliminar</Button>
         </div></Can>
       )}
       <DataTable caption="Lista de productos" loading={isLoading} error={error ? errorMessage(error) : undefined} rows={data?.items} rowKey={(p) => p.id}
@@ -55,6 +60,13 @@ export default function ProductsPage() {
           { key: "g", header: "Etiquetas", cell: (p) => <div className="flex flex-wrap gap-1">{p.tags.slice(0, 3).map((t) => <Badge key={t}>{t}</Badge>)}</div> },
           { key: "p", header: "Precio", align: "right", sortValue: (p) => p.variants[0]?.price ?? 0, cell: (p) => <Money value={Math.min(...p.variants.map((v) => v.price))} /> },
         ]} />
+      <Dialog open={tagOpen} onClose={() => setTagOpen(false)} title="Añadir etiqueta" size="sm"
+        footer={<><Button onClick={() => setTagOpen(false)}>Cancelar</Button><Button variant="primary" loading={bulk.isPending} disabled={!tagValue.trim()} onClick={applyTag}>Añadir a {sel.length}</Button></>}>
+        <form onSubmit={(e) => { e.preventDefault(); applyTag(); }}>
+          <Input label="Etiqueta" list="tag-suggestions" value={tagValue} onChange={(e) => setTagValue(e.target.value)} hint={`Se añadirá a ${sel.length} producto(s) seleccionados.`} />
+          <datalist id="tag-suggestions">{facets?.tags.map((t) => <option key={t} value={t} />)}</datalist>
+        </form>
+      </Dialog>
     </>
   );
 }

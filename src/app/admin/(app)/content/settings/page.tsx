@@ -19,7 +19,7 @@ interface Settings {
   seo: { titleTemplate: string; defaultDescription: string; ogImageUrl?: string }; social: Record<string, string>;
   announcement: { enabled: boolean; text: string; href?: string }; store: { currency: string; locale: string; contactEmail?: string; whatsapp?: string };
 }
-const FONTS = ["Inter", "Helvetica Neue", "Archivo", "Space Grotesk", "Playfair Display", "Roboto Mono"];
+const FONTS = ["Inter", "Anton", "Oswald", "Pinyon Script", "Helvetica Neue", "Archivo", "Space Grotesk", "Roboto Mono"];
 const COLORS: [string, string][] = [["background", "Fondo"], ["foreground", "Texto"], ["accent", "Acento"], ["muted", "Texto secundario"], ["border", "Bordes"]];
 const SOCIAL = ["instagram", "tiktok", "facebook", "youtube", "pinterest", "x"];
 

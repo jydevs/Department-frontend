@@ -31,7 +31,7 @@ export default function StaffPage() {
         footer={<><Button onClick={() => setEdit(null)}>Cancelar</Button><Button variant="primary" loading={save.isPending} onClick={() => edit && save.mutate(edit, { onSuccess: (r) => { setEdit(null); if (r.tempPassword) setPass(r.tempPassword); }, onError: (e) => setErr(e.message) })}>Guardar</Button></>}>
         {edit && <div className="space-y-3"><Input label="Nombre" value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /><Input label="Correo" type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} />
           <Select label="Rol" value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value })}>{roles.data?.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}</Select>
-          <label className="flex items-center justify-between text-sm">Activo<Switch label="Activo" checked={edit.active} onChange={(v) => setEdit({ ...edit, active: v })} /></label>{err && <p role="alert" className="text-sm text-red-500">{err}</p>}</div>}
+          <label className="flex items-center justify-between text-sm">Activo<Switch label="Activo" checked={edit.active} onChange={(v) => setEdit({ ...edit, active: v })} /></label>{err && <p role="alert" className="text-sm text-accent-text">{err}</p>}</div>}
       </Dialog>
       <Dialog open={!!pass} onClose={() => setPass(null)} title="Contraseña temporal" size="sm" footer={<Button variant="primary" onClick={() => setPass(null)}>Ya la copié</Button>}>
         <p className="mb-2 text-sm text-muted">Compártela de forma segura. <b>Solo se muestra esta vez</b>; la persona deberá cambiarla al entrar.</p>

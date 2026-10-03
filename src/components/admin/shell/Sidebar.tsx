@@ -3,18 +3,25 @@ import clsx from "clsx";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { Logo } from "@/components/layout/Logo";
 import { NAV } from "@/lib/admin/nav";
 import { useAuth } from "@/lib/admin/auth";
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { collapsed: boolean; onToggle: () => void; mobileOpen: boolean; onMobileClose: () => void }) {
   const pathname = usePathname();
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onMobileClose(); };
+    document.addEventListener("keydown", k);
+    return () => document.removeEventListener("keydown", k);
+  }, [mobileOpen, onMobileClose]);
   const { permissions } = useAuth();
   const isActive = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname === href || (pathname.startsWith(`${href}/`) && !NAV.flatMap((g) => g.items).some((o) => o.href !== href && o.href.startsWith(`${href}/`) && pathname.startsWith(o.href))));
   return (
     <>
       {mobileOpen && <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={onMobileClose} aria-hidden />}
-      <aside aria-label="Navegación principal" className={clsx("fixed inset-y-0 left-0 z-40 flex flex-col border-r border-line bg-surface transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0", collapsed ? "lg:w-16" : "lg:w-60", "w-64", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
+      <aside aria-label="Navegación principal" className={clsx("fixed inset-y-0 left-0 z-40 flex flex-col border-r border-line bg-surface transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0", collapsed ? "lg:w-16" : "lg:w-60", "w-64", mobileOpen ? "translate-x-0" : "-translate-x-full max-lg:invisible")}>
         <div className="flex h-[84px] items-center justify-between border-b border-line px-4">
           <Link href="/admin" className="flex items-center gap-2" onClick={onMobileClose}>
             <Logo size="sm" />

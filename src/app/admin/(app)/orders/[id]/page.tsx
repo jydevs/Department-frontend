@@ -62,7 +62,7 @@ export default function OrderDetail() {
             {o.payments.length + o.refunds.length === 0 && <p className="text-sm text-muted">Sin pagos registrados.</p>}
             <ul className="space-y-2 text-sm">
               {o.payments.map((p) => <li key={p.id} className="flex justify-between"><span className="flex items-center gap-2"><CreditCard className="size-4 text-muted" />{p.method} · {p.ref} · <DateTime value={p.at} /></span><Money value={p.amount} /></li>)}
-              {o.refunds.map((r) => <li key={r.id} className="flex justify-between text-red-500"><span className="flex items-center gap-2"><Undo2 className="size-4" />Reembolso · {r.reason || "sin motivo"}{r.restock ? " · stock repuesto" : ""}</span><span>-<Money value={r.amount} /></span></li>)}
+              {o.refunds.map((r) => <li key={r.id} className="flex justify-between text-accent-text"><span className="flex items-center gap-2"><Undo2 className="size-4" />Reembolso · {r.reason || "sin motivo"}{r.restock ? " · stock repuesto" : ""}</span><span>-<Money value={r.amount} /></span></li>)}
             </ul>
           </Card>
           <Card title="Línea de tiempo">

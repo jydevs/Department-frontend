@@ -370,9 +370,9 @@
   --adm-border: rgb(0 0 0 / 0.16);
   --adm-fg: #111111;
   --adm-muted: #5c5c5c;
-  --adm-ok: #15803d;
-  --adm-warn: #b45309;
-  --adm-info: #1d4ed8;
+  --adm-ok: #166534;
+  --adm-warn: #854d0e;
+  --adm-info: #1e40af;
   color-scheme: light;
 }
 .admin-root * { transition-property: background-color, border-color, color; transition-duration: .12s; }

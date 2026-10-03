@@ -49,7 +49,7 @@ export default function ShippingPage() {
           <div><div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-semibold">Tarifas</h3><Button size="sm" icon={<Plus className="size-3.5" />} onClick={() => upd({ rates: [...edit.rates, { id: `rt_${uid()}`, name: "", price: 0, freeOver: null, eta: "" }] })}>Añadir</Button></div>
             <div className="space-y-2">{edit.rates.map((r, i) => { const up = (p: Partial<typeof r>) => upd({ rates: edit.rates.map((x, k) => (k === i ? { ...x, ...p } : x)) }); return (
               <div key={r.id} className="grid items-end gap-2 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]"><Input label="Nombre" value={r.name} onChange={(e) => up({ name: e.target.value })} /><MoneyInput label="Precio" value={r.price} onChange={(v) => up({ price: v ?? 0 })} /><MoneyInput label="Gratis desde" value={r.freeOver ?? undefined} onChange={(v) => up({ freeOver: v ?? null })} /><Input label="Tiempo" value={r.eta} onChange={(e) => up({ eta: e.target.value })} /><IconButton label="Quitar tarifa" onClick={() => upd({ rates: edit.rates.filter((_, k) => k !== i) })}><Trash2 className="size-4" /></IconButton></div>); })}</div></div>
-          {err && <p role="alert" className="text-sm text-red-500">{err}</p>}</div>}
+          {err && <p role="alert" className="text-sm text-accent-text">{err}</p>}</div>}
       </Dialog>
     </>
   );

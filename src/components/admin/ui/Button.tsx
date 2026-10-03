@@ -18,7 +18,7 @@ export function Button({ variant = "secondary", loading, size = "md", icon, clas
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={clsx("font-condensed inline-flex items-center justify-center gap-2 rounded-sm font-medium tracking-[0.12em] whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50", size === "sm" ? "h-8 px-3.5 text-[11px]" : "h-10 px-5 text-xs", V[variant], className)}
+      className={clsx("font-condensed inline-flex items-center justify-center gap-2 rounded-sm font-medium tracking-[0.12em] whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50", size === "sm" ? "h-10 px-3.5 text-[11px] lg:h-8" : "h-11 px-5 text-xs lg:h-10", V[variant], className)}
       {...rest}
     >
       {loading ? <Loader2 className="size-4 animate-spin" aria-hidden /> : icon}
@@ -29,7 +29,7 @@ export function Button({ variant = "secondary", loading, size = "md", icon, clas
 
 export function IconButton({ label, className, children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
   return (
-    <button type="button" aria-label={label} title={label} className={clsx("inline-flex size-9 items-center justify-center rounded-sm text-muted hover:bg-surface2 hover:text-fg disabled:opacity-50", className)} {...rest}>
+    <button type="button" aria-label={label} title={label} className={clsx("inline-flex size-10 items-center justify-center rounded-sm text-muted hover:bg-surface2 hover:text-fg disabled:opacity-50 lg:size-9", className)} {...rest}>
       {children}
     </button>
   );

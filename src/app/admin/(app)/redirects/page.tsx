@@ -31,7 +31,7 @@ export default function RedirectsPage() {
       <Dialog open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "Editar redirección" : "Nueva redirección"} size="sm"
         footer={<><Button onClick={() => setEdit(null)}>Cancelar</Button><Button variant="primary" loading={save.isPending} onClick={submit}>Guardar</Button></>}>
         {edit && <div className="space-y-3"><Input label="Desde" value={edit.from} onChange={(e) => { setErr(""); setEdit({ ...edit, from: e.target.value }); }} hint="Ruta que empieza con /" /><Input label="Hacia" value={edit.to} onChange={(e) => { setErr(""); setEdit({ ...edit, to: e.target.value }); }} hint="/ruta o https://…" />
-          <label className="flex items-center justify-between text-sm">Permanente (301)<Switch label="Permanente" checked={edit.permanent} onChange={(v) => setEdit({ ...edit, permanent: v })} /></label>{err && <p role="alert" className="text-sm text-red-500">{err}</p>}</div>}
+          <label className="flex items-center justify-between text-sm">Permanente (301)<Switch label="Permanente" checked={edit.permanent} onChange={(v) => setEdit({ ...edit, permanent: v })} /></label>{err && <p role="alert" className="text-sm text-accent-text">{err}</p>}</div>}
       </Dialog>
     </>
   );

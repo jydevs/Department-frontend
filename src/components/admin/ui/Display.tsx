@@ -24,7 +24,7 @@ const TONES: Record<Tone, string> = {
   neutral: "bg-surface2 text-muted",
   ok: "bg-green-500/15 text-ok",
   warn: "bg-amber-500/15 text-warn",
-  danger: "bg-red-500/15 text-red-500",
+  danger: "bg-accent/15 text-accent-text",
   info: "bg-blue-500/15 text-info",
   accent: "bg-accent/15 text-accent-text",
 };
@@ -65,14 +65,14 @@ export function PageHeader({ title, actions, breadcrumbs, description }: { title
           {breadcrumbs.map((b, i) => (
             <span key={b.label} className="flex items-center gap-1">
               {i > 0 && <ChevronRight className="size-3" aria-hidden />}
-              {b.href ? <Link href={b.href} className="hover:text-fg">{b.label}</Link> : <span aria-current="page">{b.label}</span>}
+              {b.href ? <Link href={b.href} className="inline-block py-2 hover:text-fg">{b.label}</Link> : <span aria-current="page">{b.label}</span>}
             </span>
           ))}
         </nav>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-display-lg">{title}</h1>
+          <h1 className={clsx("font-display break-words", title.length > 26 ? "text-display-md" : "text-display-lg")}>{title}</h1>
           {description && <p className="mt-2 max-w-[60ch] text-sm text-muted">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -103,7 +103,7 @@ export function Tabs<K extends string>({ tabs, value, onChange, label = "Seccion
     <div role="tablist" aria-label={label} className="flex gap-1 overflow-x-auto border-b border-line">
       {tabs.map((t) => (
         <button key={t.key} role="tab" type="button" aria-selected={value === t.key} onClick={() => onChange(t.key)}
-          className={clsx("font-condensed -mb-px whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium tracking-[0.1em]", value === t.key ? "border-accent text-fg" : "border-transparent text-muted hover:text-fg")}>
+          className={clsx("font-condensed -mb-px whitespace-nowrap border-b-2 px-3 py-3 text-xs font-medium tracking-[0.1em]", value === t.key ? "border-accent text-fg" : "border-transparent text-muted hover:text-fg")}>
           {t.label}{t.count !== undefined && <span className="ml-1.5 rounded-full bg-surface2 px-1.5 text-xs">{t.count}</span>}
         </button>
       ))}
@@ -116,9 +116,9 @@ export function Pagination({ page, totalPages, total, onChange }: { page: number
     <nav aria-label="Paginación" className="flex items-center justify-between gap-2 border-t border-line px-4 py-2.5 text-xs text-muted">
       <span>{total} resultados</span>
       <div className="flex items-center gap-1">
-        <button type="button" aria-label="Página anterior" disabled={page <= 1} onClick={() => onChange(page - 1)} className="rounded-sm p-1.5 hover:bg-surface2 disabled:opacity-40"><ChevronLeft className="size-4" /></button>
+        <button type="button" aria-label="Página anterior" disabled={page <= 1} onClick={() => onChange(page - 1)} className="grid size-10 place-items-center rounded-sm hover:bg-surface2 disabled:opacity-40 lg:size-8"><ChevronLeft className="size-4" /></button>
         <span aria-live="polite">Página {page} de {totalPages}</span>
-        <button type="button" aria-label="Página siguiente" disabled={page >= totalPages} onClick={() => onChange(page + 1)} className="rounded-sm p-1.5 hover:bg-surface2 disabled:opacity-40"><ChevronRight className="size-4" /></button>
+        <button type="button" aria-label="Página siguiente" disabled={page >= totalPages} onClick={() => onChange(page + 1)} className="grid size-10 place-items-center rounded-sm hover:bg-surface2 disabled:opacity-40 lg:size-8"><ChevronRight className="size-4" /></button>
       </div>
     </nav>
   );

@@ -51,5 +51,5 @@ export function BarList({ items }: { items: { label: string; value: number; sub?
 
 export function Delta({ cur, prev }: { cur: number; prev: number }) {
   const pct = prev ? ((cur - prev) / prev) * 100 : 0;
-  return <span className={pct >= 0 ? "text-ok" : "text-red-500"}>{pct >= 0 ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% <span className="text-muted">vs. anterior</span></span>;
+  return <span className={pct >= 0 ? "text-ok" : "text-accent-text"}>{pct >= 0 ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% <span className="text-muted">vs. anterior</span></span>;
 }

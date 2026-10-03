@@ -80,7 +80,7 @@ export function DiffTable({ rows }: { rows: { path: string; before: string; afte
     <table className="w-full text-left text-xs">
       <caption className="sr-only">Claves cambiadas</caption>
       <thead className="text-muted"><tr><th scope="col" className="py-1 pr-2">Clave</th><th scope="col" className="pr-2">Antes</th><th scope="col">Después</th></tr></thead>
-      <tbody>{rows.map((r) => <tr key={r.path} className="border-t border-line align-top"><th scope="row" className="py-1.5 pr-2 font-mono font-normal">{r.path}</th><td className="max-w-40 break-words pr-2 text-red-500">{r.before.slice(0, 120)}</td><td className="max-w-40 break-words text-ok">{r.after.slice(0, 120)}</td></tr>)}</tbody>
+      <tbody>{rows.map((r) => <tr key={r.path} className="border-t border-line align-top"><th scope="row" className="py-1.5 pr-2 font-mono font-normal">{r.path}</th><td className="max-w-40 break-words pr-2 text-accent-text">{r.before.slice(0, 120)}</td><td className="max-w-40 break-words text-ok">{r.after.slice(0, 120)}</td></tr>)}</tbody>
     </table>
   );
 }

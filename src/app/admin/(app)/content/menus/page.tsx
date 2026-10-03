@@ -41,7 +41,7 @@ function Level({ items, depth, onChange, can }: { items: MenuItem[]; depth: numb
                   <IconButton label="Eliminar" onClick={() => onChange(items.filter((i) => i.id !== it.id))}><Trash2 className="size-4" /></IconButton>
                 </div>
               </div>
-              {err && <p role="alert" className="mt-1 pl-9 text-xs text-red-500">{err}</p>}
+              {err && <p role="alert" className="mt-1 pl-9 text-xs text-accent-text">{err}</p>}
             </div>
             {it.children && it.children.length > 0 && <div className="ml-6 mt-2 border-l border-line pl-3"><Level items={it.children} depth={depth + 1} can={can} onChange={(children) => upd(it.id, { children })} /></div>}
           </div>
