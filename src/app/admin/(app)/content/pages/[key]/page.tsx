@@ -3,11 +3,12 @@ import { useParams } from "next/navigation";
 import { TemplateEditor } from "@/components/admin/content/TemplateEditor";
 import { EmptyState, PageHeader, Skeleton } from "@/components/admin/ui/Display";
 import { useDoc } from "@/lib/admin/api/content";
+import { errorMessage } from "@/lib/admin/errors";
 
 export default function PageEditPage() {
   const { key } = useParams<{ key: string }>();
-  const { data, isLoading } = useDoc("page", key);
+  const { data, isLoading, error } = useDoc("page", key);
   if (isLoading) return <Skeleton className="h-96" />;
-  if (!data) return <EmptyState title="Página no encontrada" />;
+  if (!data) return <EmptyState title={error ? "Página no encontrada" : "Sin datos"} text={error ? errorMessage(error) : undefined} />;
   return (<><PageHeader title={data.title} breadcrumbs={[{ label: "Páginas", href: "/admin/content/pages" }, { label: data.title }]} /><TemplateEditor key={data.key} doc={data} /></>);
 }

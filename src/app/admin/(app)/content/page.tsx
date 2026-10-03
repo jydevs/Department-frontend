@@ -2,15 +2,15 @@
 import Link from "next/link";
 import { Badge, DateTime, PageHeader, Skeleton } from "@/components/admin/ui/Display";
 import { DataTable } from "@/components/admin/ui/DataTable";
-import { docStatus, useDocs } from "@/lib/admin/api/content";
+import { docStatus, useDocs, type CmsDoc as ContentDoc } from "@/lib/admin/api/content";
 import { useRouter } from "next/navigation";
-import type { ContentDoc } from "@/lib/admin/types";
+import { errorMessage } from "@/lib/admin/errors";
 
 const KIND = { settings: "Ajustes", menu: "Menú", template: "Plantilla", page: "Página" } as const;
 export const docHref = (d: ContentDoc): string => (d.kind === "settings" ? "/admin/content/settings" : d.kind === "menu" ? "/admin/content/menus" : d.kind === "template" ? `/admin/content/templates/${d.key}` : `/admin/content/pages/${d.key}`);
 
 export default function ContentOverview() {
-  const { data, isLoading } = useDocs();
+  const { data, isLoading, error } = useDocs();
   const router = useRouter();
   const counts = { unpublished: 0, scheduled: 0, dirty: 0 };
   data?.forEach((d) => { const s = docStatus(d); if (s === "draft-unpublished") counts.unpublished++; else if (s === "scheduled") counts.scheduled++; else if (s === "dirty") counts.dirty++; });
@@ -22,7 +22,7 @@ export default function ContentOverview() {
           <div key={l as string} className="rounded-sm border border-line bg-surface p-4"><p className="text-xs text-muted">{l}</p>{isLoading ? <Skeleton className="mt-2 h-7 w-10" /> : <p className="mt-1 text-2xl font-semibold">{n as number} <Badge tone={t as "warn" | "info"}>{t === "info" ? "programado" : "pendiente"}</Badge></p>}</div>
         ))}
       </div>
-      <DataTable caption="Documentos de contenido" loading={isLoading} rows={data} rowKey={(d) => `${d.kind}:${d.key}`} onRowClick={(d) => router.push(docHref(d))}
+      <DataTable caption="Documentos de contenido" loading={isLoading} error={error ? errorMessage(error) : undefined} rows={data} rowKey={(d) => `${d.kind}:${d.key}`} onRowClick={(d) => router.push(docHref(d))}
         columns={[
           { key: "t", header: "Documento", sortValue: (d) => d.title, cell: (d) => <Link href={docHref(d)} className="font-medium hover:underline" onClick={(e) => e.stopPropagation()}>{d.title}</Link> },
           { key: "k", header: "Tipo", cell: (d) => KIND[d.kind] },

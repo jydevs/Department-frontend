@@ -65,7 +65,11 @@ async function raw(method: string, path: string, body: unknown, opts: Opts = {},
   }
   return res;
 }
-const json = async <T>(r: Response): Promise<T> => (r.status === 204 ? (undefined as T) : ((await r.json()) as T));
+const json = async <T>(r: Response): Promise<T> => {
+  if (r.status === 204) return undefined as T;
+  const text = await r.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+};
 
 export const api = {
   get: async <T>(p: string, o?: Opts) => json<T>(await raw("GET", p, undefined, o)),

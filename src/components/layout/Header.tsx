@@ -177,10 +177,10 @@ export function Header() {
             </button>
 
             <ul className="hidden items-center gap-9 md:flex">
-              {nav.map((item) => {
+              {nav.map((item, ni) => {
                 const active = isActive(item.href, item.isCatalog);
                 return (
-                  <li key={item.href}>
+                  <li key={`${item.href}-${ni}`}>
                     <Link
                       href={item.href}
                       aria-current={active ? "page" : undefined}
@@ -271,7 +271,7 @@ export function Header() {
         <nav aria-label={L.mobile}>
           <ul>
             {MENU_LINKS.map((link, i) => (
-              <li key={link.href} className="border-b border-white/10">
+              <li key={`${link.href}-${i}`} className="border-b border-white/10">
                 <Link
                   href={link.href}
                   onClick={() => setMenuOpen(false)}

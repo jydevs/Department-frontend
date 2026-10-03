@@ -4,34 +4,40 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/admin/ui/Button";
 import { DataTable } from "@/components/admin/ui/DataTable";
-import { Badge, DateTime, Money, PageHeader } from "@/components/admin/ui/Display";
+import { Badge, DateTime, PageHeader } from "@/components/admin/ui/Display";
 import { SearchInput, Select } from "@/components/admin/ui/Form";
 import { useToast } from "@/components/admin/ui/Toast";
-import { downloadCsv, useCustomerTags, useCustomers, type CustomerFilters } from "@/lib/admin/api/admin";
+import { exportCustomers, useCustomers, type CustomerFilters } from "@/lib/admin/api/admin";
+import { errorMessage } from "@/lib/admin/errors";
 import { useCan } from "@/lib/admin/permissions";
-import { db } from "@/lib/admin/mock/db";
 
 export default function CustomersPage() {
-  const router = useRouter(), toast = useToast(), can = useCan("customers:read");
-  const [f, setF] = useState<CustomerFilters>({ q: "", tag: "", marketing: "", page: 1 });
+  const router = useRouter(), toast = useToast(), canExport = useCan("customers:write");
+  const [f, setF] = useState<CustomerFilters>({ q: "", tag: "", marketing: "", active: "", page: 1 });
+  const [exporting, setExporting] = useState(false);
   const set = (p: Partial<CustomerFilters>) => setF((x) => ({ ...x, page: 1, ...p }));
   const onSearch = useCallback((q: string) => setF((x) => (x.q === q ? x : { ...x, q, page: 1 })), []);
-  const { data, isLoading } = useCustomers(f);
-  const tags = useCustomerTags().data ?? [];
-  const exportCsv = () => { downloadCsv("clientes.csv", [["id", "nombre", "correo", "teléfono", "pedidos", "total_gastado", "marketing"], ...db().customers.map((c) => [c.id, c.name, c.email, c.phone, c.ordersCount, c.totalSpent, c.marketing])]); toast.success("CSV exportado"); };
+  const onTag = useCallback((tag: string) => setF((x) => (x.tag === tag ? x : { ...x, tag, page: 1 })), []);
+  const { data, isLoading, error } = useCustomers(f);
+  const exportCsv = async () => {
+    setExporting(true);
+    try { await exportCustomers(f); toast.success("CSV exportado (clientes no anonimizados, con los filtros actuales)"); } catch (e) { toast.error(errorMessage(e)); } finally { setExporting(false); }
+  };
   return (
     <>
-      <PageHeader title="Clientes" actions={can ? <Button icon={<Download className="size-4" />} onClick={exportCsv}>Exportar CSV</Button> : undefined} />
-      <div className="mb-3 grid gap-2 sm:grid-cols-3"><SearchInput onSearch={onSearch} placeholder="Nombre o correo" />
-        <Select aria-label="Etiqueta" value={f.tag} onChange={(e) => set({ tag: e.target.value })}><option value="">Etiqueta: todas</option>{tags.map((t) => <option key={t}>{t}</option>)}</Select>
-        <Select aria-label="Marketing" value={f.marketing} onChange={(e) => set({ marketing: e.target.value })}><option value="">Marketing: todos</option><option value="true">Acepta marketing</option><option value="false">No acepta</option></Select></div>
+      <PageHeader title="Clientes" actions={canExport ? <Button icon={<Download className="size-4" />} loading={exporting} onClick={exportCsv}>Exportar CSV</Button> : undefined} />
+      <div className="mb-3 grid gap-2 sm:grid-cols-4"><SearchInput onSearch={onSearch} placeholder="Nombre o correo" />
+        <SearchInput onSearch={onTag} placeholder="Etiqueta exacta" />
+        <Select aria-label="Marketing" value={f.marketing} onChange={(e) => set({ marketing: e.target.value })}><option value="">Marketing: todos</option><option value="true">Acepta marketing</option><option value="false">No acepta</option></Select>
+        <Select aria-label="Estado" value={f.active} onChange={(e) => set({ active: e.target.value })}><option value="">Estado: todos</option><option value="true">Activos</option><option value="false">Desactivados</option></Select></div>
       <DataTable caption="Clientes" loading={isLoading} rows={data?.items} rowKey={(c) => c.id} onRowClick={(c) => router.push(`/admin/customers/${c.id}`)}
+        error={error ? errorMessage(error) : undefined}
         pagination={data && { page: data.page, totalPages: data.totalPages, total: data.total, onChange: (page) => setF((x) => ({ ...x, page })) }}
         columns={[
-          { key: "n", header: "Cliente", sortValue: (c) => c.name, cell: (c) => <div><p className="font-medium">{c.name}</p><p className="text-xs text-muted">{c.email}</p></div> },
-          { key: "t", header: "Etiquetas", cell: (c) => <div className="flex gap-1">{c.anonymized && <Badge tone="danger">Anonimizado</Badge>}{c.tags.map((t) => <Badge key={t}>{t}</Badge>)}</div> },
-          { key: "o", header: "Pedidos", sortValue: (c) => c.ordersCount, cell: (c) => c.ordersCount },
-          { key: "s", header: "Gastado", sortValue: (c) => c.totalSpent, cell: (c) => <Money value={c.totalSpent} /> },
+          { key: "n", header: "Cliente", cell: (c) => <div><p className="font-medium">{c.name}</p><p className="text-xs text-muted">{c.email}</p></div> },
+          { key: "t", header: "Etiquetas", cell: (c) => <div className="flex flex-wrap gap-1">{c.anonymized && <Badge tone="danger">Anonimizado</Badge>}{!c.isActive && !c.anonymized && <Badge tone="warn">Desactivado</Badge>}{c.tags.map((t) => <Badge key={t}>{t}</Badge>)}</div> },
+          { key: "m", header: "Marketing", cell: (c) => (c.marketing ? "Sí" : "No") },
+          { key: "a", header: "Cuenta", cell: (c) => (c.hasAccount ? "Registrado" : "Invitado") },
           { key: "d", header: "Alta", cell: (c) => <DateTime value={c.createdAt} /> },
         ]} />
     </>

@@ -7,7 +7,7 @@ export function SalesChart({ data }: { data: { day: string; value: number; prev:
   const [hover, setHover] = useState<number | null>(null);
   const gid = useId();
   const W = 720, H = 220, P = { l: 56, r: 12, t: 12, b: 24 };
-  const max = Math.max(...data.flatMap((d) => [d.value, d.prev])) * 1.1 || 1;
+  const max = Math.max(0, ...data.flatMap((d) => [d.value, d.prev])) * 1.1 || 1;
   const x = (i: number) => P.l + (i * (W - P.l - P.r)) / Math.max(1, data.length - 1);
   const y = (v: number) => P.t + (1 - v / max) * (H - P.t - P.b);
   const path = (k: "value" | "prev") => data.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(d[k]).toFixed(1)}`).join(" ");
@@ -49,7 +49,8 @@ export function BarList({ items }: { items: { label: string; value: number; sub?
   );
 }
 
-export function Delta({ cur, prev }: { cur: number; prev: number }) {
-  const pct = prev ? ((cur - prev) / prev) * 100 : 0;
+/** Variación porcentual vs. el periodo anterior (la API da null cuando no hay base de comparación). */
+export function Delta({ pct }: { pct: number | null }) {
+  if (pct === null) return <span className="text-muted">Sin periodo anterior para comparar</span>;
   return <span className={pct >= 0 ? "text-ok" : "text-accent-text"}>{pct >= 0 ? "▲" : "▼"} {Math.abs(pct).toFixed(1)}% <span className="text-muted">vs. anterior</span></span>;
 }

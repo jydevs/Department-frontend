@@ -1,103 +1,87 @@
 "use client";
+import { PagePreview } from "@/components/admin/content/PagePreview";
 import { PublishBar } from "@/components/admin/content/PublishBar";
 import { SchemaForm } from "@/components/admin/content/SchemaForm";
 import { useDraft } from "@/components/admin/content/useDraft";
 import { Card, EmptyState, PageHeader, Skeleton } from "@/components/admin/ui/Display";
-import { Input, Switch } from "@/components/admin/ui/Form";
-import { validateField } from "@/lib/admin/api/content";
-import { useDoc } from "@/lib/admin/api/content";
+import { Input } from "@/components/admin/ui/Form";
+import { useDoc, validateField, type CmsDoc, type CmsField, type JsonValue } from "@/lib/admin/api/content";
+import { errorMessage } from "@/lib/admin/errors";
 import { useCan } from "@/lib/admin/permissions";
-import type { ContentDoc, JsonValue } from "@/lib/admin/types";
-import { Image as ImageIcon } from "lucide-react";
-import Image from "next/image";
-import { useState } from "react";
-import { MediaPicker } from "@/components/admin/content/MediaPicker";
-import { Button } from "@/components/admin/ui/Button";
 
-interface Settings {
-  brand: { name: string; tagline?: string; logoMediaUrl?: string }; theme: { colors: Record<string, string>; fonts: { heading: string; body: string } };
-  seo: { titleTemplate: string; defaultDescription: string; ogImageUrl?: string }; social: Record<string, string>;
-  announcement: { enabled: boolean; text: string; href?: string }; store: { currency: string; locale: string; contactEmail?: string; whatsapp?: string };
-}
-const DEFAULTS: Settings = {
-  brand: { name: "", tagline: "", logoMediaUrl: "" },
-  theme: { colors: { background: "#000000", foreground: "#ffffff", accent: "#d10000", muted: "#8a8a8a", border: "#2a2a2a" }, fonts: { heading: "Inter", body: "Inter" } },
-  seo: { titleTemplate: "%s", defaultDescription: "", ogImageUrl: "" }, social: {}, announcement: { enabled: false, text: "", href: "" },
-  store: { currency: "COP", locale: "es-CO", contactEmail: "", whatsapp: "" },
-};
-/** Mezcla profunda con los valores por defecto: un documento incompleto no rompe el editor. */
-function withDefaults<T>(base: T, v: unknown): T {
-  if (base && typeof base === "object" && !Array.isArray(base)) {
-    const src = v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
-    const out: Record<string, unknown> = { ...(base as Record<string, unknown>), ...src };
-    for (const k of Object.keys(base as object)) out[k] = withDefaults((base as Record<string, unknown>)[k], src[k]);
-    return out as T;
-  }
-  return (v === undefined || v === null ? base : v) as T;
-}
+type Obj = Record<string, JsonValue>;
 const FONTS = ["Inter", "Anton", "Oswald", "Pinyon Script", "Helvetica Neue", "Archivo", "Space Grotesk", "Roboto Mono"];
-const COLORS: [string, string][] = [["background", "Fondo"], ["foreground", "Texto"], ["accent", "Acento"], ["muted", "Texto secundario"], ["border", "Bordes"]];
-const SOCIAL = ["instagram", "tiktok", "facebook", "youtube", "pinterest", "x"];
+const str = (key: string, label: string, o: Partial<CmsField> = {}): CmsField => ({ key, label, type: "string", ...o });
+const color = (key: string, label: string, required = false): CmsField => ({ key, label, type: "color", required });
+const HTTPS = "^https://\\S+$";
 
-function Editor({ doc }: { doc: ContentDoc }) {
-  const d = useDraft(doc);
+/** Campos exactamente como los valida el backend (src/cms/schemas/settings.schema.ts). */
+const brand: CmsField[] = [str("name", "Nombre de la tienda", { required: true, maxLength: 80 }), str("tagline", "Eslogan", { maxLength: 200 }), { key: "description", label: "Descripción de marca (pie, bloques)", type: "text", maxLength: 500 }, { key: "logoMediaUrl", label: "Logo", type: "image" }];
+const colors: CmsField[] = [color("background", "Fondo", true), color("foreground", "Texto", true), color("accent", "Acento", true), color("accentDark", "Acento oscuro"), color("accentLight", "Acento claro"), color("muted", "Texto secundario"), color("border", "Bordes"), color("info", "Color de acción secundaria"), color("gray100", "Gris 100"), color("gray300", "Gris 300"), color("gray500", "Gris 500"), color("gray900", "Gris 900")];
+const seo: CmsField[] = [str("titleTemplate", "Plantilla del título", { required: true, maxLength: 120, hint: "Usa %s para el título de la página." }), str("defaultTitle", "Título de la home", { maxLength: 160, hint: "La plantilla no se aplica a la home." }), { key: "defaultDescription", label: "Descripción por defecto", type: "text", required: true, maxLength: 320 }, { key: "ogImageUrl", label: "Imagen para compartir (Open Graph)", type: "image" }];
+const social: CmsField[] = ["instagram", "tiktok", "facebook", "youtube", "pinterest", "x"].map((k) => str(k, k[0].toUpperCase() + k.slice(1), { pattern: HTTPS, maxLength: 500, hint: "https://…" }));
+const announcement: CmsField[] = [
+  { key: "enabled", label: "Mostrar barra de anuncios", type: "boolean" }, str("text", "Texto (una línea)", { required: true, maxLength: 200 }),
+  { key: "items", label: "Líneas de la marquesina (si hay, reemplazan al texto)", type: "stringList", maxItems: 10, itemMaxLength: 120 },
+  { key: "href", label: "Enlace", type: "url" }, color("backgroundColor", "Color de fondo"), color("textColor", "Color del texto"), str("separator", "Separador", { maxLength: 5 }),
+  { key: "duration", label: "Segundos por vuelta", type: "number", min: 5, max: 180 },
+];
+const store: CmsField[] = [str("contactEmail", "Correo de contacto", { pattern: "^\\S+@\\S+\\.\\S+$", maxLength: 200 }), str("whatsapp", "WhatsApp", { pattern: "^\\+?[0-9]{7,15}$", hint: "Solo dígitos, con + opcional" })];
+
+const sub = (v: JsonValue, path: string[]): Obj => { let c: JsonValue | undefined = v; for (const p of path) c = c && typeof c === "object" && !Array.isArray(c) ? (c as Obj)[p] : undefined; return c && typeof c === "object" && !Array.isArray(c) ? (c as Obj) : {}; };
+const setIn = (v: JsonValue, path: string[], val: Obj): JsonValue => {
+  const root = { ...((v ?? {}) as Obj) }; let cur = root;
+  path.slice(0, -1).forEach((p) => { cur[p] = { ...((cur[p] ?? {}) as Obj) }; cur = cur[p] as Obj; });
+  cur[path[path.length - 1]] = val; return root;
+};
+const fontField = (key: string, label: string, required: boolean, cur: string): CmsField => ({ key, label, type: "enum", required, options: cur && !FONTS.includes(cur) ? [cur, ...FONTS] : FONTS });
+const schemeField: CmsField = { key: "colorScheme", label: "Esquema de color", type: "enum", options: ["dark", "light"] };
+
+const groupsFor = (s: JsonValue): { path: string[]; title: string; fields: CmsField[]; cols?: boolean }[] => {
+  const fonts = sub(s, ["theme", "fonts"]);
+  const g = (k: string) => (typeof fonts[k] === "string" ? (fonts[k] as string) : "");
+  return [
+    { path: ["brand"], title: "Marca", fields: brand },
+    { path: ["theme", "colors"], title: "Colores", fields: colors, cols: true },
+    { path: ["theme", "fonts"], title: "Tipografías", fields: [fontField("heading", "Títulos", true, g("heading")), fontField("body", "Texto", true, g("body")), fontField("condensed", "Condensada (menú, botones)", false, g("condensed")), fontField("script", "Decorativa (script)", false, g("script"))], cols: true },
+    { path: ["theme"], title: "Tema", fields: [schemeField] },
+    { path: ["seo"], title: "SEO por defecto", fields: seo },
+    { path: ["social"], title: "Redes sociales", fields: social, cols: true },
+    { path: ["announcement"], title: "Barra de anuncios", fields: announcement },
+    { path: ["store"], title: "Contacto", fields: store, cols: true },
+  ];
+};
+const countErrors = (v: JsonValue): number => groupsFor(v).reduce((n, g) => { const o = sub(v, g.path); return n + g.fields.filter((f) => validateField(f, o[f.key])).length; }, 0);
+
+function Editor({ doc }: { doc: CmsDoc }) {
+  const d = useDraft(doc, countErrors);
   const can = useCan("content:write");
-  const s = withDefaults(DEFAULTS, d.local);
-  const [logo, setLogo] = useState(false);
-  const up = (fn: (x: Settings) => Settings) => d.change(fn(structuredClone(s)) as unknown as JsonValue);
-  const errs: Record<string, string> = {};
-  const url = { key: "u", label: "", type: "url" as const };
-  for (const k of SOCIAL) { const v = s.social[k]; if (v && !v.startsWith("https://")) errs[`social.${k}`] = "Debe empezar con https://"; }
-  if (s.announcement.href && validateField(url, s.announcement.href)) errs.annHref = "URL inválida";
-  for (const [k] of COLORS) { const v = s.theme.colors[k]; if (v && !/^#[0-9a-f]{6}$/i.test(v)) errs[`color.${k}`] = "Hex inválido"; }
-  if (s.store.contactEmail && !/^\S+@\S+\.\S+$/.test(s.store.contactEmail)) errs.email = "Correo inválido";
-  if (s.store.whatsapp && !/^\+?[0-9]{7,15}$/.test(s.store.whatsapp)) errs.wa = "WhatsApp inválido";
-  if (!s.brand.name.trim()) errs.name = "Obligatorio";
-  const c = s.theme.colors;
+  const groups = groupsFor(d.local);
   return (
     <>
-      <PublishBar doc={doc} local={d.local} dirty={d.dirty} saving={d.saving} invalidCount={Object.keys(errs).length} onSave={() => d.flush()} onReset={d.reset} />
+      <PublishBar doc={doc} local={d.local} dirty={d.dirty} saving={d.saving} invalidCount={countErrors(d.local)} conflict={d.conflict} issues={d.issues} onSave={() => d.flush()} onReset={d.reset} />
       <fieldset disabled={!can} className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
-          <Card title="Marca"><div className="space-y-3">
-            <Input label="Nombre de la tienda" value={s.brand.name} error={errs.name} onChange={(e) => up((x) => ({ ...x, brand: { ...x.brand, name: e.target.value } }))} />
-            <Input label="Eslogan" value={s.brand.tagline ?? ""} onChange={(e) => up((x) => ({ ...x, brand: { ...x.brand, tagline: e.target.value } }))} />
-            <div className="flex items-center gap-3">{s.brand.logoMediaUrl ? <Image src={s.brand.logoMediaUrl} alt="Logo" width={96} height={48} unoptimized className="h-12 w-24 rounded bg-black object-contain" /> : <ImageIcon className="size-8 text-muted" />}<Button onClick={() => setLogo(true)}>Elegir logo</Button></div>
-            <MediaPicker open={logo} onClose={() => setLogo(false)} onPick={([m]) => m && up((x) => ({ ...x, brand: { ...x.brand, logoMediaUrl: m.url } }))} />
-          </div></Card>
-          <Card title="Colores y tipografías"><div className="grid gap-3 sm:grid-cols-2">
-            {COLORS.map(([k, l]) => <SchemaForm key={k} fields={[{ key: k, label: l, type: "color" }]} values={c} errors={errs[`color.${k}`] ? { [k]: errs[`color.${k}`] } : {}} onChange={(v) => up((x) => ({ ...x, theme: { ...x.theme, colors: v as Record<string, string> } }))} />)}
-            {(["heading", "body"] as const).map((k) => <label key={k} className="flex flex-col gap-1.5 text-xs font-medium">{k === "heading" ? "Tipografía de títulos" : "Tipografía de texto"}<select className="h-9 rounded-sm border border-line bg-surface px-3 text-sm" value={s.theme.fonts[k]} onChange={(e) => up((x) => ({ ...x, theme: { ...x.theme, fonts: { ...x.theme.fonts, [k]: e.target.value } } }))}>{FONTS.map((f) => <option key={f}>{f}</option>)}</select></label>)}
-          </div></Card>
-          <Card title="SEO por defecto"><div className="space-y-3">
-            <Input label="Plantilla del título" value={s.seo.titleTemplate} hint="Usa %s para el título de la página." onChange={(e) => up((x) => ({ ...x, seo: { ...x.seo, titleTemplate: e.target.value } }))} />
-            <Input label="Descripción por defecto" value={s.seo.defaultDescription} onChange={(e) => up((x) => ({ ...x, seo: { ...x.seo, defaultDescription: e.target.value } }))} />
-          </div></Card>
-          <Card title="Redes sociales"><div className="grid gap-3 sm:grid-cols-2">{SOCIAL.map((k) => <Input key={k} label={k[0].toUpperCase() + k.slice(1)} placeholder="https://…" value={s.social[k] ?? ""} error={errs[`social.${k}`]} onChange={(e) => up((x) => ({ ...x, social: { ...x.social, [k]: e.target.value } }))} />)}</div></Card>
-          <Card title="Barra de anuncios"><div className="space-y-3">
-            <label className="flex items-center justify-between text-sm">Mostrar barra<Switch label="Mostrar barra de anuncios" checked={s.announcement.enabled} onChange={(v) => up((x) => ({ ...x, announcement: { ...x.announcement, enabled: v } }))} /></label>
-            <Input label="Texto" value={s.announcement.text} maxLength={200} onChange={(e) => up((x) => ({ ...x, announcement: { ...x.announcement, text: e.target.value } }))} />
-            <Input label="Enlace" value={s.announcement.href ?? ""} error={errs.annHref} onChange={(e) => up((x) => ({ ...x, announcement: { ...x.announcement, href: e.target.value } }))} />
-          </div></Card>
-          <Card title="Moneda y contacto"><div className="grid gap-3 sm:grid-cols-2">
-            <Input label="Moneda" value={s.store.currency} disabled /><Input label="Idioma / región" value={s.store.locale} disabled />
-            <Input label="Correo de contacto" type="email" value={s.store.contactEmail ?? ""} error={errs.email} onChange={(e) => up((x) => ({ ...x, store: { ...x.store, contactEmail: e.target.value } }))} />
-            <Input label="WhatsApp" value={s.store.whatsapp ?? ""} error={errs.wa} onChange={(e) => up((x) => ({ ...x, store: { ...x.store, whatsapp: e.target.value } }))} />
-          </div></Card>
+          {groups.map((g) => (
+            <Card key={g.path.join(".")} title={g.title}>
+              <div className={g.cols ? "grid gap-3 sm:grid-cols-2" : undefined}>
+                {g.cols
+                  ? g.fields.map((f) => <SchemaForm key={f.key} fields={[f]} values={sub(d.local, g.path)} onChange={(v) => d.change(setIn(d.local, g.path, v))} />)
+                  : <SchemaForm fields={g.fields} values={sub(d.local, g.path)} onChange={(v) => d.change(setIn(d.local, g.path, v))} />}
+              </div>
+              {g.path[0] === "store" && <div className="mt-3 grid gap-3 sm:grid-cols-2"><Input label="Moneda" value="COP" disabled readOnly /><Input label="Idioma / región" value="es-CO" disabled readOnly /></div>}
+            </Card>
+          ))}
         </div>
-        <Card title="Vista previa en vivo" className="h-fit xl:sticky xl:top-32"><div className="overflow-hidden rounded-sm border border-line" style={{ background: c.background, color: c.foreground, fontFamily: s.theme.fonts.body }}>
-          {s.announcement.enabled && <p className="px-2 py-1 text-center text-[11px]" style={{ background: c.accent, color: "#fff" }}>{s.announcement.text}</p>}
-          <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: c.border }}><span className="text-sm font-bold" style={{ fontFamily: s.theme.fonts.heading }}>{s.brand.name}</span><span className="text-[11px]" style={{ color: c.muted }}>Novedades · Ropa · Nosotros</span></div>
-          <div className="p-4"><p className="text-xl font-bold" style={{ fontFamily: s.theme.fonts.heading }}>{s.brand.tagline || "Tu eslogan"}</p><p className="mt-1 text-xs" style={{ color: c.muted }}>{s.seo.defaultDescription}</p><span className="mt-3 inline-block rounded px-3 py-1.5 text-xs font-semibold text-white" style={{ background: c.accent }}>Comprar ahora</span></div>
-        </div></Card>
+        <Card title="Vista previa de la tienda" className="h-fit xl:sticky xl:top-32"><PagePreview doc={doc} savedAt={d.savedAt} /></Card>
       </fieldset>
     </>
   );
 }
 
 export default function SettingsPage() {
-  const { data, isLoading } = useDoc("settings", "main");
+  const { data, isLoading, error } = useDoc("settings", "site");
   if (isLoading) return <Skeleton className="h-96" />;
-  if (!data) return <EmptyState title="Ajustes no encontrados" />;
+  if (!data) return <EmptyState title="Ajustes no encontrados" text={error ? errorMessage(error) : undefined} />;
   return (<><PageHeader title="Ajustes y tema" /><Editor key={data.key} doc={data} /></>);
 }

@@ -2,43 +2,67 @@
 import { Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/admin/ui/Button";
-import { Card, PageHeader, StatusBadge } from "@/components/admin/ui/Display";
+import { Badge, Card, DateTime, EmptyState, Pagination, PageHeader, Skeleton, StatusBadge } from "@/components/admin/ui/Display";
 import { Checkbox, Select } from "@/components/admin/ui/Form";
 import { useToast } from "@/components/admin/ui/Toast";
-import { useCancelImport, useImports, useStartImport } from "@/lib/admin/api/admin";
+import { errorMessage } from "@/lib/admin/errors";
+import { isActive, MAX_IMPORT, useCancelImport, useImportDetail, useImports, useStartImport, type ImportJob, type ImportKind } from "@/lib/admin/api/imports";
 import { useCan } from "@/lib/admin/permissions";
-import type { ImportJob } from "@/lib/admin/types";
 
-const MAX = 5 * 1024 * 1024;
 export default function ImportsPage() {
-  const { data } = useImports();
-  const start = useStartImport(), cancel = useCancelImport(), toast = useToast();
+  const [page, setPage] = useState(1);
+  const { data, isLoading, error } = useImports(page);
+  const toast = useToast();
   const can = useCan("import:write");
-  const [kind, setKind] = useState<ImportJob["kind"]>("products"), [dry, setDry] = useState(true), [file, setFile] = useState<File | null>(null);
+  const [kind, setKind] = useState<ImportKind>("products"), [dry, setDry] = useState(true), [file, setFile] = useState<File | null>(null);
   const input = useRef<HTMLInputElement>(null);
-  const go = async () => {
+  const start = useStartImport(() => { setFile(null); setPage(1); if (input.current) input.current.value = ""; });
+  const cancel = useCancelImport();
+  const go = () => {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".csv")) return toast.error("El archivo debe ser .csv");
-    if (file.size > MAX) return toast.error("El CSV supera 5 MB");
-    const rows = (await file.text()).split(/\r?\n/);
-    start.mutate({ kind, file: file.name, rows, dryRun: dry }, { onSuccess: () => { setFile(null); if (input.current) input.current.value = ""; } });
+    if (file.size > MAX_IMPORT) return toast.error("El CSV supera 10 MB");
+    start.mutate({ file, type: kind, dryRun: dry });
   };
   return (
     <>
       <PageHeader title="Importador" description="Sube un CSV de productos (formato Shopify) o clientes. Usa la simulación para validar antes de aplicar." />
       {can && <Card title="Nueva importación" className="mb-4"><div className="grid items-end gap-3 sm:grid-cols-[12rem_1fr_auto_auto]">
-        <Select label="Tipo" value={kind} onChange={(e) => setKind(e.target.value as ImportJob["kind"])}><option value="products">Productos</option><option value="customers">Clientes</option></Select>
-        <div><label htmlFor="csv" className="mb-1.5 block text-xs font-medium">Archivo CSV</label><input id="csv" ref={input} type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="block w-full text-sm file:mr-3 file:rounded-sm file:border-0 file:bg-surface2 file:px-3 file:py-2 file:text-fg" /></div>
+        <Select label="Tipo" value={kind} onChange={(e) => setKind(e.target.value as ImportKind)}><option value="products">Productos</option><option value="customers">Clientes</option></Select>
+        <div><label htmlFor="csv" className="mb-1.5 block text-xs font-medium">Archivo CSV (máx. 10 MB)</label><input id="csv" ref={input} type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="block w-full text-sm file:mr-3 file:rounded-sm file:border-0 file:bg-surface2 file:px-3 file:py-2 file:text-fg" /></div>
         <Checkbox label="Simulación (dry run)" checked={dry} onChange={(e) => setDry(e.target.checked)} />
-        <Button variant="primary" icon={<Upload className="size-4" />} loading={start.isPending} disabled={!file} onClick={() => void go()}>{dry ? "Validar" : "Importar"}</Button>
-      </div><p className="mt-2 text-xs text-muted">Productos requiere columna “title”; clientes, “email”.</p></Card>}
-      <div className="space-y-3">{data?.map((j) => (
-        <Card key={j.id}><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-medium">{j.file} <span className="text-xs text-muted">· {j.kind === "products" ? "Productos" : "Clientes"}{j.dryRun ? " · simulación" : ""}</span></p></div>
-          <div className="flex items-center gap-2"><StatusBadge status={j.status} />{can && j.status === "running" && <Button size="sm" variant="danger" icon={<X className="size-3.5" />} onClick={() => cancel.mutate(j.id)}>Cancelar</Button>}</div></div>
-          <div className="mt-3 h-2 rounded-full bg-surface2" role="progressbar" aria-label={`Progreso de ${j.file}`} aria-valuenow={j.processed} aria-valuemin={0} aria-valuemax={j.total}><div className="h-2 rounded-full bg-accent transition-all" style={{ width: `${(j.processed / Math.max(1, j.total)) * 100}%` }} /></div>
-          <p className="mt-1 text-xs text-muted">{j.processed} de {j.total} filas · {j.errors.length} errores</p>
-          {j.errors.length > 0 && <table className="mt-3 w-full text-left text-xs"><caption className="sr-only">Errores por fila</caption><thead className="text-muted"><tr><th scope="col" className="w-16 py-1">Fila</th><th scope="col">Error</th></tr></thead><tbody>{j.errors.map((e) => <tr key={e.row} className="border-t border-line"><td className="py-1">{e.row}</td><td>{e.message}</td></tr>)}</tbody></table>}
-        </Card>))}</div>
+        <Button variant="primary" icon={<Upload className="size-4" />} loading={start.isPending} disabled={!file} onClick={go}>{dry ? "Validar" : "Importar"}</Button>
+      </div><p className="mt-2 text-xs text-muted">Productos requiere columna “title”; clientes, “email”. El archivo se procesa en segundo plano.</p></Card>}
+      {isLoading ? <div className="space-y-3"><Skeleton className="h-24" /><Skeleton className="h-24" /></div>
+        : error ? <p role="alert" className="rounded-sm border border-line p-4 text-sm text-accent-text">{errorMessage(error)}</p>
+        : !data?.items.length ? <EmptyState title="Sin importaciones" text="Las importaciones que lances aparecerán aquí con su progreso." />
+        : <div className="space-y-3">{data.items.map((j) => <JobCard key={j.id} j={j} can={can} onCancel={() => cancel.mutate(j.id)} cancelling={cancel.isPending} />)}
+          {data.totalPages > 1 && <div className="rounded-sm border border-line bg-surface"><Pagination page={data.page} totalPages={data.totalPages} total={data.total} onChange={setPage} /></div>}</div>}
     </>
+  );
+}
+
+function JobCard({ j, can, onCancel, cancelling }: { j: ImportJob; can: boolean; onCancel: () => void; cancelling: boolean }) {
+  const [open, setOpen] = useState(false);
+  const detail = useImportDetail(open ? j.id : null, isActive(j)).data;
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div><p className="font-medium">{j.fileName} <span className="text-xs text-muted">· {j.type === "products" ? "Productos" : "Clientes"}{j.dryRun ? " · simulación" : ""} · <DateTime value={j.createdAt} /></span></p></div>
+        <div className="flex items-center gap-2"><StatusBadge status={j.status} />{can && isActive(j) && <Button size="sm" variant="danger" loading={cancelling} icon={<X className="size-3.5" />} onClick={onCancel}>Cancelar</Button>}</div>
+      </div>
+      <div className="mt-3 h-2 rounded-full bg-surface2" role="progressbar" aria-label={`Progreso de ${j.fileName}`} aria-valuenow={j.progressPercent} aria-valuemin={0} aria-valuemax={100}><div className="h-2 rounded-full bg-accent transition-all" style={{ width: `${j.progressPercent}%` }} /></div>
+      <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+        <span>{j.processedRows} de {j.totalRows} filas ({j.progressPercent}%)</span>
+        <Badge tone="ok">{j.createdCount} creados</Badge><Badge tone="info">{j.updatedCount} actualizados</Badge><Badge>{j.skippedCount} omitidos</Badge>{j.errorCount > 0 && <Badge tone="danger">{j.errorCount} errores</Badge>}
+      </p>
+      {j.errorCount > 0 && <Button size="sm" variant="ghost" className="mt-2" onClick={() => setOpen((o) => !o)}>{open ? "Ocultar errores" : "Ver errores"}</Button>}
+      {open && (!detail ? <Skeleton className="mt-2 h-16" /> : (
+        <>
+          <table className="mt-3 w-full text-left text-xs"><caption className="sr-only">Errores por fila</caption><thead className="text-muted"><tr><th scope="col" className="w-16 py-1">Fila</th><th scope="col" className="w-48">Código</th><th scope="col">Error</th></tr></thead><tbody>{detail.errors.map((e, i) => <tr key={i} className="border-t border-line"><td className="py-1">{e.row || "archivo"}</td><td><code>{e.code}</code></td><td>{e.message}</td></tr>)}</tbody></table>
+          {detail.errorsTruncated && <p className="mt-1 text-xs text-muted">Se muestran los primeros {detail.errors.length} errores de {detail.errorCount}.</p>}
+        </>
+      ))}
+    </Card>
   );
 }

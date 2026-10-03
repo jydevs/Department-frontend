@@ -1,22 +1,31 @@
 export type Id = string;
 export interface Page<T> { items: T[]; total: number; page: number; pageSize: number; totalPages: number }
 
-export type FinancialStatus = "pending" | "paid" | "refunded" | "partially-refunded" | "refund-pending";
-export type FulfillmentStatus = "unfulfilled" | "partial" | "fulfilled" | "cancelled";
+export type OrderStatus = "pending" | "open" | "completed" | "cancelled" | "expired";
+export type FinancialStatus = "pending" | "paid" | "failed" | "refunded" | "partially-refunded" | "refund-pending";
+export type FulfillmentStatus = "unfulfilled" | "partial" | "fulfilled";
 export interface Address { name: string; line1: string; line2?: string; city: string; department: string; phone: string; postalCode?: string }
-export interface OrderLine { id: Id; title: string; variant: string; sku: string; qty: number; price: number; fulfilledQty: number; refundedQty: number; image: string }
-export interface Shipment { id: Id; carrier: string; tracking: string; lineIds: { lineId: Id; qty: number }[]; status: "active" | "cancelled"; createdAt: string }
-export interface Refund { id: Id; amount: number; reason: string; restock: boolean; createdAt: string; lineIds: { lineId: Id; qty: number }[] }
-export interface OrderEvent { id: Id; at: string; text: string; actor: string }
+/** Dirección de pedido: la del backend, con documento de identidad opcional. */
+export interface OrderAddress extends Address { documentType?: "CC" | "CE" | "NIT" | "PP"; documentNumber?: string }
+export interface OrderLine { id: Id; variantId: Id; productId: Id; title: string; variant: string; sku: string; qty: number; price: number; fulfilledQty: number; refundedQty: number; image: string | null }
+export interface Shipment { id: Id; carrier: string; tracking: string; trackingUrl: string | null; lineIds: { lineId: Id; qty: number }[]; status: "active" | "cancelled"; createdAt: string }
+export interface Refund { id: Id; amount: number; reason: string; restock: boolean; providerStatus: string; createdAt: string; lineIds: { lineId: Id; qty: number }[] }
+export interface OrderEvent { id: Id; at: string; type: string; text: string; actor: string }
 export interface Order {
-  id: Id; number: number; createdAt: string;
-  customer: { id: Id; name: string; email: string; phone: string };
+  id: Id; number: number; version: number; createdAt: string; updatedAt: string; status: OrderStatus;
+  customer: { name: string; email: string; phone: string };
   financial: FinancialStatus; fulfillment: FulfillmentStatus;
-  lines: OrderLine[]; shippingAddress: Address; billingAddress: Address;
-  subtotal: number; shipping: number; tax: number; discount: number; total: number;
-  paymentMethod: string; payments: { id: Id; method: string; amount: number; at: string; ref: string }[];
+  lines: OrderLine[]; shippingAddress: OrderAddress; billingAddress: OrderAddress | null;
+  subtotal: number; shipping: number; tax: number; discount: number; total: number; totalRefunded: number;
+  paymentMethod: string; payments: { id: Id; method: string; amount: number; at: string; ref: string; status: string }[];
   shipments: Shipment[]; refunds: Refund[]; timeline: OrderEvent[]; notes: { id: Id; text: string; at: string; author: string }[];
-  tags: string[]; discountCode?: string;
+  tags: string[]; discountCode?: string; shippingRateName?: string; customerNote?: string;
+  paidAt: string | null; cancelledAt: string | null; cancelReason: string | null; reservedUntil: string | null;
+}
+/** Fila de la lista de pedidos. */
+export interface OrderSummary {
+  id: Id; number: number; createdAt: string; status: OrderStatus; customer: { name: string; email: string };
+  financial: FinancialStatus; fulfillment: FulfillmentStatus; total: number; itemCount: number; tags: string[];
 }
 
 export type ProductStatus = "active" | "draft" | "archived";
@@ -38,22 +47,25 @@ export interface Location { id: Id; name: string; city: string; active: boolean 
 export interface StockAdjustment { id: Id; variantId: Id; productTitle: string; variantTitle: string; delta: number; reason: string; at: string; actor: string }
 
 export interface Customer {
-  id: Id; name: string; email: string; phone: string; tags: string[]; note: string; marketing: boolean;
-  ordersCount: number; totalSpent: number; createdAt: string; addresses: Address[]; anonymized: boolean;
+  id: Id; name: string; firstName: string; lastName: string; email: string; phone: string; tags: string[]; note: string;
+  marketing: boolean; isActive: boolean; hasAccount: boolean; emailVerified: boolean; createdAt: string; lastLoginAt: string | null;
+  addresses: Address[]; anonymized: boolean;
 }
+export interface CustomerOrder { id: Id; number: number; status: string; paymentStatus: string; fulfillmentStatus: string; currency: string; total: number; createdAt: string }
 export interface Discount {
-  id: Id; code: string; kind: "percentage" | "fixed" | "free-shipping"; value: number; active: boolean;
-  minSubtotal: number; usageLimit: number | null; perCustomer: boolean; startsAt: string; endsAt: string | null; used: number;
-  redemptions: { orderNumber: number; customer: string; amount: number; at: string }[];
+  id: Id; code: string; title: string; kind: "percent" | "fixed" | "free_shipping"; value: number; active: boolean;
+  minSubtotal: number | null; usageLimit: number | null; oncePerEmail: boolean; startsAt: string; endsAt: string | null; used: number;
 }
-export interface ShippingRate { id: Id; name: string; price: number; freeOver: number | null; eta: string }
-export interface ShippingZone { id: Id; name: string; departments: string[]; rates: ShippingRate[] }
-export interface Subscriber { id: Id; email: string; status: "subscribed" | "unsubscribed"; source: string; createdAt: string }
-export interface ContactMessage { id: Id; name: string; email: string; subject: string; body: string; status: "new" | "read" | "replied" | "archived"; createdAt: string }
-export interface EmailTemplate { id: Id; key: string; name: string; subject: string; html: string; text: string; variables: string[] }
-export interface Staff { id: Id; name: string; email: string; role: string; active: boolean; twoFactor: boolean; lastLogin: string | null }
-export interface Role { key: string; name: string; description: string; permissions: string[] }
-export interface AuditEntry { id: Id; at: string; actor: string; action: string; entity: string; entityId: string; before: Record<string, unknown> | null; after: Record<string, unknown> | null; ip: string }
+export interface DiscountRedemption { id: Id; orderNumber: number | null; email: string; amount: number; at: string }
+export interface ShippingRate { id: Id; name: string; price: number; freeOver: number | null; minDays: number | null; maxDays: number | null; active: boolean; position: number }
+export interface ShippingZone { id: Id; name: string; departments: string[]; active: boolean; rates: ShippingRate[] }
+export interface TaxSettings { rate: number; included: boolean; label: string }
+export interface Subscriber { id: Id; email: string; status: "pending" | "subscribed" | "unsubscribed"; source: string; consentAt: string | null; createdAt: string }
+export interface ContactMessage { id: Id; name: string; email: string; subject: string | null; body: string; status: "new" | "read" | "replied" | "spam"; createdAt: string }
+export interface EmailTemplate { key: string; name: string; subject: string; html: string; text: string; active: boolean; variables: string[]; updatedAt: string }
+export interface Staff { id: Id; name: string; email: string; roleId: Id; active: boolean; twoFactor: boolean; lastLogin: string | null }
+export interface Role { id: Id; key: string; name: string; permissions: string[]; isSystem: boolean }
+export interface AuditEntry { id: Id; at: string; actorType: string; actorId: string | null; action: string; entity: string; entityId: string; before: Record<string, unknown> | null; after: Record<string, unknown> | null; ip: string; requestId: string | null }
 export interface ImportJob { id: Id; kind: "products" | "customers"; file: string; dryRun: boolean; status: "queued" | "running" | "done" | "failed" | "cancelled"; total: number; processed: number; errors: { row: number; message: string }[] }
 export interface Redirect { id: Id; from: string; to: string; permanent: boolean; hits: number }
 

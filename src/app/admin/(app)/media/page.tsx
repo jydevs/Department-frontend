@@ -3,22 +3,23 @@ import { ImageIcon, Trash2, Upload } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useRef, useState, type DragEvent } from "react";
 import { Button } from "@/components/admin/ui/Button";
-import { Badge, EmptyState, PageHeader, Skeleton } from "@/components/admin/ui/Display";
+import { Badge, EmptyState, Pagination, PageHeader, Skeleton } from "@/components/admin/ui/Display";
 import { Input, SearchInput } from "@/components/admin/ui/Form";
 import { Dialog, useConfirm } from "@/components/admin/ui/Overlay";
 import { useToast } from "@/components/admin/ui/Toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { errorMessage } from "@/lib/admin/errors";
-import { uploadFile, useDeleteMedia, useMedia, useMediaUsages, useUpdateMedia } from "@/lib/admin/api/media";
+import { uploadFile, useDeleteMedia, useMediaPage, useMediaUsages, useUpdateMedia } from "@/lib/admin/api/media";
 import { useCan } from "@/lib/admin/permissions";
 import type { MediaItem } from "@/lib/admin/types";
 
 const kb = (n: number) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1e3)} KB`);
 
 export default function MediaPage() {
-  const [q, setQ] = useState("");
-  const onSearch = useCallback((v: string) => setQ(v), []);
-  const { data, isLoading } = useMedia(q);
+  const [q, setQ] = useState(""), [page, setPage] = useState(1);
+  const onSearch = useCallback((v: string) => { setQ(v); setPage(1); }, []);
+  const { data: pageData, isLoading, error } = useMediaPage(q, page);
+  const data = pageData?.items;
   const can = useCan("media:write");
   const toast = useToast(), qc = useQueryClient(), confirm = useConfirm();
   const input = useRef<HTMLInputElement>(null);
@@ -26,7 +27,7 @@ export default function MediaPage() {
   const [sel, setSel] = useState<MediaItem | null>(null);
   const [alt, setAlt] = useState("");
   const upd = useUpdateMedia(), del = useDeleteMedia();
-  const usages = useMediaUsages(sel?.id ?? null).data;
+  const usagesQ = useMediaUsages(sel?.id ?? null), usages = usagesQ.data;
   const upload = async (files: FileList | File[]) => {
     await Promise.all(Array.from(files).map(async (f) => {
       const k = f.name + f.size;
@@ -37,7 +38,7 @@ export default function MediaPage() {
   };
   const drop = (e: DragEvent) => { e.preventDefault(); if (can) void upload(e.dataTransfer.files); };
   const remove = async (m: MediaItem) => {
-    const used = m.usages.length ? ` Está en uso en: ${m.usages.map((u) => u.label).join(", ")}; esas referencias quedarán rotas.` : "";
+    const used = usages?.length ? ` Está en uso en: ${usages.map((u) => u.label).join(", ")}.` : "";
     if (await confirm({ title: "Eliminar archivo", message: `Se eliminará ${m.name}.${used}`, danger: true, confirmLabel: "Eliminar" })) del.mutate(m.id, { onSuccess: () => setSel(null) });
   };
   return (
@@ -47,18 +48,20 @@ export default function MediaPage() {
       <SearchInput onSearch={onSearch} placeholder="Buscar por nombre o alt" className="mb-3 max-w-sm" />
       {Object.entries(progress).length > 0 && <ul className="mb-3 space-y-1.5" aria-label="Subidas en curso">{Object.entries(progress).map(([k, p]) => <li key={k} className="text-xs"><div className="mb-0.5 flex justify-between"><span>{k.replace(/\d+$/, "")}</span><span>{p}%</span></div><div className="h-1.5 rounded bg-surface2" role="progressbar" aria-valuenow={p} aria-valuemin={0} aria-valuemax={100}><div className="h-1.5 rounded bg-accent transition-all" style={{ width: `${p}%` }} /></div></li>)}</ul>}
       {isLoading ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">{Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="aspect-[4/3] h-auto" />)}</div>
+        : error ? <p role="alert" className="rounded-sm border border-line p-4 text-sm text-accent-text">{errorMessage(error)}</p>
         : !data?.length ? <EmptyState icon={<ImageIcon className="size-8" />} title="Sin archivos" text="Sube imágenes para usarlas en productos y contenido." />
         : <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">{data.map((m) => (
           <li key={m.id}><button type="button" onClick={() => { setSel(m); setAlt(m.alt); }} className="group block w-full overflow-hidden rounded-sm border border-line bg-surface text-left hover:border-accent">
             <Image src={m.url} alt={m.alt || m.name} width={240} height={180} unoptimized className="aspect-[4/3] w-full object-cover" />
-            <div className="p-2"><p className="truncate text-xs font-medium">{m.name}</p><p className="flex items-center justify-between text-[11px] text-muted">{kb(m.size)}{m.usages.length > 0 && <Badge tone="info">{m.usages.length} uso(s)</Badge>}</p></div>
+            <div className="p-2"><p className="truncate text-xs font-medium">{m.name}</p><p className="text-[11px] text-muted">{kb(m.size)}{m.alt ? "" : " · sin alt"}</p></div>
           </button></li>))}</ul>}
+      {pageData && pageData.totalPages > 1 && <div className="mt-3 rounded-sm border border-line bg-surface"><Pagination page={pageData.page} totalPages={pageData.totalPages} total={pageData.total} onChange={setPage} /></div>}
       <Dialog open={!!sel} onClose={() => setSel(null)} title={sel?.name ?? ""} size="lg"
         footer={sel && can ? <><Button variant="danger" icon={<Trash2 className="size-4" />} onClick={() => void remove(sel)}>Eliminar</Button><Button variant="primary" loading={upd.isPending} disabled={alt === sel.alt} onClick={() => upd.mutate({ id: sel.id, alt }, { onSuccess: () => setSel({ ...sel, alt }) })}>Guardar</Button></> : undefined}>
         {sel && <div className="grid gap-4 sm:grid-cols-2">
           <Image src={sel.url} alt={sel.alt || sel.name} width={400} height={300} unoptimized className="w-full rounded-sm" />
-          <div className="space-y-3 text-sm"><Input label="Texto alternativo" value={alt} disabled={!can} onChange={(e) => setAlt(e.target.value)} hint="Describe la imagen para lectores de pantalla y SEO." /><p className="text-muted">{sel.type} · {kb(sel.size)}</p>
-            <div><p className="mb-1 text-xs font-medium">Usos</p>{usages?.length ? <ul className="space-y-1">{usages.map((u, i) => <li key={i}><Badge tone="info">{u.label}</Badge></li>)}</ul> : <p className="text-xs text-muted">No se usa en ningún documento.</p>}</div></div>
+          <div className="space-y-3 text-sm"><Input label="Texto alternativo" value={alt} disabled={!can} onChange={(e) => setAlt(e.target.value)} hint="Describe la imagen para lectores de pantalla y SEO." /><p className="text-muted">{sel.type} · {kb(sel.size)}{sel.url.startsWith("http") ? "" : " · archivo del sitio"}</p>
+            <div><p className="mb-1 text-xs font-medium">Usos</p>{usagesQ.isLoading ? <Skeleton className="h-5" /> : usages?.length ? <ul className="space-y-1">{usages.map((u, i) => <li key={i}><Badge tone="info">{u.label}</Badge></li>)}</ul> : <p className="text-xs text-muted">No se usa en ningún documento.</p>}</div></div>
         </div>}
       </Dialog>
     </div>

@@ -1,93 +1,231 @@
 "use client";
-import { db, logAudit, nid, now, paginate } from "../mock/db";
-import { salesByDay } from "../mock/seed";
-import { useAction, useMock, usePaged } from "../query";
-import type { Address, FinancialStatus, FulfillmentStatus, Order } from "../types";
+import { useQueryClient } from "@tanstack/react-query";
+import { api } from "../api-client";
+import { ApiError } from "../errors";
+import { useCan } from "../permissions";
+import { useAction, useApi } from "../query";
+import type { FinancialStatus, FulfillmentStatus, Order, OrderAddress, OrderEvent, OrderStatus, OrderSummary, Page } from "../types";
 
-export interface OrderFilters { q: string; financial: string; fulfillment: string; tag: string; from: string; to: string; page: number }
-const PAGE = 10;
+/* ---------- Tipos del DTO (backend: commerce/orders/dto/orders-admin.dto.ts) ---------- */
+interface ApiAddress { fullName: string; phone: string; department: string; city: string; address1: string; address2?: string; postalCode?: string; documentType?: "CC" | "CE" | "NIT" | "PP"; documentNumber?: string }
+interface ApiSummary { id: string; orderNumber: number; createdAt: string; email: string; customerName: string | null; total: number; status: string; paymentStatus: string; fulfillmentStatus: string; itemCount: number; tags: string[] }
+interface ApiEvent { id: string; type: string; data: Record<string, unknown>; actorType: string; actorId: string | null; createdAt: string }
+interface ApiDetail {
+  id: string; orderNumber: number; version: number; createdAt: string; updatedAt: string; email: string; phone: string | null; status: string; paymentStatus: string; fulfillmentStatus: string;
+  subtotal: number; discountTotal: number; shippingTotal: number; taxTotal: number; total: number; totalRefunded: number; discountCode: string | null; shippingRateName: string | null;
+  shippingAddress: ApiAddress; billingAddress: ApiAddress | null; customerNote: string | null; tags: string[]; reservedUntil: string | null; paidAt: string | null; cancelledAt: string | null; cancelReason: string | null;
+  paymentProvider: string; paymentReference: string;
+  lines: { id: string; variantId: string; productId: string; sku: string | null; title: string; variantTitle: string; imageUrl: string | null; unitPrice: number; quantity: number; fulfilledQuantity: number; refundedQuantity: number }[];
+  payments: { id: string; provider: string; reference: string; amount: number; status: string; method: string | null; createdAt: string }[];
+  fulfillments: { id: string; status: string; carrier: string | null; trackingNumber: string | null; trackingUrl: string | null; createdAt: string; lines: { orderLineId: string; quantity: number }[] }[];
+  refunds: { id: string; amount: number; reason: string | null; restocked: boolean; providerStatus: string; createdAt: string; lines: { orderLineId: string; quantity: number }[] }[];
+  events: ApiEvent[];
+}
 
-export const useOrders = (f: OrderFilters) =>
-  usePaged<Order>(["orders", f], { page: f.page, pageSize: PAGE }, () => {
-    const q = f.q.trim().toLowerCase();
-    const list = db().orders.filter((o) =>
-      (!q || String(o.number).includes(q) || o.customer.name.toLowerCase().includes(q) || o.customer.email.toLowerCase().includes(q)) &&
-      (!f.financial || o.financial === (f.financial as FinancialStatus)) && (!f.fulfillment || o.fulfillment === (f.fulfillment as FulfillmentStatus)) &&
-      (!f.tag || o.tags.includes(f.tag)) && (!f.from || o.createdAt.slice(0, 10) >= f.from) && (!f.to || o.createdAt.slice(0, 10) <= f.to));
-    return paginate(list, f.page, PAGE);
-  });
-export const useOrder = (id: string) => useMock(["order", id], () => db().orders.find((o) => o.id === id) ?? null);
-export const useAllOrderTags = () => useMock(["order-tags"], () => [...new Set(db().orders.flatMap((o) => o.tags))]);
+export const REFUND_PENDING_TAG = "refund-pending";
 
-const touch = (o: Order, text: string) => o.timeline.unshift({ id: nid("ev"), at: now(), text, actor: "owner@daregulardept.com" });
-const find = (id: string): Order => { const o = db().orders.find((x) => x.id === id); if (!o) throw new Error("Pedido no encontrado"); return o; };
-const inv = [["orders"], ["order"], ["alerts"], ["analytics"]];
-const stockInv = [["products"], ["product"], ["products-all"], ["levels"], ["alerts"]];
-/** Devuelve unidades al inventario de la variante con ese SKU. */
-const restockSku = (sku: string, qty: number) => { if (qty <= 0) return; for (const p of db().products) for (const v of p.variants) if (v.sku === sku && v.tracked) v.stock += qty; };
-const refundedTotal = (o: Order) => o.refunds.reduce((s, r) => s + r.amount, 0);
-
-export const useMarkPaid = () => useAction((id: string) => { const o = find(id); if (o.fulfillment === "cancelled") throw new Error("El pedido está cancelado"); o.financial = "paid"; o.payments.push({ id: nid("pay"), method: "Manual", amount: o.total, at: now(), ref: "MANUAL" }); touch(o, "Marcado como pagado manualmente"); logAudit("order.mark-paid", "order", id, { financial: "pending" }, { financial: "paid" }); }, { invalidate: inv, success: "Pedido marcado como pagado" });
-export const useCancelOrder = () => useAction(({ id, restock }: { id: string; restock: boolean }) => {
-  const o = find(id);
-  if (o.fulfillment === "fulfilled") throw new Error("No se puede cancelar un pedido ya enviado; usa un reembolso.");
-  if (o.fulfillment === "cancelled") throw new Error("El pedido ya está cancelado");
-  const before = o.fulfillment;
-  o.fulfillment = "cancelled"; touch(o, `Pedido cancelado${restock ? " (stock repuesto)" : " (sin reponer stock)"}`);
-  // solo se repone lo que no salió en un envío activo ni se repuso ya por reembolsos
-  if (restock) for (const l of o.lines) restockSku(l.sku, l.qty - l.fulfilledQty - l.refundedQty);
-  logAudit("order.cancel", "order", id, { fulfillment: before }, { fulfillment: "cancelled", restock });
-}, { invalidate: [...inv, ...stockInv], success: "Pedido cancelado" });
-export const useCreateShipment = () => useAction(({ id, carrier, tracking, qty }: { id: string; carrier: string; tracking: string; qty: Record<string, number> }) => {
-  const o = find(id); if (o.fulfillment === "cancelled") throw new Error("El pedido está cancelado");
-  const lineIds = Object.entries(qty).filter(([, n]) => n > 0).map(([lineId, n]) => ({ lineId, qty: n }));
-  if (!lineIds.length) throw new Error("Selecciona al menos una línea");
-  o.shipments.push({ id: nid("shp"), carrier, tracking, lineIds, status: "active", createdAt: now() });
-  for (const s of lineIds) { const l = o.lines.find((x) => x.id === s.lineId); if (l) l.fulfilledQty += s.qty; }
-  o.fulfillment = o.lines.every((l) => l.fulfilledQty >= l.qty) ? "fulfilled" : "partial"; touch(o, `Envío creado (${carrier} ${tracking})`);
-  logAudit("order.fulfill", "order", id, null, { carrier, tracking });
-}, { invalidate: inv, success: "Envío creado" });
-export const useCancelShipment = () => useAction(({ id, shipmentId }: { id: string; shipmentId: string }) => {
-  const o = find(id); if (o.fulfillment === "cancelled") throw new Error("El pedido está cancelado");
-  const s = o.shipments.find((x) => x.id === shipmentId); if (!s || s.status === "cancelled") return;
-  s.status = "cancelled"; for (const li of s.lineIds) { const l = o.lines.find((x) => x.id === li.lineId); if (l) l.fulfilledQty = Math.max(0, l.fulfilledQty - li.qty); }
-  const done = o.lines.reduce((n, l) => n + l.fulfilledQty, 0); o.fulfillment = done === 0 ? "unfulfilled" : o.lines.every((l) => l.fulfilledQty >= l.qty) ? "fulfilled" : "partial"; touch(o, `Envío ${s.tracking} cancelado`);
-  logAudit("order.shipment-cancel", "order", id, { tracking: s.tracking }, { status: "cancelled" });
-}, { invalidate: inv, success: "Envío cancelado" });
-export const useRefund = () => useAction(({ id, amount, reason, restock, qty }: { id: string; amount: number; reason: string; restock: boolean; qty: Record<string, number> }) => {
-  const o = find(id); if (amount <= 0) throw new Error("Indica un monto mayor a 0");
-  if (o.financial === "pending") throw new Error("El pedido aún no está pagado");
-  const paid = o.total - refundedTotal(o); if (amount > paid) throw new Error("El monto supera lo disponible para reembolsar");
-  const lineIds = Object.entries(qty).filter(([, n]) => n > 0).map(([lineId, n]) => ({ lineId, qty: n }));
-  o.refunds.push({ id: nid("ref"), amount, reason, restock, createdAt: now(), lineIds });
-  o.financial = amount >= paid ? "refunded" : "partially-refunded"; touch(o, `Reembolso de $${amount.toLocaleString("es-CO")} (${reason || "sin motivo"})`);
-  for (const s of lineIds) {
-    const l = o.lines.find((x) => x.id === s.lineId); if (!l) continue;
-    l.refundedQty = Math.min(l.qty, l.refundedQty + s.qty); // siempre se registra, con o sin reposición
-    if (restock && o.fulfillment !== "cancelled") restockSku(l.sku, s.qty);
-  }
-  logAudit("order.refund", "order", id, null, { amount, reason, restock });
-}, { invalidate: [...inv, ...stockInv], success: "Reembolso registrado" });
-export const useAddNote = () => useAction(({ id, text }: { id: string; text: string }) => { find(id).notes.unshift({ id: nid("nt"), text, at: now(), author: "owner@daregulardept.com" }); }, { invalidate: inv, success: "Nota agregada" });
-export const useSetTags = () => useAction(({ id, tags }: { id: string; tags: string[] }) => { find(id).tags = tags; }, { invalidate: [...inv, ["order-tags"]], success: "Etiquetas actualizadas" });
-export const useEditContact = () => useAction(({ id, email, phone, address }: { id: string; email: string; phone: string; address: Address }) => {
-  const o = find(id); if (o.fulfillment !== "unfulfilled") throw new Error("Solo se puede editar mientras el pedido está sin enviar");
-  if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Correo inválido");
-  o.customer.email = email; o.customer.phone = phone; o.shippingAddress = address; touch(o, "Contacto y dirección editados");
-}, { invalidate: inv, success: "Datos actualizados" });
-
-/* Analítica */
-export const useAnalytics = (days: number) => useMock(["analytics", days], () => {
-  const series = salesByDay().slice(-days);
-  const sum = (k: "value" | "prev") => series.reduce((s, d) => s + d[k], 0);
-  const orders = db().orders;
-  const top = new Map<string, { title: string; qty: number; revenue: number }>();
-  for (const o of orders) for (const l of o.lines) { const t = top.get(l.title) ?? { title: l.title, qty: 0, revenue: 0 }; t.qty += l.qty; t.revenue += l.qty * l.price; top.set(l.title, t); }
-  const sales = sum("value"), prev = sum("prev"), count = Math.round(sales / 215000), prevCount = Math.round(prev / 215000);
-  return { series, sales, prevSales: prev, orders: count, prevOrders: prevCount, aov: Math.round(sales / Math.max(1, count)), customers: db().customers.length, top: [...top.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 5) };
+/* ---------- Adaptadores ---------- */
+const PAYMENT: Record<string, FinancialStatus> = { pending: "pending", paid: "paid", failed: "failed", partially_refunded: "partially-refunded", refunded: "refunded" };
+const toFinancial = (paymentStatus: string, tags: string[]): FinancialStatus =>
+  tags.includes(REFUND_PENDING_TAG) && paymentStatus !== "refunded" ? "refund-pending" : (PAYMENT[paymentStatus] ?? "pending");
+const toAddress = (a: ApiAddress): OrderAddress => ({ name: a.fullName, line1: a.address1, line2: a.address2 || undefined, city: a.city, department: a.department, phone: a.phone, postalCode: a.postalCode || undefined, documentType: a.documentType, documentNumber: a.documentNumber });
+export const addressToApi = (a: OrderAddress): ApiAddress => ({
+  fullName: a.name.trim(), phone: a.phone.trim(), department: a.department.trim(), city: a.city.trim(), address1: a.line1.trim(), address2: a.line2?.trim() || undefined, postalCode: a.postalCode?.trim() || undefined,
+  documentType: a.documentType, documentNumber: a.documentNumber?.trim() || undefined,
 });
-export const useAlerts = () => useMock(["alerts"], () => ({
-  refundPending: db().orders.filter((o) => o.financial === "refund-pending"),
-  lowStock: db().products.flatMap((p) => p.variants.filter((v) => v.tracked && v.stock <= 3).map((v) => ({ product: p.title, variant: v.title, stock: v.stock, id: p.id }))),
-  unfulfilled: db().orders.filter((o) => o.fulfillment === "unfulfilled" && o.financial === "paid").length,
-}));
+const cop = (n: unknown) => `$${Number(n ?? 0).toLocaleString("es-CO")}`;
+const FIELD: Record<string, string> = { internalNote: "nota interna", tags: "etiquetas", email: "correo", phone: "teléfono", shippingAddress: "dirección de envío" };
+const ACTOR: Record<string, string> = { staff: "Equipo", guest: "Cliente", customer: "Cliente", system: "Sistema", api_key: "Integración", webhook: "Pasarela de pago" };
+
+export function eventText(type: string, d: Record<string, unknown>): string {
+  const s = (k: string) => (typeof d[k] === "string" && d[k] ? (d[k] as string) : "");
+  switch (type) {
+    case "order.created": return `Pedido creado por ${cop(d.total)}${s("discountCode") ? ` con código ${s("discountCode")}` : ""}`;
+    case "order.paid": return d.manual ? `Marcado como pagado manualmente${s("providerTransactionId") ? ` (ref. ${s("providerTransactionId")})` : ""}` : `Pago confirmado${s("method") ? ` (${s("method")})` : ""}`;
+    case "order.cancelled": return `Pedido cancelado: ${s("reason") || "sin motivo"}${d.restock ? " · stock repuesto" : ""}`;
+    case "order.expired": return "Pedido expirado por falta de pago";
+    case "order.updated": return `Pedido editado (${(Array.isArray(d.fields) ? (d.fields as string[]) : []).map((f) => FIELD[f] ?? f).join(", ") || "datos"})`;
+    case "order.refund_pending": return `Reembolso pendiente: ${s("reason") === "cancelled_after_payment" ? "pedido cancelado después de pagar" : s("reason") || "requiere devolver el dinero"}${d.outstanding ? ` · ${cop(d.outstanding)}` : ""}`;
+    case "payment.late_approval": return "Pago aprobado después de expirar o cancelar el pedido: requiere reembolso";
+    case "order.refund_pending_cleared": return "Reembolso pendiente resuelto";
+    case "payment.mismatch": return "El pago recibido no coincide con el total del pedido";
+    case "payment.declined": return "Pago rechazado";
+    case "payment.status_ignored": return "Notificación de pago ignorada";
+    case "note": return s("note");
+    case "fulfillment.created": return `Envío creado${s("carrier") || s("trackingNumber") ? ` (${[s("carrier"), s("trackingNumber")].filter(Boolean).join(" ")})` : ""}`;
+    case "fulfillment.cancelled": return "Envío cancelado";
+    case "refund.created": return `Reembolso de ${cop(d.amount)} (${s("reason") || "sin motivo"})${d.restocked ? " · stock repuesto" : ""}`;
+    default: return type;
+  }
+}
+const toEvent = (e: ApiEvent): OrderEvent => ({ id: e.id, type: e.type, at: e.createdAt, text: eventText(e.type, e.data), actor: ACTOR[e.actorType] ?? e.actorType });
+
+const fromSummary = (o: ApiSummary): OrderSummary => ({
+  id: o.id, number: o.orderNumber, createdAt: o.createdAt, status: o.status as OrderStatus, customer: { name: o.customerName ?? "—", email: o.email },
+  financial: toFinancial(o.paymentStatus, o.tags), fulfillment: o.fulfillmentStatus as FulfillmentStatus, total: o.total, itemCount: o.itemCount, tags: o.tags,
+});
+
+const fromDetail = (o: ApiDetail): Order => ({
+  id: o.id, number: o.orderNumber, version: o.version, createdAt: o.createdAt, updatedAt: o.updatedAt, status: o.status as OrderStatus,
+  customer: { name: o.shippingAddress.fullName, email: o.email, phone: o.phone ?? o.shippingAddress.phone },
+  financial: toFinancial(o.paymentStatus, o.tags), fulfillment: o.fulfillmentStatus as FulfillmentStatus,
+  lines: o.lines.map((l) => ({ id: l.id, variantId: l.variantId, productId: l.productId, title: l.title, variant: l.variantTitle, sku: l.sku ?? "—", qty: l.quantity, price: l.unitPrice, fulfilledQty: l.fulfilledQuantity, refundedQty: l.refundedQuantity, image: l.imageUrl })),
+  shippingAddress: toAddress(o.shippingAddress), billingAddress: o.billingAddress ? toAddress(o.billingAddress) : null,
+  subtotal: o.subtotal, shipping: o.shippingTotal, tax: o.taxTotal, discount: o.discountTotal, total: o.total, totalRefunded: o.totalRefunded,
+  paymentMethod: o.payments[0]?.method ?? o.paymentProvider,
+  payments: o.payments.map((p) => ({ id: p.id, method: p.method ?? p.provider, amount: p.amount, at: p.createdAt, ref: p.reference, status: p.status })),
+  shipments: o.fulfillments.map((f) => ({ id: f.id, carrier: f.carrier ?? "", tracking: f.trackingNumber ?? "", trackingUrl: f.trackingUrl, lineIds: f.lines.map((l) => ({ lineId: l.orderLineId, qty: l.quantity })), status: f.status === "cancelled" ? "cancelled" : "active", createdAt: f.createdAt })),
+  refunds: o.refunds.map((r) => ({ id: r.id, amount: r.amount, reason: r.reason ?? "", restock: r.restocked, providerStatus: r.providerStatus, createdAt: r.createdAt, lineIds: r.lines.map((l) => ({ lineId: l.orderLineId, qty: l.quantity })) })),
+  timeline: o.events.map(toEvent),
+  notes: o.events.filter((e) => e.type === "note").map((e) => ({ id: e.id, text: String(e.data.note ?? ""), at: e.createdAt, author: ACTOR[e.actorType] ?? e.actorType })),
+  tags: o.tags, discountCode: o.discountCode ?? undefined, shippingRateName: o.shippingRateName ?? undefined, customerNote: o.customerNote ?? undefined,
+  paidAt: o.paidAt, cancelledAt: o.cancelledAt, cancelReason: o.cancelReason, reservedUntil: o.reservedUntil,
+});
+
+/* ---------- Reglas de negocio del backend, para habilitar/ocultar acciones ---------- */
+export const shippableQty = (l: Order["lines"][number]) => l.qty - Math.max(l.fulfilledQty, l.refundedQty);
+export const refundableAmount = (o: Order) => o.total - o.totalRefunded;
+export const canMarkPaid = (o: Order) => o.status === "pending";
+export const canShip = (o: Order) => o.status === "open" && o.lines.some((l) => shippableQty(l) > 0);
+export const canCancel = (o: Order) => o.status === "pending" || (o.status === "open" && o.lines.every((l) => l.fulfilledQty === 0));
+export const canRefund = (o: Order) => (o.financial !== "pending" && o.financial !== "failed") && ["open", "completed", "cancelled", "expired"].includes(o.status) && refundableAmount(o) > 0;
+export const canEditContact = (o: Order) => o.fulfillment === "unfulfilled" && o.status !== "cancelled" && o.status !== "expired";
+export const canCancelShipment = (o: Order) => o.status === "open" || o.status === "completed";
+
+/* ---------- Lista y detalle ---------- */
+export interface OrderFilters { q: string; status: string; financial: string; fulfillment: string; tag: string; from: string; to: string; page: number }
+export const emptyOrderFilters: OrderFilters = { q: "", status: "", financial: "", fulfillment: "", tag: "", from: "", to: "", page: 1 };
+const PAGE = 20;
+const API_PAYMENT: Record<string, string> = { pending: "pending", paid: "paid", failed: "failed", "partially-refunded": "partially_refunded", refunded: "refunded" };
+
+export const useOrders = (f: OrderFilters, pageSize = PAGE, enabled = true) =>
+  useApi<Page<ApiSummary>, Page<OrderSummary>>(["orders"], "/admin/orders", {
+    enabled,
+    query: {
+      page: f.page, pageSize, q: f.q.trim(), status: f.status, fulfillmentStatus: f.fulfillment,
+      paymentStatus: f.financial === "refund-pending" ? "" : API_PAYMENT[f.financial],
+      tag: f.financial === "refund-pending" ? REFUND_PENDING_TAG : f.tag.trim().toLowerCase(),
+      // fechas de calendario en hora de Bogotá (UTC-5)
+      from: f.from ? `${f.from}T00:00:00-05:00` : "", to: f.to ? `${f.to}T23:59:59.999-05:00` : "",
+    },
+    select: (p) => ({ ...p, items: p.items.map(fromSummary) }),
+  });
+export const useOrder = (id: string) => useApi<ApiDetail, Order>(["order", id], `/admin/orders/${encodeURIComponent(id)}`, { select: fromDetail, staleTime: 0 });
+
+/* ---------- Acciones ---------- */
+const inv = [["orders"], ["order"], ["alerts"], ["analytics"]];
+const stockInv = [["products"], ["product"], ["levels"], ["inventory"]];
+
+/** Ante un 409 (estado cambiado por otra persona o regla de negocio) recarga el pedido y explica qué pasó. */
+function useGuard() {
+  const qc = useQueryClient();
+  return async <T,>(fn: () => Promise<T>): Promise<T> => {
+    try { return await fn(); } catch (e) {
+      if (e instanceof ApiError) {
+        if (e.status === 409 || e.status === 412) {
+          void qc.invalidateQueries({ queryKey: ["order"] }); void qc.invalidateQueries({ queryKey: ["orders"] });
+          if (e.code === "CONCURRENT_UPDATE") throw new Error("Otra persona modificó el pedido. Se recargaron los datos; revisa y vuelve a intentarlo.");
+          throw new Error(`${e.message}. Se recargó el pedido.`);
+        }
+        const fe = Object.values(e.fieldErrors());
+        if (e.code === "VALIDATION_ERROR" && fe.length) throw new Error(`Datos inválidos: ${fe.join("; ")}`);
+      }
+      throw e;
+    }
+  };
+}
+const base = (id: string) => `/admin/orders/${encodeURIComponent(id)}`;
+
+export const useMarkPaid = () => { const g = useGuard(); return useAction(({ id, reference, note }: { id: string; reference?: string; note?: string }) => g(() => api.post(`${base(id)}/mark-paid`, { reference: reference?.trim() || undefined, note: note?.trim() || undefined })), { invalidate: inv, success: "Pedido marcado como pagado" }); };
+export const useCancelOrder = () => { const g = useGuard(); return useAction(({ id, reason, restock }: { id: string; reason: string; restock: boolean }) => g(() => api.post(`${base(id)}/cancel`, { reason: reason.trim(), restock })), { invalidate: [...inv, ...stockInv], success: "Pedido cancelado" }); };
+export interface ShipmentInput { id: string; carrier: string; tracking: string; trackingUrl: string; notify: boolean; qty: Record<string, number> }
+export const useCreateShipment = () => {
+  const g = useGuard();
+  return useAction(({ id, carrier, tracking, trackingUrl, notify, qty }: ShipmentInput) => {
+    const lines = Object.entries(qty).filter(([, n]) => n > 0).map(([orderLineId, quantity]) => ({ orderLineId, quantity }));
+    if (!lines.length) throw new Error("Selecciona al menos una unidad para enviar");
+    return g(() => api.post(`${base(id)}/fulfillments`, { lines, carrier: carrier.trim() || undefined, trackingNumber: tracking.trim() || undefined, trackingUrl: trackingUrl.trim() || undefined, notifyCustomer: notify }));
+  }, { invalidate: inv, success: "Envío creado" });
+};
+export const useCancelShipment = () => { const g = useGuard(); return useAction(({ id, shipmentId }: { id: string; shipmentId: string }) => g(() => api.post(`${base(id)}/fulfillments/${encodeURIComponent(shipmentId)}/cancel`)), { invalidate: inv, success: "Envío cancelado" }); };
+export const useRefund = () => {
+  const g = useGuard();
+  return useAction(({ id, amount, reason, restock, qty }: { id: string; amount: number; reason: string; restock: boolean; qty: Record<string, number> }) => {
+    if (!Number.isInteger(amount) || amount <= 0) throw new Error("Indica un monto entero mayor a 0");
+    const lines = Object.entries(qty).filter(([, n]) => n > 0).map(([orderLineId, quantity]) => ({ orderLineId, quantity }));
+    if (restock && !lines.length) throw new Error("Para reponer stock indica las unidades devueltas");
+    return g(() => api.post(`${base(id)}/refunds`, { amount, reason: reason.trim() || undefined, lines: lines.length ? lines : undefined, restock }));
+  }, { invalidate: [...inv, ...stockInv], success: "Reembolso registrado" });
+};
+export const useAddNote = () => { const g = useGuard(); return useAction(({ id, text }: { id: string; text: string }) => g(() => api.post(`${base(id)}/notes`, { note: text })), { invalidate: inv, success: "Nota agregada" }); };
+/** Las etiquetas del sistema (reembolso pendiente) no son editables: se conservan. */
+export const useSetTags = () => { const g = useGuard(); return useAction(({ order, tags }: { order: Order; tags: string[] }) => g(() => api.patch(base(order.id), { version: order.version, tags: [...tags.filter((t) => t !== REFUND_PENDING_TAG), ...(order.tags.includes(REFUND_PENDING_TAG) ? [REFUND_PENDING_TAG] : [])] })), { invalidate: inv, success: "Etiquetas actualizadas" }); };
+export const useEditContact = () => {
+  const g = useGuard();
+  return useAction(({ order, email, phone, address }: { order: Order; email: string; phone: string; address: OrderAddress }) => {
+    if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Correo inválido");
+    return g(() => api.patch(base(order.id), { version: order.version, email: email.trim(), phone: phone.trim() || null, shippingAddress: addressToApi(address) }));
+  }, { invalidate: inv, success: "Datos actualizados" });
+};
+
+/* ---------- Analítica (backend: analytics/*, permiso analytics:read) ---------- */
+interface ApiOverviewMetrics { grossSales: number; totalRefunded: number; netSales: number; paidOrders: number; averageOrderValue: number; newCustomers: number; createdOrders: number; paidRate: number }
+interface ApiOverview { current: ApiOverviewMetrics; previous: ApiOverviewMetrics; change: { netSales: number | null; paidOrders: number | null; averageOrderValue: number | null; newCustomers: number | null; paidRate: number | null } }
+interface ApiSales { buckets: { bucket: string; orders: number; grossSales: number; totalRefunded: number; netSales: number }[] }
+interface ApiTop { items: { productId: string; title: string; units: number; revenue: number; orders: number }[] }
+interface ApiCustomers { totalCustomers: number; newCustomers: number; marketingSubscribers: number; buyers: number; repeatBuyers: number; guestOrders: number }
+
+const DAY = 86_400_000;
+/** Fecha de calendario (YYYY-MM-DD) en Bogotá. */
+const bogota = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+const shift = (ymd: string, days: number) => bogota(new Date(Date.parse(`${ymd}T12:00:00-05:00`) + days * DAY));
+/** Rango [from, to] inclusivo en días calendario; el periodo anterior tiene la misma duración. */
+export const rangeFor = (days: number, today = bogota(new Date())) => {
+  const from = shift(today, -(days - 1));
+  return { from, to: today, prevFrom: shift(from, -days), prevTo: shift(from, -1) };
+};
+
+export interface Analytics {
+  series: { day: string; value: number; prev: number }[];
+  netSales: number; grossSales: number; totalRefunded: number; paidOrders: number; aov: number; newCustomers: number; totalCustomers: number;
+  change: ApiOverview["change"]; paidRate: number; createdOrders: number;
+  top: { id: string; title: string; units: number; revenue: number }[];
+}
+export function useAnalytics(days: number) {
+  // el rango se fija por montaje+periodo: una pestaña abierta pasada la medianoche se actualiza al refrescar
+  const r = rangeFor(days);
+  const q = { from: r.from, to: r.to };
+  const overview = useApi<ApiOverview>(["analytics", "overview"], "/admin/analytics/overview", { query: q });
+  const sales = useApi<ApiSales>(["analytics", "sales"], "/admin/analytics/sales", { query: { ...q, groupBy: "day" } });
+  const prevSales = useApi<ApiSales>(["analytics", "sales-prev"], "/admin/analytics/sales", { query: { from: r.prevFrom, to: r.prevTo, groupBy: "day" } });
+  const top = useApi<ApiTop>(["analytics", "top"], "/admin/analytics/top-products", { query: { ...q, limit: 5, sortBy: "revenue" } });
+  const customers = useApi<ApiCustomers>(["analytics", "customers"], "/admin/analytics/customers", { query: q });
+  const all = [overview, sales, prevSales, top, customers];
+  const error = all.find((x) => x.error)?.error ?? null;
+  const ready = overview.data && sales.data && prevSales.data && top.data && customers.data;
+  const data: Analytics | undefined = ready ? {
+    series: sales.data!.buckets.map((b, i) => ({ day: b.bucket, value: b.netSales, prev: prevSales.data!.buckets[i]?.netSales ?? 0 })),
+    netSales: overview.data!.current.netSales, grossSales: overview.data!.current.grossSales, totalRefunded: overview.data!.current.totalRefunded,
+    paidOrders: overview.data!.current.paidOrders, aov: overview.data!.current.averageOrderValue, newCustomers: overview.data!.current.newCustomers, totalCustomers: customers.data!.totalCustomers,
+    change: overview.data!.change, paidRate: overview.data!.current.paidRate, createdOrders: overview.data!.current.createdOrders,
+    top: top.data!.items.map((t) => ({ id: t.productId, title: t.title, units: t.units, revenue: t.revenue })),
+  } : undefined;
+  return { data, error, isLoading: !data && !error, refetch: () => Promise.all(all.map((x) => x.refetch())) };
+}
+
+interface ApiLevel { id: string; variantId: string; variantTitle: string; variantSku: string | null; locationName: string; onHand: number; reserved: number }
+export function useAlerts() {
+  const canOrders = useCan("orders:read"), canStock = useCan("inventory:read");
+  const refund = useApi<Page<ApiSummary>>(["alerts", "refund"], "/admin/orders", { query: { tag: REFUND_PENDING_TAG, pageSize: 5 }, enabled: canOrders });
+  const unfulfilled = useApi<Page<ApiSummary>>(["alerts", "unfulfilled"], "/admin/orders", { query: { status: "open", fulfillmentStatus: "unfulfilled", pageSize: 1 }, enabled: canOrders });
+  const stock = useApi<Page<ApiLevel>>(["alerts", "stock"], "/admin/inventory", { query: { lowStock: true, lowStockThreshold: 3, pageSize: 5 }, enabled: canStock });
+  const pending = (canOrders && (refund.isLoading || unfulfilled.isLoading)) || (canStock && stock.isLoading);
+  const error = refund.error ?? unfulfilled.error ?? stock.error ?? null;
+  const data = pending ? undefined : {
+    refundPending: (refund.data?.items ?? []).map(fromSummary),
+    lowStock: (stock.data?.items ?? []).map((l) => ({ id: l.id, name: l.variantTitle, sku: l.variantSku, stock: Math.max(0, l.onHand - l.reserved), location: l.locationName })),
+    lowStockTotal: stock.data?.total ?? 0,
+    unfulfilled: unfulfilled.data?.total ?? 0,
+  };
+  return { data, error, isLoading: pending };
+}
