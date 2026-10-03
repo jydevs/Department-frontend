@@ -62,8 +62,8 @@ Commits en orden (todos pushed a `origin/claude/tender-heisenberg-w6jnxy`):
 Backend en `Department-backend` (NestJS, `/api/v1`). Hallazgos relevantes para conectar el front:
 
 **CMS (la tienda debe pasar a estar dirigida por contenido)**
-- Documentos: `settings/site`, `menu/main|footer`, `template/layout|home|collection|product|search|cart|404`, `page/community|contact` (semilla en `Department-backend/src/cms/seed/default-content.ts`, rama `feature/content-seed`).
-- Cada plantilla es una lista de secciones (`hero`, `marquee`, `new-arrivals`, `split-banner`, `campaign`, `editorial`, `value-props`, `site-header`, `footer`, `newsletter`, `collection-hero`, `product-grid`, `product-detail`, `search-panel`, `cart-drawer`, `contact-form`, `page-header`, `cta-banner`, `lookbook`, `error-hero`, …) cuyos ajustes reproducen **todos los textos** hoy fijos en los componentes. Catálogo completo y esquemas: `Department-backend/docs/CMS-SECTIONS.md` y `GET /api/v1/admin/content/section-types` (JSON Schema).
+- Documentos: `settings/site`, `menu/main|footer`, `template/layout|home|collection|product|search|cart|404`, `page/community|contact` (semilla en `src/cms/seed/default-content.ts` de la rama `feature/content-seed` del backend, aún sin merge a `main`).
+- Cada plantilla es una lista de secciones (`hero`, `marquee`, `new-arrivals`, `split-banner`, `campaign`, `editorial`, `value-props`, `site-header`, `footer`, `newsletter`, `collection-hero`, `product-grid`, `product-detail`, `search-panel`, `cart-drawer`, `contact-form`, `page-header`, `cta-banner`, `lookbook`, `error-hero`, …) cuyos ajustes reproducen **todos los textos** hoy fijos en los componentes. Catálogo completo y esquemas: `docs/CMS-SECTIONS.md` de esa misma rama y `GET /api/v1/admin/content/section-types` (JSON Schema).
 - Lecturas públicas cacheables: `GET /storefront/content/{settings|menus/:key|templates/:key|pages|pages/:key|bundle}`.
 - Revalidación saliente: `POST {STOREFRONT_URL}/api/revalidate` (HMAC `x-signature`, `ts` anti-replay). Etiquetas: `content:<kind>:<key>` y `content:pages`.
 - Vista previa: `POST /admin/content/preview-tokens` → `{STOREFRONT_URL}/api/preview?token=…` + `?preview=<token>` en las lecturas.
@@ -88,10 +88,10 @@ cd Department-backend && yarn install
 yarn db:start                 # Postgres embebido :5433 (no arranca como root: ejecútalo con un usuario normal)
 yarn migration:run
 OWNER_EMAIL=owner@dept.test OWNER_PASSWORD='<contraseña fuerte>' yarn owner:create
-yarn catalog:seed && yarn content:seed   # requieren la rama feature/content-seed (ya mergeada en la rama de trabajo del backend)
+yarn catalog:seed && yarn content:seed   # requieren la rama feature/content-seed del backend (no está en main)
 yarn build && node dist/main.js          # :4000 · GET /ready → {"status":"ready","database":"up"}
 ```
-`.env` mínimo de desarrollo: `DATABASE_URL`, `DATABASE_SSL=disable`, `CORS_ORIGINS=http://localhost:3000,http://localhost:3001`, `PAYMENT_PROVIDER=mock`, `AUTH_THROTTLE_LIMIT=1000` (solo desarrollo). Detalle de la base: `Department-backend/docs/BASE-DE-DATOS-LOCAL.md`.
+`.env` mínimo de desarrollo: `DATABASE_URL`, `DATABASE_SSL=disable`, `CORS_ORIGINS=http://localhost:3000,http://localhost:3001`, `PAYMENT_PROVIDER=mock`, `AUTH_THROTTLE_LIMIT=1000` (solo desarrollo). 
 
 ## 7. Siguientes pasos (hoja de ruta de la integración)
 
