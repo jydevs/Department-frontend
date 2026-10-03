@@ -1,5 +1,5 @@
 "use client";
-import { ExternalLink, LogOut, Menu, Moon, Sun, User } from "lucide-react";
+import { ExternalLink, Menu, Moon, Sun, User } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/admin/auth";
@@ -7,7 +7,7 @@ import { IconButton } from "@/components/admin/ui/Button";
 
 
 export function Topbar({ onMenu }: { onMenu: () => void }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [dark, setDark] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
@@ -41,7 +41,6 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
           <div role="menu" className="absolute right-0 mt-1 w-52 rounded-sm border border-line bg-surface p-1 shadow-xl">
             <p className="px-3 py-2 text-xs text-muted">{user?.email}</p>
             <Link role="menuitem" href="/admin/account" onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-surface2"><User className="size-4" /> Mi cuenta</Link>
-            <button role="menuitem" type="button" onClick={() => void logout()} className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm hover:bg-surface2"><LogOut className="size-4" /> Cerrar sesión</button>
           </div>
         )}
       </div>

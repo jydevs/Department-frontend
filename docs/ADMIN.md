@@ -9,7 +9,7 @@ Los datos se reinician al recargar la página.
 ```bash
 yarn install
 yarn dev        # tienda: http://localhost:3000 · panel: http://localhost:3000/admin
-                # login demo: cualquier correo + contraseña de 4+ caracteres
+                # sin login en esta fase: abre directo
 yarn typecheck && yarn lint && yarn build
 ```
 
@@ -18,7 +18,7 @@ yarn typecheck && yarn lint && yarn build
 - `src/lib/admin/api-client.ts` ya implementa el cliente (token en memoria, refresh por cookie, `ApiError`).
 - Cada módulo expone sus hooks en `src/lib/admin/api/*.ts`; hoy usan `useMock`/`useAction` (`src/lib/admin/query.ts`).
   Para conectar, reemplaza el cuerpo de cada hook por `api.get/post/...` manteniendo la firma.
-- `src/lib/admin/auth.tsx` simula la sesión; sustituir por `POST /auth/refresh` + `GET /auth/me`.
+- `src/lib/admin/auth.tsx` entrega un usuario propietario fijo (no hay login en la fase visual); sustituir por `POST /auth/refresh` + `GET /auth/me` y reañadir la pantalla de login.
 - Variable futura: `NEXT_PUBLIC_API_URL` (por defecto `http://localhost:4000`).
 
 ## Pendiente / simulado
