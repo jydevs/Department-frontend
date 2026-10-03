@@ -375,18 +375,23 @@
   --adm-info: #1e40af;
   color-scheme: light;
 }
-.admin-root * { transition-property: background-color, border-color, color; transition-duration: .12s; }
-.admin-root .grid > *, .admin-root main { min-width: 0; }
-.admin-root ::selection { background: var(--dept-red); color: #fff; }
-.admin-root h1, .admin-root h2 { font-weight: 600; }
-/* microetiqueta de la tienda: condensada, versalitas, muy espaciada */
-.admin-root .adm-label { font-family: var(--font-condensed); text-transform: uppercase; letter-spacing: 0.24em; font-size: 11px; color: var(--adm-muted); }
-/* celda que se invierte al pasar el cursor (como ValueProps) */
-.admin-root .adm-invert { transition: background-color .4s var(--ease-out-expo), color .4s var(--ease-out-expo); }
-.admin-root .adm-invert:hover { background: var(--adm-fg); color: var(--adm-bg); }
-.admin-root .adm-invert:hover .adm-label, .admin-root .adm-invert:hover .adm-sub { color: color-mix(in srgb, var(--adm-bg) 65%, transparent); }
-.skel { animation: adm-pulse 1.4s ease-in-out infinite; background: var(--adm-surface-2); }
-@keyframes adm-pulse { 50% { opacity: .45; } }
-.toast-in { animation: adm-toast .18s ease-out; }
+@layer base {
+  /* transiciones solo en controles: no pisan `transition-*` de las utilidades (p. ej. el drawer móvil) */
+  .admin-root :is(a, button, input, select, textarea, label, tr) { transition-property: background-color, border-color, color, opacity; transition-duration: 0.12s; }
+  .admin-root .grid > *, .admin-root main { min-width: 0; }
+  .admin-root ::selection { background: var(--dept-red); color: #fff; }
+}
+
+@layer components {
+  /* microetiqueta de la tienda: condensada, versalitas, muy espaciada */
+  .admin-root .adm-label { font-family: var(--font-condensed); text-transform: uppercase; letter-spacing: 0.24em; font-size: 11px; color: var(--adm-muted); }
+  /* celda que se invierte al pasar el cursor (como ValueProps) */
+  .admin-root .adm-invert { transition: background-color 0.4s var(--ease-out-expo), color 0.4s var(--ease-out-expo); }
+  .admin-root .adm-invert:hover { background: var(--adm-fg); color: var(--adm-bg); }
+  .admin-root .adm-invert:hover .adm-label, .admin-root .adm-invert:hover .adm-sub { color: color-mix(in srgb, var(--adm-bg) 65%, transparent); }
+  .adm-skel { animation: adm-pulse 1.4s ease-in-out infinite; background: var(--adm-surface-2); }
+  .adm-toast-in { animation: adm-toast 0.18s ease-out; }
+}
+@keyframes adm-pulse { 50% { opacity: 0.45; } }
 @keyframes adm-toast { from { transform: translateY(8px); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .admin-root *, .skel, .toast-in { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .admin-root :is(a, button, input, select, textarea, label, tr), .adm-skel, .adm-toast-in { animation: none !important; transition: none !important; } }

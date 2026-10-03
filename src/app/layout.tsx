@@ -72,9 +72,6 @@ export default function RootLayout({
       className={`${anton.variable} ${oswald.variable} ${inter.variable} ${pinyon.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-dept-black text-dept-white">
-        <a href="#main" className="skip-link">
-          Saltar al contenido
-        </a>
         <OverlayProvider>
           <StoreChrome header={<Header />} footer={<SiteFooter />}>
             {children}

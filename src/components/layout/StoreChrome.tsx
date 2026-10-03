@@ -8,6 +8,9 @@ export function StoreChrome({ header, footer, children }: { header: ReactNode; f
   if (inAdmin) return <div className="flex-1">{children}</div>;
   return (
     <>
+      <a href="#main" className="skip-link">
+        Saltar al contenido
+      </a>
       {header}
       <main id="main" className="flex-1">{children}</main>
       {footer}

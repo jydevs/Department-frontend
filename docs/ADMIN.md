@@ -32,4 +32,6 @@ yarn typecheck && yarn lint && yarn build
 - `src/app/admin/**` — rutas (`/admin/orders`, `/admin/content/templates/home`, …).
 - `src/components/admin/**` — kit UI y componentes por módulo. `src/lib/admin/**` — datos simulados, hooks y utilidades.
 - `src/components/layout/StoreChrome.tsx` oculta header/footer de la tienda dentro de `/admin`.
-- Los estilos del panel están acotados a `.admin-root` en `globals.css` y reutilizan la identidad de la tienda (negro, rojo Dept., Anton/Oswald, esquinas rectas).
+- Los estilos del panel viven al final de `globals.css`: las variables y clases propias (`.adm-*`) cuelgan de `.admin-root` y las reglas van en `@layer base/components` para no pisar utilidades de Tailwind. Los tokens de color (`bg-surface`, `text-muted`, `border-line`, `bg-accent`, …) se declaran en el `@theme` global; sus nombres no existen en la tienda, y sus valores solo se resuelven dentro de `.admin-root`.
+- Reutilizan la identidad de la tienda (negro, rojo Dept., Anton/Oswald, esquinas rectas).
+- `/admin` está en `Disallow` de `robots.txt` y con `noindex`. **No tiene autenticación ni control de permisos en esta fase** (sin base de datos de roles): hay que protegerlo antes de desplegarlo.
