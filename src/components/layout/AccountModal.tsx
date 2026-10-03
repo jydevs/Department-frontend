@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { logout, useAccount } from "@/lib/account";
 
 /**
  * Account dropdown panel anchored under the header's account icon (top-right).
- * Login options + Pedidos / Perfil shortcuts (no auth backend yet — TODOs).
+ * Sin sesión: iniciar sesión / crear cuenta. Con sesión: Mi cuenta, Pedidos y Cerrar sesión (API real).
  * Closes on backdrop click / Escape; focus moves to the first action on open.
  * API: controlled via `open` / `onClose`.
  */
@@ -18,6 +21,9 @@ const ghostBtn =
 
 function AccountPanel({ onClose }: { onClose: () => void }) {
   const firstButtonRef = useRef<HTMLAnchorElement>(null);
+  const { status, customer } = useAccount();
+  const router = useRouter();
+  const authed = status === "authenticated";
 
   useEffect(() => {
     firstButtonRef.current?.focus();
@@ -48,39 +54,32 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
       >
         <p className="font-condensed text-[11px] tracking-[0.28em] text-dept-gray-500">Cuenta</p>
 
-        <a
-          ref={firstButtonRef}
-          href="/account/login"
-          onClick={onClose}
-          className="font-condensed mt-4 block text-center w-full bg-dept-blue py-3.5 text-sm tracking-[0.14em] text-dept-white transition-[filter] duration-300 hover:brightness-110"
-        >
-          Iniciar sesión
-        </a>
-
-        <a
-          href="/account/register"
-          onClick={onClose}
-          className="font-condensed mt-2 block text-center w-full bg-dept-red-dark py-3 text-[11px] tracking-[0.18em] text-dept-white transition-colors duration-300 hover:bg-dept-red"
-        >
-          Crear cuenta
-        </a>
-
-        <div className="mt-4 flex gap-2">
-          <a href="/account/orders" onClick={onClose} className={ghostBtn}>
-            <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 8h14l-1.2 12H6.2L5 8z" />
-              <path d="M9 8V7a3 3 0 016 0v1" />
-            </svg>
-            Pedidos
-          </a>
-          <button type="button" onClick={onClose} className={ghostBtn}>
-            <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
-            </svg>
-            Perfil
-          </button>
-        </div>
+        {authed ? (
+          <>
+            <p className="font-condensed mt-3 truncate text-xs tracking-[0.1em] text-dept-gray-300" data-testid="account-modal-user">{customer?.firstName} · {customer?.email}</p>
+            <Link ref={firstButtonRef} href="/account" onClick={onClose} className="font-condensed mt-4 block text-center w-full bg-dept-blue py-3.5 text-sm tracking-[0.14em] text-dept-white transition-[filter] duration-300 hover:brightness-110">
+              Mi cuenta
+            </Link>
+            <div className="mt-2 flex gap-2">
+              <Link href="/account/orders" onClick={onClose} className={ghostBtn}>Pedidos</Link>
+              <button type="button" data-testid="account-modal-logout" onClick={() => { void logout().finally(() => { onClose(); router.push("/"); }); }} className={ghostBtn}>
+                Cerrar sesión
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <Link ref={firstButtonRef} href="/account/login" onClick={onClose} className="font-condensed mt-4 block text-center w-full bg-dept-blue py-3.5 text-sm tracking-[0.14em] text-dept-white transition-[filter] duration-300 hover:brightness-110">
+              Iniciar sesión
+            </Link>
+            <Link href="/account/register" onClick={onClose} className="font-condensed mt-2 block text-center w-full bg-dept-red-dark py-3 text-[11px] tracking-[0.18em] text-dept-white transition-colors duration-300 hover:bg-dept-red">
+              Crear cuenta
+            </Link>
+            <div className="mt-4 flex gap-2">
+              <Link href="/account/orders" onClick={onClose} className={ghostBtn}>Pedidos</Link>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
