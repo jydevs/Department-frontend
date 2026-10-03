@@ -9,6 +9,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "build:qa": "node scripts/with-env.mjs .env.development -- next build",
+    "start:qa": "node scripts/with-env.mjs .env.development -- next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
