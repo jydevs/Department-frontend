@@ -1,5 +1,6 @@
 "use client";
-import { db, nid, now, paginate } from "../mock/db";
+import { db, logAudit, nid, now, paginate } from "../mock/db";
+import { HANDLE } from "./content";
 import { useAction, useMock, usePaged } from "../query";
 import { slugify } from "../format";
 import type { Collection, Location, Product, ProductStatus, Rule, Variant } from "../types";
@@ -21,32 +22,38 @@ export const blankProduct = (): Product => ({ id: "", handle: "", title: "", des
 export const useSaveProduct = (onSaved?: (p: Product) => void) => useAction((p: Product) => {
   if (!p.title.trim()) throw new Error("El título es obligatorio");
   const d = db(); const handle = p.handle || slugify(p.title);
+  if (!HANDLE.test(handle)) throw new Error("Handle inválido (minúsculas, números y guiones)");
+  if (p.variants.some((v) => v.price < 0) || p.variants.some((v) => v.compareAt !== undefined && v.compareAt < v.price)) throw new Error("Revisa los precios: no pueden ser negativos y el comparado debe ser mayor al precio");
   if (d.products.some((x) => x.handle === handle && x.id !== p.id)) throw new Error("Ya existe un producto con ese handle");
   const saved = { ...p, handle, updatedAt: now() };
   if (!p.id) { saved.id = nid("prd"); d.products.unshift(saved); } else d.products = d.products.map((x) => (x.id === p.id ? saved : x));
+  logAudit(p.id ? "product.update" : "product.create", "product", saved.id, p.id ? { status: d.products.find((x) => x.id === p.id)?.status ?? null } : null, { title: saved.title, status: saved.status });
   return saved;
-}, { invalidate: [["products"], ["product"], ["products-all"], ["product-facets"], ["levels"]], success: "Producto guardado", onSuccess: onSaved });
+}, { invalidate: [["products"], ["product"], ["products-all"], ["product-facets"], ["levels"], ["collections"], ["preview-rules"], ["alerts"]], success: "Producto guardado", onSuccess: onSaved });
 export const useBulkProducts = () => useAction(({ ids, op, tag }: { ids: string[]; op: "publish" | "archive" | "delete" | "tag"; tag?: string }) => {
   const d = db();
-  if (op === "delete") d.products = d.products.filter((p) => !ids.includes(p.id));
+  if (op === "delete") { d.products = d.products.filter((p) => !ids.includes(p.id)); for (const c of d.collections) c.productIds = c.productIds.filter((x) => !ids.includes(x)); }
   else for (const p of d.products) if (ids.includes(p.id)) { if (op === "publish") p.status = "active"; else if (op === "archive") p.status = "archived"; else if (tag && !p.tags.includes(tag)) p.tags.push(tag); }
-}, { invalidate: [["products"], ["products-all"], ["product"]], success: "Acción aplicada" });
-export const useSetProductStatus = () => useAction(({ id, status }: { id: string; status: ProductStatus }) => { const p = db().products.find((x) => x.id === id); if (p) p.status = status; }, { invalidate: [["products"], ["product"]], success: "Estado actualizado" });
+}, { invalidate: [["products"], ["products-all"], ["product"], ["product-facets"], ["levels"], ["collections"], ["collection"], ["preview-rules"]], success: "Acción aplicada" });
+export const useSetProductStatus = () => useAction(({ id, status }: { id: string; status: ProductStatus }) => { const p = db().products.find((x) => x.id === id); if (p) p.status = status; }, { invalidate: [["products"], ["product"], ["products-all"], ["preview-rules"], ["collections"]], success: "Estado actualizado" });
 export const useDuplicateProduct = (onDone?: (p: Product) => void) => useAction((id: string) => {
   const d = db(); const src = d.products.find((p) => p.id === id); if (!src) throw new Error("No encontrado");
   const copy: Product = { ...structuredClone(src), id: nid("prd"), title: `${src.title} (copia)`, handle: `${src.handle}-copia-${Math.random().toString(36).slice(2, 5)}`, status: "draft", updatedAt: now() };
   copy.variants = copy.variants.map((v) => ({ ...v, id: nid("var"), sku: `${v.sku}-C` })); d.products.unshift(copy); return copy;
-}, { invalidate: [["products"]], success: "Producto duplicado", onSuccess: onDone });
-export const useDeleteProduct = (onDone?: () => void) => useAction((id: string) => { const d = db(); d.products = d.products.filter((p) => p.id !== id); }, { invalidate: [["products"], ["products-all"]], success: "Producto eliminado", onSuccess: onDone });
+}, { invalidate: [["products"], ["products-all"], ["product-facets"], ["levels"], ["collections"]], success: "Producto duplicado", onSuccess: onDone });
+export const useDeleteProduct = (onDone?: () => void) => useAction((id: string) => { const d = db(); d.products = d.products.filter((p) => p.id !== id); for (const c of d.collections) c.productIds = c.productIds.filter((x) => x !== id); logAudit("product.delete", "product", id, null, null); }, { invalidate: [["products"], ["product"], ["products-all"], ["product-facets"], ["levels"], ["collections"], ["collection"], ["preview-rules"], ["alerts"]], success: "Producto eliminado", onSuccess: onDone });
 
 /** Genera el producto cartesiano de las opciones conservando precio/stock de variantes existentes. */
 export function generateVariants(options: Product["options"], prev: Variant[], base: Variant | undefined): Variant[] {
   const opts = options.filter((o) => o.name && o.values.length);
   if (!opts.length) return prev.length ? [prev[0]] : [];
   const combos = opts.reduce<string[][]>((acc, o) => acc.flatMap((a) => o.values.map((v) => [...a, v])), [[]]);
-  return combos.map((c) => {
+  const sameCount = combos.length === prev.length;
+  return combos.map((c, i) => {
     const title = c.join(" / ");
-    return prev.find((v) => v.title === title) ?? { id: nid("var"), title, options: c, price: base?.price ?? 0, compareAt: base?.compareAt, sku: `${(base?.sku || "SKU").replace(/-[^-]*$/, "")}-${c.join("").toUpperCase()}`, weight: base?.weight, tracked: true, backorder: false, stock: 0 };
+    // si solo se renombró un valor (misma cantidad de combinaciones) se conservan precio, SKU y stock de esa posición
+    const renamed = sameCount && prev[i] && !prev.some((v) => v.title === title) ? { ...prev[i], title, options: c } : undefined;
+    return prev.find((v) => v.title === title) ?? renamed ?? { id: nid("var"), title, options: c, price: base?.price ?? 0, compareAt: base?.compareAt, sku: `${(base?.sku || "SKU").replace(/-[^-]*$/, "")}-${c.join("").toUpperCase()}`, weight: base?.weight, tracked: true, backorder: false, stock: 0 };
   });
 }
 
@@ -70,9 +77,11 @@ export const blankCollection = (): Collection => ({ id: "", handle: "", title: "
 export const useSaveCollection = (onSaved?: (c: Collection) => void) => useAction((c: Collection) => {
   if (!c.title.trim()) throw new Error("El título es obligatorio");
   const d = db(); const saved = { ...c, handle: c.handle || slugify(c.title) };
+  if (!HANDLE.test(saved.handle)) throw new Error("Handle inválido (minúsculas, números y guiones)");
+  if (d.collections.some((x) => x.handle === saved.handle && x.id !== c.id)) throw new Error("Ya existe una colección con ese handle");
   if (!c.id) { saved.id = nid("col"); d.collections.push(saved); } else d.collections = d.collections.map((x) => (x.id === c.id ? saved : x));
   return saved;
-}, { invalidate: [["collections"], ["collection"]], success: "Colección guardada", onSuccess: onSaved });
+}, { invalidate: [["collections"], ["collection"], ["preview-rules"]], success: "Colección guardada", onSuccess: onSaved });
 export const useDeleteCollection = (onDone?: () => void) => useAction((id: string) => { const d = db(); d.collections = d.collections.filter((c) => c.id !== id); }, { invalidate: [["collections"]], success: "Colección eliminada", onSuccess: onDone });
 
 /* ---------- Inventario ---------- */

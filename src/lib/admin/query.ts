@@ -15,11 +15,11 @@ export const makeQueryClient = (): QueryClient =>
 
 /** Consulta simulada (sustituir por `api.get` al conectar la API real). */
 export function useMock<R>(key: QueryKey, fn: () => R, enabled = true) {
-  return useQuery({ queryKey: key, queryFn: () => wait(fn), enabled });
+  return useQuery({ queryKey: key, queryFn: () => wait(() => structuredClone(fn())), enabled });
 }
 /** Lista paginada por offset con `keepPreviousData`. */
 export function usePaged<R>(key: QueryKey, params: { page: number; pageSize: number }, fn: () => Page<R>) {
-  return useQuery({ queryKey: [...key, params], queryFn: () => wait(fn), placeholderData: keepPreviousData });
+  return useQuery({ queryKey: [...key, params], queryFn: () => wait(() => structuredClone(fn())), placeholderData: keepPreviousData });
 }
 /** Mutación con toast de éxito/error e invalidación de claves. */
 export function useAction<V, R = unknown>(fn: (v: V) => R | Promise<R>, opts: { invalidate?: QueryKey[]; success?: string; onSuccess?: (r: R) => void } = {}) {

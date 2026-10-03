@@ -36,7 +36,7 @@ export default function DiscountsPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Input label="Código" value={edit.code} onChange={(e) => set({ code: e.target.value.toUpperCase() })} />
             <Select label="Tipo" value={edit.kind} onChange={(e) => set({ kind: e.target.value as Discount["kind"] })}><option value="percentage">Porcentaje</option><option value="fixed">Monto fijo</option><option value="free-shipping">Envío gratis</option></Select>
-            {edit.kind === "percentage" && <Input label="Porcentaje (1–100)" type="number" min={1} max={100} value={edit.value} onChange={(e) => set({ value: Number(e.target.value) })} />}
+            {edit.kind === "percentage" && <Input label="Porcentaje (1–100)" type="number" min={1} max={100} value={edit.value === 0 ? "" : edit.value} onChange={(e) => set({ value: Number(e.target.value) })} />}
             {edit.kind === "fixed" && <MoneyInput label="Monto de descuento" value={edit.value} onChange={(v) => set({ value: v ?? 0 })} />}
             <MoneyInput label="Subtotal mínimo" value={edit.minSubtotal} onChange={(v) => set({ minSubtotal: v ?? 0 })} />
             <Input label="Límite total de usos" type="number" min={0} placeholder="Sin límite" value={edit.usageLimit ?? ""} onChange={(e) => set({ usageLimit: e.target.value ? Number(e.target.value) : null })} />

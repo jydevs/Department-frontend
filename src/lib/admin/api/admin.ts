@@ -1,13 +1,24 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { db, nid, now, paginate, wait } from "../mock/db";
+import { db, logAudit, nid, now, paginate, wait } from "../mock/db";
 import { useAction, useMock, usePaged } from "../query";
 import type { ContactMessage, Customer, Discount, EmailTemplate, ImportJob, ShippingZone, Staff } from "../types";
 
+/** Exporta CSV neutralizando fórmulas (=, +, -, @, tab, CR) solo en texto; los números se escriben tal cual. */
 export function downloadCsv(name: string, rows: (string | number | boolean)[][]): void {
-  const esc = (v: string | number | boolean) => { const s = String(v); const safe = /^[=+\-@]/.test(s) ? `'${s}` : s; return /[",\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe; };
-  const url = URL.createObjectURL(new Blob([`﻿${rows.map((r) => r.map(esc).join(",")).join("\n")}`], { type: "text/csv;charset=utf-8" }));
+  const esc = (v: string | number | boolean) => {
+    const s = String(v);
+    const safe = typeof v === "string" && /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+    return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+  };
+  const url = URL.createObjectURL(new Blob([`\ufeff${rows.map((r) => r.map(esc).join(",")).join("\r\n")}`], { type: "text/csv;charset=utf-8" }));
   const a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
+}
+/** Valor aleatorio criptográficamente seguro (base32 sin ambigüedades). */
+const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+export function randomToken(len: number): string {
+  const bytes = new Uint8Array(len); crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join("");
 }
 
 /* ---------- Clientes ---------- */
@@ -18,8 +29,15 @@ export const useCustomers = (f: CustomerFilters) => usePaged<Customer>(["custome
 });
 export const useCustomer = (id: string) => useMock(["customer", id], () => { const c = db().customers.find((x) => x.id === id); return c ? { customer: c, orders: db().orders.filter((o) => o.customer.id === id) } : null; });
 export const useCustomerTags = () => useMock(["customer-tags"], () => [...new Set(db().customers.flatMap((c) => c.tags))]);
-export const useSaveCustomer = () => useAction((c: Customer) => { if (!/^\S+@\S+\.\S+$/.test(c.email)) throw new Error("Correo inválido"); const d = db(); d.customers = d.customers.map((x) => (x.id === c.id ? c : x)); }, { invalidate: [["customers"], ["customer"], ["customer-tags"]], success: "Cliente actualizado" });
-export const useAnonymize = () => useAction((id: string) => { const c = db().customers.find((x) => x.id === id); if (c) { c.name = "Cliente anonimizado"; c.email = `anon-${id}@anonimo.invalid`; c.phone = ""; c.note = ""; c.addresses = []; c.anonymized = true; c.marketing = false; } }, { invalidate: [["customers"], ["customer"]], success: "Cliente anonimizado (Habeas Data)" });
+export const useSaveCustomer = () => useAction((c: Customer) => { if (!/^\S+@\S+\.\S+$/.test(c.email)) throw new Error("Correo inválido"); const d = db(); d.customers = d.customers.map((x) => (x.id === c.id ? c : x)); logAudit("customer.update", "customer", c.id, null, { email: c.email }); }, { invalidate: [["customers"], ["customer"], ["customer-tags"]], success: "Cliente actualizado" });
+export const useAnonymize = () => useAction((id: string) => {
+  const d = db(); const c = d.customers.find((x) => x.id === id); if (!c) return;
+  c.name = "Cliente anonimizado"; c.email = `anon-${id}@anonimo.invalid`; c.phone = ""; c.note = ""; c.addresses = []; c.anonymized = true; c.marketing = false;
+  const blank = { name: "Cliente anonimizado", line1: "—", city: "—", department: "—", phone: "" };
+  for (const o of d.orders) if (o.customer.id === id) { o.customer.name = c.name; o.customer.email = c.email; o.customer.phone = ""; o.shippingAddress = { ...blank }; o.billingAddress = { ...blank }; }
+  for (const s of d.subscribers) if (s.email === c.email) s.status = "unsubscribed";
+  logAudit("customer.anonymize", "customer", id, null, { anonymized: true });
+}, { invalidate: [["customers"], ["customer"], ["orders"], ["order"], ["customer-tags"]], success: "Cliente anonimizado (Habeas Data)" });
 
 /* ---------- Descuentos ---------- */
 export const useDiscounts = () => useMock(["discounts"], () => db().discounts);
@@ -30,6 +48,7 @@ export const useSaveDiscount = () => useAction((x: Discount) => {
   if (x.kind === "fixed" && x.value < 1) throw new Error("El monto debe ser mayor a 0");
   if (x.endsAt && new Date(x.endsAt) <= new Date(x.startsAt)) throw new Error("La fecha de fin debe ser posterior al inicio");
   const d = db(); if (d.discounts.some((o) => o.code === code && o.id !== x.id)) throw new Error("Ya existe un descuento con ese código");
+  logAudit(x.id ? "discount.update" : "discount.create", "discount", x.id || code, null, { code, kind: x.kind, value: x.value });
   if (!x.id) d.discounts.unshift({ ...x, code, id: nid("dsc") }); else d.discounts = d.discounts.map((o) => (o.id === x.id ? { ...x, code } : o));
 }, { invalidate: [["discounts"]], success: "Descuento guardado" });
 export const useDeleteDiscount = () => useAction((id: string) => { const d = db(); d.discounts = d.discounts.filter((x) => x.id !== id); }, { invalidate: [["discounts"]], success: "Descuento eliminado" });
@@ -64,14 +83,15 @@ export const useSendTest = () => useAction((v: { to: string }) => { if (!/^\S+@\
 /* ---------- Equipo ---------- */
 export const useStaff = () => useMock(["staff"], () => db().staff);
 export const useRoles = () => useMock(["roles"], () => db().roles);
-const genPass = () => `Dept-${Math.random().toString(36).slice(2, 8)}-${Math.floor(Math.random() * 90 + 10)}!`;
+const genPass = () => `Dept-${randomToken(8)}-${randomToken(4)}!`;
 export const useSaveStaff = () => useAction((s: Staff) => {
   if (!s.name.trim()) throw new Error("El nombre es obligatorio"); if (!/^\S+@\S+\.\S+$/.test(s.email)) throw new Error("Correo inválido");
-  const d = db(); if (d.staff.some((x) => x.email === s.email && x.id !== s.id)) throw new Error("Ya existe una persona con ese correo");
-  if (!s.id) { d.staff.push({ ...s, id: nid("stf") }); return { tempPassword: genPass() }; }
-  d.staff = d.staff.map((x) => (x.id === s.id ? s : x)); return { tempPassword: null };
+  const email = s.email.trim().toLowerCase();
+  const d = db(); if (d.staff.some((x) => x.email.toLowerCase() === email && x.id !== s.id)) throw new Error("Ya existe una persona con ese correo");
+  if (!s.id) { const id = nid("stf"); d.staff.push({ ...s, email, id }); logAudit("staff.create", "staff", id, null, { email, role: s.role }); return { tempPassword: genPass() }; }
+  d.staff = d.staff.map((x) => (x.id === s.id ? { ...s, email } : x)); logAudit("staff.update", "staff", s.id, null, { email, active: s.active }); return { tempPassword: null };
 }, { invalidate: [["staff"]], success: "Personal guardado" });
-export const useResetStaffPassword = () => useAction((id: string) => ({ tempPassword: id ? genPass() : genPass() }), { success: "Contraseña temporal generada" });
+export const useResetStaffPassword = () => useAction((id: string) => { logAudit("staff.reset-password", "staff", id, null, null); return { tempPassword: genPass() }; }, { success: "Contraseña temporal generada" });
 export const useDeleteStaff = () => useAction((id: string) => { const d = db(); const s = d.staff.find((x) => x.id === id); if (s?.role === "owner") throw new Error("No se puede eliminar al propietario"); d.staff = d.staff.filter((x) => x.id !== id); }, { invalidate: [["staff"]], success: "Persona eliminada" });
 
 /* ---------- Auditoría (cursor) ---------- */
@@ -101,4 +121,6 @@ export const useMaintenanceRuns = () => useMock(["maintenance"], () => db().main
 export const useRunMaintenance = () => useAction(() => { const r = { ranAt: now(), summary: "Se purgaron 12 sesiones expiradas, 3 tokens de vista previa y 0 carritos abandonados (>30 días). Índices reconstruidos." }; db().maintenance.unshift(r); return r; }, { invalidate: [["maintenance"]], success: "Mantenimiento ejecutado" });
 
 /* ---------- Cuenta ---------- */
-export const useRecoveryCodes = () => useAction(() => Array.from({ length: 8 }, () => `${Math.random().toString(36).slice(2, 7)}-${Math.random().toString(36).slice(2, 7)}`));
+export const useRecoveryCodes = () => useAction(() => Array.from({ length: 8 }, () => `${randomToken(5)}-${randomToken(5)}`.toLowerCase()));
+/** Secreto TOTP simulado, distinto en cada activación. */
+export const newTotpSecret = (): string => randomToken(16);

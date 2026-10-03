@@ -35,3 +35,7 @@ export function paginate<I>(items: I[], page: number, pageSize: number): T.Page<
 }
 export const nid = (p: string): string => `${p}_${Math.random().toString(36).slice(2, 9)}`;
 export const now = (): string => new Date().toISOString();
+/** Registra una entrada de auditoría (simula lo que haría el servidor). */
+export function logAudit(action: string, entity: string, entityId: string, before: Record<string, unknown> | null, after: Record<string, unknown> | null): void {
+  db().audit.unshift({ id: nid("au"), at: now(), actor: "owner@daregulardept.com", action, entity, entityId, before, after, ip: "127.0.0.1" });
+}

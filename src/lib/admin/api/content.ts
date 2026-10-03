@@ -1,12 +1,21 @@
 "use client";
 import { db, nid, now } from "../mock/db";
 import { SECTION_TYPES } from "../mock/seed";
-import { slugify } from "../format";
+import { isSafePath, slugify } from "../format";
 import { useAction, useMock } from "../query";
 import type { ContentDoc, DocKind, JsonValue, Redirect, SchemaField, Section } from "../types";
 
-export const useDocs = () => useMock(["docs"], () => db().content);
-export const useDoc = (kind: DocKind, key: string) => useMock(["doc", kind, key], () => db().content.find((d) => d.kind === kind && d.key === key) ?? null);
+/** Simula el planificador del servidor: publica los documentos cuya programación ya venció. */
+function applyDueSchedules(): void {
+  for (const d of db().content) {
+    if (d.scheduledAt && new Date(d.scheduledAt).getTime() <= Date.now()) {
+      d.version += 1; d.published = structuredClone(d.draft); d.dirty = false; d.scheduledAt = null; d.publishedAt = now();
+      d.versions.unshift({ id: nid("ver"), number: d.version, at: now(), actor: "Programación", content: structuredClone(d.draft), label: "Publicado (programado)" });
+    }
+  }
+}
+export const useDocs = () => useMock(["docs"], () => { applyDueSchedules(); return db().content; });
+export const useDoc = (kind: DocKind, key: string) => useMock(["doc", kind, key], () => { applyDueSchedules(); return db().content.find((d) => d.kind === kind && d.key === key) ?? null; });
 export const useSectionTypes = () => useMock(["section-types"], () => SECTION_TYPES);
 const find = (kind: DocKind, key: string): ContentDoc => { const d = db().content.find((x) => x.kind === kind && x.key === key); if (!d) throw new Error("Documento no encontrado"); return d; };
 const inv = [["docs"], ["doc"]];
@@ -26,7 +35,7 @@ export const useSchedule = () => useAction(({ kind, key, at }: { kind: DocKind; 
 export const useCancelSchedule = () => useAction(({ kind, key }: { kind: DocKind; key: string }) => { find(kind, key).scheduledAt = null; }, { invalidate: inv, success: "Programación cancelada" });
 export const useRestoreVersion = () => useAction(({ kind, key, versionId }: { kind: DocKind; key: string; versionId: string }) => { const d = find(kind, key); const v = d.versions.find((x) => x.id === versionId); if (v) { d.draft = structuredClone(v.content); d.dirty = true; } }, { invalidate: inv, success: "Versión restaurada como borrador" });
 export const useCreatePage = () => useAction(({ title, handle }: { title: string; handle: string }) => {
-  const key = handle || slugify(title); if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(key)) throw new Error("Handle inválido (usa minúsculas, números y guiones)");
+  const key = handle || slugify(title); if (!HANDLE.test(key)) throw new Error("Handle inválido (usa minúsculas, números y guiones)");
   if (db().content.some((d) => d.kind === "page" && d.key === key)) throw new Error("Ya existe una página con ese handle");
   db().content.push({ kind: "page", key, title, draft: { sections: [] }, published: null, version: 0, dirty: true, scheduledAt: null, publishedAt: null, versions: [], seoTitle: title, seoDescription: "" }); return key;
 }, { invalidate: inv, success: "Página creada" });
@@ -34,8 +43,9 @@ export const useDeletePage = () => useAction((key: string) => { const d = db(); 
 export const usePreviewToken = () => useAction(async () => ({ token: `preview_${nid("tk")}`, expiresAt: new Date(Date.now() + 30 * 60_000).toISOString() }));
 
 /* ---------- Validación de secciones según el catálogo ---------- */
+export const HANDLE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const HEX = /^#[0-9a-fA-F]{6}$/;
-export const isSafeUrl = (v: string): boolean => v.startsWith("/") ? !v.startsWith("//") : /^(https:\/\/|mailto:|tel:)/.test(v);
+export const isSafeUrl = (v: string): boolean => (v.startsWith("/") ? isSafePath(v) : /^(https:\/\/|mailto:|tel:)/.test(v) && !/[\u0000-\u001f\u007f\\]/.test(v));
 export function validateField(f: SchemaField, v: JsonValue | undefined): string | undefined {
   const empty = v === undefined || v === null || v === "";
   if (empty) return f.required ? "Obligatorio" : undefined;
@@ -82,7 +92,7 @@ export function diffJson(a: JsonValue | null, b: JsonValue | null, path = ""): {
 export const useRedirects = () => useMock(["redirects"], () => db().redirects);
 export const useSaveRedirect = () => useAction((r: Redirect) => {
   const d = db(); const from = r.from.trim(), to = r.to.trim();
-  if (!from.startsWith("/")) throw new Error("El origen debe empezar con /"); if (!(to.startsWith("/") || to.startsWith("https://"))) throw new Error("El destino debe ser /ruta o https://");
+  if (!isSafePath(from)) throw new Error("El origen debe ser una ruta que empiece con / (sin \\ ni caracteres de control)"); if (!(isSafePath(to) || (to.startsWith("https://") && isSafeUrl(to)))) throw new Error("El destino debe ser /ruta o https://");
   if (from === to) throw new Error("El origen y el destino no pueden ser iguales");
   if (d.redirects.some((x) => x.from === from && x.id !== r.id)) throw new Error("Ya existe una redirección desde ese origen");
   let cur = to, hops = 0; while (hops++ < 10) { const nx = d.redirects.find((x) => x.from === cur && x.id !== r.id); if (!nx) break; if (nx.to === from || nx.from === from) throw new Error("Esta redirección crearía un bucle"); cur = nx.to; }

@@ -1,5 +1,5 @@
 "use client";
-import { db, nid, now, paginate } from "../mock/db";
+import { db, logAudit, nid, now, paginate } from "../mock/db";
 import { salesByDay } from "../mock/seed";
 import { useAction, useMock, usePaged } from "../query";
 import type { Address, FinancialStatus, FulfillmentStatus, Order } from "../types";
@@ -21,37 +21,58 @@ export const useAllOrderTags = () => useMock(["order-tags"], () => [...new Set(d
 
 const touch = (o: Order, text: string) => o.timeline.unshift({ id: nid("ev"), at: now(), text, actor: "owner@daregulardept.com" });
 const find = (id: string): Order => { const o = db().orders.find((x) => x.id === id); if (!o) throw new Error("Pedido no encontrado"); return o; };
-const inv = [["orders"], ["order"]];
+const inv = [["orders"], ["order"], ["alerts"], ["analytics"]];
+const stockInv = [["products"], ["product"], ["products-all"], ["levels"], ["alerts"]];
+/** Devuelve unidades al inventario de la variante con ese SKU. */
+const restockSku = (sku: string, qty: number) => { if (qty <= 0) return; for (const p of db().products) for (const v of p.variants) if (v.sku === sku && v.tracked) v.stock += qty; };
+const refundedTotal = (o: Order) => o.refunds.reduce((s, r) => s + r.amount, 0);
 
-export const useMarkPaid = () => useAction((id: string) => { const o = find(id); o.financial = "paid"; o.payments.push({ id: nid("pay"), method: "Manual", amount: o.total, at: now(), ref: "MANUAL" }); touch(o, "Marcado como pagado manualmente"); }, { invalidate: inv, success: "Pedido marcado como pagado" });
+export const useMarkPaid = () => useAction((id: string) => { const o = find(id); if (o.fulfillment === "cancelled") throw new Error("El pedido está cancelado"); o.financial = "paid"; o.payments.push({ id: nid("pay"), method: "Manual", amount: o.total, at: now(), ref: "MANUAL" }); touch(o, "Marcado como pagado manualmente"); logAudit("order.mark-paid", "order", id, { financial: "pending" }, { financial: "paid" }); }, { invalidate: inv, success: "Pedido marcado como pagado" });
 export const useCancelOrder = () => useAction(({ id, restock }: { id: string; restock: boolean }) => {
-  const o = find(id); o.fulfillment = "cancelled"; touch(o, `Pedido cancelado${restock ? " (stock repuesto)" : " (sin reponer stock)"}`);
-  if (restock) for (const l of o.lines) for (const p of db().products) for (const v of p.variants) if (v.sku === l.sku) v.stock += l.qty;
-}, { invalidate: [...inv, ["products"]], success: "Pedido cancelado" });
+  const o = find(id);
+  if (o.fulfillment === "fulfilled") throw new Error("No se puede cancelar un pedido ya enviado; usa un reembolso.");
+  if (o.fulfillment === "cancelled") throw new Error("El pedido ya está cancelado");
+  const before = o.fulfillment;
+  o.fulfillment = "cancelled"; touch(o, `Pedido cancelado${restock ? " (stock repuesto)" : " (sin reponer stock)"}`);
+  // solo se repone lo que no salió en un envío activo ni se repuso ya por reembolsos
+  if (restock) for (const l of o.lines) restockSku(l.sku, l.qty - l.fulfilledQty - l.refundedQty);
+  logAudit("order.cancel", "order", id, { fulfillment: before }, { fulfillment: "cancelled", restock });
+}, { invalidate: [...inv, ...stockInv], success: "Pedido cancelado" });
 export const useCreateShipment = () => useAction(({ id, carrier, tracking, qty }: { id: string; carrier: string; tracking: string; qty: Record<string, number> }) => {
-  const o = find(id); const lineIds = Object.entries(qty).filter(([, n]) => n > 0).map(([lineId, n]) => ({ lineId, qty: n }));
+  const o = find(id); if (o.fulfillment === "cancelled") throw new Error("El pedido está cancelado");
+  const lineIds = Object.entries(qty).filter(([, n]) => n > 0).map(([lineId, n]) => ({ lineId, qty: n }));
   if (!lineIds.length) throw new Error("Selecciona al menos una línea");
   o.shipments.push({ id: nid("shp"), carrier, tracking, lineIds, status: "active", createdAt: now() });
   for (const s of lineIds) { const l = o.lines.find((x) => x.id === s.lineId); if (l) l.fulfilledQty += s.qty; }
   o.fulfillment = o.lines.every((l) => l.fulfilledQty >= l.qty) ? "fulfilled" : "partial"; touch(o, `Envío creado (${carrier} ${tracking})`);
+  logAudit("order.fulfill", "order", id, null, { carrier, tracking });
 }, { invalidate: inv, success: "Envío creado" });
 export const useCancelShipment = () => useAction(({ id, shipmentId }: { id: string; shipmentId: string }) => {
-  const o = find(id); const s = o.shipments.find((x) => x.id === shipmentId); if (!s) return;
+  const o = find(id); if (o.fulfillment === "cancelled") throw new Error("El pedido está cancelado");
+  const s = o.shipments.find((x) => x.id === shipmentId); if (!s || s.status === "cancelled") return;
   s.status = "cancelled"; for (const li of s.lineIds) { const l = o.lines.find((x) => x.id === li.lineId); if (l) l.fulfilledQty = Math.max(0, l.fulfilledQty - li.qty); }
   const done = o.lines.reduce((n, l) => n + l.fulfilledQty, 0); o.fulfillment = done === 0 ? "unfulfilled" : o.lines.every((l) => l.fulfilledQty >= l.qty) ? "fulfilled" : "partial"; touch(o, `Envío ${s.tracking} cancelado`);
+  logAudit("order.shipment-cancel", "order", id, { tracking: s.tracking }, { status: "cancelled" });
 }, { invalidate: inv, success: "Envío cancelado" });
 export const useRefund = () => useAction(({ id, amount, reason, restock, qty }: { id: string; amount: number; reason: string; restock: boolean; qty: Record<string, number> }) => {
   const o = find(id); if (amount <= 0) throw new Error("Indica un monto mayor a 0");
-  const paid = o.total - o.refunds.reduce((s, r) => s + r.amount, 0); if (amount > paid) throw new Error("El monto supera lo disponible para reembolsar");
+  if (o.financial === "pending") throw new Error("El pedido aún no está pagado");
+  const paid = o.total - refundedTotal(o); if (amount > paid) throw new Error("El monto supera lo disponible para reembolsar");
   const lineIds = Object.entries(qty).filter(([, n]) => n > 0).map(([lineId, n]) => ({ lineId, qty: n }));
   o.refunds.push({ id: nid("ref"), amount, reason, restock, createdAt: now(), lineIds });
   o.financial = amount >= paid ? "refunded" : "partially-refunded"; touch(o, `Reembolso de $${amount.toLocaleString("es-CO")} (${reason || "sin motivo"})`);
-  if (restock) for (const s of lineIds) { const l = o.lines.find((x) => x.id === s.lineId); if (l) { l.refundedQty += s.qty; for (const p of db().products) for (const v of p.variants) if (v.sku === l.sku) v.stock += s.qty; } }
-}, { invalidate: [...inv, ["products"]], success: "Reembolso registrado" });
+  for (const s of lineIds) {
+    const l = o.lines.find((x) => x.id === s.lineId); if (!l) continue;
+    l.refundedQty = Math.min(l.qty, l.refundedQty + s.qty); // siempre se registra, con o sin reposición
+    if (restock && o.fulfillment !== "cancelled") restockSku(l.sku, s.qty);
+  }
+  logAudit("order.refund", "order", id, null, { amount, reason, restock });
+}, { invalidate: [...inv, ...stockInv], success: "Reembolso registrado" });
 export const useAddNote = () => useAction(({ id, text }: { id: string; text: string }) => { find(id).notes.unshift({ id: nid("nt"), text, at: now(), author: "owner@daregulardept.com" }); }, { invalidate: inv, success: "Nota agregada" });
 export const useSetTags = () => useAction(({ id, tags }: { id: string; tags: string[] }) => { find(id).tags = tags; }, { invalidate: [...inv, ["order-tags"]], success: "Etiquetas actualizadas" });
 export const useEditContact = () => useAction(({ id, email, phone, address }: { id: string; email: string; phone: string; address: Address }) => {
   const o = find(id); if (o.fulfillment !== "unfulfilled") throw new Error("Solo se puede editar mientras el pedido está sin enviar");
+  if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Correo inválido");
   o.customer.email = email; o.customer.phone = phone; o.shippingAddress = address; touch(o, "Contacto y dirección editados");
 }, { invalidate: inv, success: "Datos actualizados" });
 

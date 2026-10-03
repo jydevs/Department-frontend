@@ -22,26 +22,27 @@ export default function OrderDetail() {
   if (!o) return <EmptyState title="Pedido no encontrado" />;
   const editable = o.fulfillment === "unfulfilled";
   const open = o.fulfillment !== "cancelled";
+  const canRefund = o.financial !== "pending" && o.total - o.refunds.reduce((s, r) => s + r.amount, 0) > 0;
   const refunded = o.refunds.reduce((s, r) => s + r.amount, 0);
   return (
     <>
       <PageHeader title={`Pedido #${o.number}`} breadcrumbs={[{ label: "Pedidos", href: "/admin/orders" }, { label: `#${o.number}` }]}
         description={new Date(o.createdAt).toLocaleString("es-CO", { timeZone: "America/Bogota" })}
-        actions={can && open ? <>
-          {o.financial === "pending" && <Button icon={<CheckCircle2 className="size-4" />} loading={markPaid.isPending} onClick={async () => { if (await confirm({ title: "Marcar como pagado", message: "Se registrará un pago manual por el total del pedido." })) markPaid.mutate(o.id); }}>Marcar pagado</Button>}
-          {o.lines.some((l) => l.fulfilledQty < l.qty) && <Button variant="primary" icon={<Truck className="size-4" />} onClick={() => setDlg("ship")}>Crear envío</Button>}
-          {refunded < o.total && o.financial !== "pending" && <Button icon={<Undo2 className="size-4" />} onClick={() => setDlg("refund")}>Reembolsar</Button>}
-          <Button variant="danger" icon={<Ban className="size-4" />} onClick={() => setDlg("cancel")}>Cancelar</Button>
+        actions={can ? <>
+          {open && o.financial === "pending" && <Button icon={<CheckCircle2 className="size-4" />} loading={markPaid.isPending} onClick={async () => { if (await confirm({ title: "Marcar como pagado", message: "Se registrará un pago manual por el total del pedido." })) markPaid.mutate(o.id); }}>Marcar pagado</Button>}
+          {open && o.lines.some((l) => l.fulfilledQty < l.qty) && <Button variant="primary" icon={<Truck className="size-4" />} onClick={() => setDlg("ship")}>Crear envío</Button>}
+          {canRefund && <Button icon={<Undo2 className="size-4" />} onClick={() => setDlg("refund")}>Reembolsar</Button>}
+          {open && o.fulfillment !== "fulfilled" && <Button variant="danger" icon={<Ban className="size-4" />} onClick={() => setDlg("cancel")}>Cancelar</Button>}
         </> : undefined} />
       <div className="mb-4 flex flex-wrap gap-2"><StatusBadge status={o.financial} /><StatusBadge status={o.fulfillment} />{o.discountCode && <Badge tone="accent">Código {o.discountCode}</Badge>}</div>
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Card title="Productos" pad={false}>
             <ul>{o.lines.map((l) => (
-              <li key={l.id} className="flex items-center gap-3 border-b border-line p-4 last:border-0">
+              <li key={l.id} className="flex flex-wrap items-center gap-3 border-b border-line p-4 last:border-0">
                 <Image src={l.image} alt="" width={48} height={60} unoptimized className="h-14 w-11 rounded-sm object-cover" />
                 <div className="min-w-0 flex-1"><p className="truncate font-medium">{l.title}</p><p className="text-xs text-muted">{l.variant} · SKU {l.sku}</p><p className="text-xs text-muted">Enviadas {l.fulfilledQty}/{l.qty}{l.refundedQty ? ` · reembolsadas ${l.refundedQty}` : ""}</p></div>
-                <p className="text-sm text-muted"><Money value={l.price} /> × {l.qty}</p><Money value={l.price * l.qty} className="w-24 text-right font-medium" />
+                <p className="text-sm text-muted"><Money value={l.price} /> × {l.qty}</p><Money value={l.price * l.qty} className="text-right font-medium sm:w-24" />
               </li>))}</ul>
             <dl className="space-y-1.5 border-t border-line p-4 text-sm">
               {([["Subtotal", o.subtotal], ["Envío", o.shipping], ["Impuestos", o.tax], ["Descuento", -o.discount]] as [string, number][]).map(([k, v]) => <div key={k} className="flex justify-between"><dt className="text-muted">{k}</dt><dd><Money value={v} /></dd></div>)}
@@ -55,7 +56,7 @@ export default function OrderDetail() {
                 <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line p-3 text-sm">
                   <div><p className="font-medium">{s.carrier} · {s.tracking}</p><p className="text-xs text-muted"><DateTime value={s.createdAt} /> · {s.lineIds.reduce((n, l) => n + l.qty, 0)} unidades</p></div>
                   <div className="flex items-center gap-2">{s.status === "cancelled" ? <Badge>Cancelado</Badge> : <Badge tone="ok">Activo</Badge>}
-                    {can && s.status === "active" && <Button size="sm" variant="danger" onClick={async () => { if (await confirm({ title: "Cancelar envío", message: `Se cancelará la guía ${s.tracking}.`, danger: true, confirmLabel: "Cancelar envío" })) cancelShip.mutate({ id: o.id, shipmentId: s.id }); }}>Cancelar envío</Button>}</div>
+                    {can && open && s.status === "active" && <Button size="sm" variant="danger" onClick={async () => { if (await confirm({ title: "Cancelar envío", message: `Se cancelará la guía ${s.tracking}.`, danger: true, confirmLabel: "Cancelar envío" })) cancelShip.mutate({ id: o.id, shipmentId: s.id }); }}>Cancelar envío</Button>}</div>
                 </li>))}</ul>)}
           </Card>
           <Card title="Pagos y reembolsos">
