@@ -59,7 +59,7 @@ function Editor({ doc }: { doc: CmsDoc }) {
   const groups = groupsFor(d.local);
   return (
     <>
-      <PublishBar doc={doc} local={d.local} dirty={d.dirty} saving={d.saving} invalidCount={countErrors(d.local)} conflict={d.conflict} issues={d.issues} onSave={() => d.flush()} onReset={d.reset} />
+      <PublishBar doc={doc} draft={d} invalidCount={countErrors(d.local)} />
       <fieldset disabled={!can} className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
           {groups.map((g) => (

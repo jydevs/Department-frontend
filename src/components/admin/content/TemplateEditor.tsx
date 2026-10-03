@@ -70,7 +70,7 @@ function Editor({ doc, types }: { doc: ContentDoc; types: SectionType[] }) {
   const remove = async (s: Section) => { if (await confirm({ title: "Eliminar sección", message: `Se eliminará “${labelOf(s.type)}”.`, danger: true, confirmLabel: "Eliminar" })) { const next = sections.filter((x) => x.id !== s.id); setSections(next); if (selId === s.id) setSelId(next[0]?.id ?? null); } };
   return (
     <>
-      <PublishBar doc={doc} local={d.local} dirty={d.dirty} saving={d.saving} invalidCount={countErrors(d.local)} conflict={d.conflict} issues={d.issues} onSave={() => d.flush()} onReset={d.reset} />
+      <PublishBar doc={doc} draft={d} invalidCount={countErrors(d.local)} />
       {isPage && (
         <Card title="SEO de la página" className="mb-4"><div className="grid gap-3 lg:grid-cols-2">
           <fieldset disabled={!can} className="space-y-3">

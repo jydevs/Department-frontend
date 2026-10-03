@@ -7,7 +7,7 @@ import { Button, IconButton } from "@/components/admin/ui/Button";
 import { Card, EmptyState, PageHeader, Skeleton, Tabs } from "@/components/admin/ui/Display";
 import { Input, Select } from "@/components/admin/ui/Form";
 import { SortableList } from "@/components/admin/ui/Sortable";
-import { useAllProducts, useCollections } from "@/lib/admin/api/catalog";
+import { HandlePicker } from "@/components/admin/content/HandlePicker";
 import { PagePreview } from "@/components/admin/content/PagePreview";
 import { isSafeUrl, nodeId, useDoc, useDocs, type CmsDoc as ContentDoc, type JsonValue } from "@/lib/admin/api/content";
 import { errorMessage } from "@/lib/admin/errors";
@@ -18,7 +18,6 @@ const MAX_DEPTH = 3, MAX_ITEMS = 50;
 const count = (l: MenuItem[]): number => l.reduce((n, i) => n + 1 + count(i.children ?? []), 0);
 
 function Level({ items, depth, onChange }: { items: MenuItem[]; depth: number; onChange: (n: MenuItem[]) => void }) {
-  const cols = useCollections().data ?? [], prods = useAllProducts().data ?? [], pages = useDocs().data?.filter((d) => d.kind === "page") ?? [];
   const upd = (id: string, p: Partial<MenuItem>) => onChange(items.map((i) => (i.id === id ? { ...i, ...p } : i)));
   return (
     <SortableList items={items} getId={(i) => i.id} onChange={onChange}>
@@ -34,7 +33,7 @@ function Level({ items, depth, onChange }: { items: MenuItem[]; depth: number; o
                 <Input aria-label="Texto del enlace" placeholder="Texto" value={it.label} onChange={(e) => upd(it.id, { label: e.target.value })} />
                 <Select aria-label="Tipo de enlace" value={type} onChange={(e) => upd(it.id, { link: { type: e.target.value as MenuItem["link"]["type"] } })}><option value="collection">Colección</option><option value="product">Producto</option><option value="page">Página</option><option value="url">URL</option></Select>
                 {type === "url" ? <Input aria-label="URL" placeholder="/ruta o https://" value={it.link.url ?? ""} onChange={(e) => upd(it.id, { link: { type: "url", url: e.target.value } })} />
-                  : <Select aria-label="Destino" value={it.link.handle ?? ""} onChange={(e) => upd(it.id, { link: { type, handle: e.target.value } })}><option value="">Elegir…</option>{(type === "collection" ? cols.map((c) => [c.handle, c.title]) : type === "product" ? prods.map((p) => [p.handle, p.title]) : pages.map((p) => [p.key, p.title])).map(([h, t]) => <option key={h} value={h}>{t}</option>)}</Select>}
+                  : <HandlePicker bare kind={type as "product" | "collection" | "page"} label="Destino" value={it.link.handle ?? ""} onChange={(h) => upd(it.id, { link: { type, handle: h } })} />}
                 <div className="flex items-center">
                   {depth < MAX_DEPTH && <IconButton label="Añadir subenlace" onClick={() => upd(it.id, { children: [...(it.children ?? []), { id: nodeId("mi"), label: "", link: { type: "url", url: "/" } }] })}><CornerDownRight className="size-4" /></IconButton>}
                   <IconButton label="Subir" disabled={idx === 0} onClick={() => move(-1)}><ChevronRight className="size-4 -rotate-90" /></IconButton>
@@ -69,7 +68,7 @@ function MenuEditor({ doc }: { doc: ContentDoc }) {
   const total = count(items), bad = countBad(items);
   return (
     <>
-      <PublishBar doc={doc} local={d.local} dirty={d.dirty} saving={d.saving} invalidCount={bad} conflict={d.conflict} issues={d.issues} onSave={() => d.flush()} onReset={d.reset} />
+      <PublishBar doc={doc} draft={d} invalidCount={bad} />
       <Card title={`${doc.title} (${total}/${MAX_ITEMS} ítems · hasta ${MAX_DEPTH} niveles)`} actions={can ? <Button size="sm" icon={<Plus className="size-3.5" />} disabled={total >= MAX_ITEMS} onClick={() => set([...items, { id: nodeId("mi"), label: "", link: { type: "url", url: "/" } }])}>Añadir ítem</Button> : undefined}>
         <fieldset disabled={!can}>{items.length === 0 ? <p className="text-sm text-muted">Menú vacío.</p> : <Level items={items} depth={1} onChange={set} />}</fieldset>
       </Card>

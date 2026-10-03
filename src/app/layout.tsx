@@ -7,7 +7,6 @@ import { StoreChrome } from "@/components/layout/StoreChrome";
 import { OverlayProvider } from "@/components/layout/OverlayProvider";
 import { SiteProvider } from "@/components/layout/SiteProvider";
 import { getSite } from "@/lib/cms/site";
-import { getSettings } from "@/lib/cms/content";
 import { INDEXABLE, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const anton = Anton({
@@ -46,13 +45,13 @@ const BASE_METADATA: Metadata = {
   robots: INDEXABLE ? { index: true, follow: true } : { index: false, follow: false },
 };
 
-/** Título y descripción por defecto editables desde el CMS (`settings/site.seo`). */
+/** Título y descripción por defecto editables desde el CMS (`settings/site.seo`). Reutiliza `getSite()` (sin petición extra). */
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSettings().catch(() => null);
-  const seo = settings?.seo;
-  const name = settings?.brand?.name ?? SITE_NAME;
+  const site = await getSite();
+  const seo = site.settings?.seo;
+  const name = site.client.brandName;
   const description = seo?.defaultDescription ?? SITE_DESCRIPTION;
-  const defaultTitle = seo?.defaultTitle ?? `${name} — Uniforms for the unnoticed`;
+  const defaultTitle = seo?.defaultTitle ?? `${name} — ${site.client.tagline}`;
   return {
     ...BASE_METADATA,
     applicationName: name,
@@ -88,6 +87,8 @@ export default async function RootLayout({
   return (
     <html
       lang="es"
+      // Next desactiva el scroll suave de CSS en las transiciones de ruta salvo que se declare aquí
+      data-scroll-behavior="smooth"
       className={`${anton.variable} ${oswald.variable} ${inter.variable} ${pinyon.variable} h-full`}
     >
       <body className="min-h-full flex flex-col bg-dept-black text-dept-white">

@@ -11,7 +11,7 @@ export function ErrorHero({ s }: { s: Settings }) {
           {str(s, "eyebrow")}
         </p>
       )}
-      <h1 aria-label={optStr(s, "ariaLabel") ?? code} className="font-display text-[clamp(8rem,32vw,34rem)] leading-[0.85] text-dept-white">
+      <h1 aria-label={optStr(s, "ariaLabel") ?? `Error ${code}`} className="font-display text-[clamp(8rem,32vw,34rem)] leading-[0.85] text-dept-white">
         <span className="mask-line" aria-hidden>
           <span className="mask-line-inner">
             {[...code].map((ch, i) =>

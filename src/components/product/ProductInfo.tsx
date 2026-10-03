@@ -8,6 +8,7 @@ import { useOverlay } from "@/components/layout/OverlayProvider";
 import { useCart } from "@/lib/cart";
 import { clsx } from "@/lib/clsx";
 import { formatCOP } from "@/lib/format";
+import { initialSelection, isSizeOption, missingOptions, needsChoice, onlyVariant, selectValue, selectedVariant, valueAvailable, type Selection } from "@/lib/variants";
 import { StickyAddToCart } from "./StickyAddToCart";
 
 const MIN_QTY = 1;
@@ -32,7 +33,7 @@ export interface ProductDetailLabels {
   noPrice: string; sizeRequired: string; stickyAdd: string; stickyChoose: string; showDiscount: boolean; sticky: boolean;
 }
 export const DEFAULT_DETAIL_LABELS: ProductDetailLabels = {
-  home: "Inicio", collection: "Clothes", collectionHandle: "all", size: "Talla", quantity: "Cantidad", max: 10, add: "Añadir al carrito", soldOut: "Agotado", sale: "Oferta",
+  home: "Inicio", collection: "Tienda", collectionHandle: "all", size: "Talla", quantity: "Cantidad", max: 10, add: "Añadir al carrito", soldOut: "Agotado", sale: "Oferta",
   noPrice: "Precio no disponible", sizeRequired: "Selecciona una talla", stickyAdd: "Añadir", stickyChoose: "Elegir talla", showDiscount: true, sticky: true,
 };
 
@@ -42,44 +43,59 @@ interface ProductInfoProps {
 }
 
 /**
- * Product detail panel: breadcrumb, badge, name, price, blurb, size picker,
+ * Product detail panel: breadcrumb, badge, name, price, blurb, option pickers (talla, color…),
  * quantity stepper and the add-to-cart CTA (+ the mobile sticky bar).
  * `lg:sticky` so it stays in view while the tall photo column scrolls.
+ *
+ * Con más de una variante NUNCA se elige una por el cliente: hay que elegir todas las opciones; las que estén
+ * agotadas para la combinación elegida se deshabilitan.
  */
 export function ProductInfo({ product, labels = DEFAULT_DETAIL_LABELS }: ProductInfoProps) {
   const L = labels;
   const MAX_QTY = L.max;
-  const { handle, name, price, compareAtPrice, badge, sizes, description, variants } = product;
-  const soldOut = badge === "agotado";
+  const { handle, name, badge, description, options, variants } = product;
 
   const { add, busy, error: cartError } = useCart();
   const { openCart } = useOverlay();
 
-  const [size, setSize] = useState<string | null>(null);
+  const [selection, setSelection] = useState<Selection>(() => initialSelection(product));
   const [qty, setQty] = useState(MIN_QTY);
-  const [showError, setShowError] = useState(false);
+  const [missing, setMissing] = useState<string | null>(null);
+  /** el aviso del carrito solo se muestra si el intento de añadir se hizo desde esta ficha */
+  const [attempted, setAttempted] = useState(false);
 
   const errorId = useId();
-  const groupRef = useRef<HTMLDivElement>(null);
-  const chipRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const groupRefs = useRef<(HTMLDivElement | null)[]>([]);
   const ctaRef = useRef<HTMLDivElement>(null);
 
-  const discount =
-    compareAtPrice != null && compareAtPrice > price
-      ? Math.round((1 - price / compareAtPrice) * 100)
-      : null;
+  // variante elegida (selección completa) o la única que existe
+  const variant = onlyVariant(product) ?? selectedVariant(product, selection);
+  const soldOut = badge === "agotado" || (variant !== undefined && !variant.available);
+  const allSoldOut = badge === "agotado";
+  // precio de la variante elegida; sin elegir, el "desde" del producto (precio y precio anterior de la MISMA variante)
+  const price = variant?.price ?? product.price;
+  const compareAtPrice = variant ? variant.compareAtPrice : product.compareAtPrice;
+  const priceVaries = !variant && new Set(variants.map((v) => v.price)).size > 1;
+  const onSale = compareAtPrice != null && compareAtPrice > price;
+  const discount = onSale && compareAtPrice != null ? Math.round((1 - price / compareAtPrice) * 100) : null;
+  const shownBadge = allSoldOut ? "agotado" : variant && !variant.available ? "agotado" : onSale ? "oferta" : undefined;
+  const visibleGroups = options.map((o, i) => ({ o, i })).filter(({ i }) => needsChoice(product, i));
 
-  /* ── size picker ─────────────────────────────────────── */
+  /* ── option pickers ──────────────────────────────────── */
 
-  const selectSize = (next: string) => {
-    setSize(next);
-    setShowError(false);
+  const choose = (optionIndex: number, value: string) => {
+    setSelection((sel) => selectValue(product, sel, optionIndex, value));
+    setMissing(null);
+    setAttempted(false);
   };
 
-  const onGroupKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (soldOut) return;
-    const last = sizes.length - 1;
-    const current = size ? sizes.indexOf(size) : -1;
+  const onGroupKeyDown = (e: KeyboardEvent<HTMLDivElement>, optionIndex: number) => {
+    if (allSoldOut) return;
+    // navegación con flechas solo entre los valores que se pueden elegir
+    const enabled = options[optionIndex].values.filter((v) => valueAvailable(product, selection, optionIndex, v));
+    if (enabled.length === 0) return;
+    const last = enabled.length - 1;
+    const current = selection[optionIndex] ? enabled.indexOf(selection[optionIndex] as string) : -1;
     let next: number;
 
     switch (e.key) {
@@ -101,35 +117,39 @@ export function ProductInfo({ product, labels = DEFAULT_DETAIL_LABELS }: Product
         return;
     }
     e.preventDefault();
-    selectSize(sizes[next]);
-    chipRefs.current[next]?.focus();
+    choose(optionIndex, enabled[next]);
+    groupRefs.current[optionIndex]?.querySelector<HTMLButtonElement>(`[data-value="${CSS.escape(enabled[next])}"]`)?.focus();
   };
 
   /* ── add to cart ─────────────────────────────────────── */
 
-  /** Missing size: flag it inline, nudge the chips, optionally bring them into view. */
-  const requireSize = () => {
-    setShowError(true);
-    const group = groupRef.current;
+  /** Falta elegir: se avisa en línea, se agitan las opciones y se lleva el foco a la primera que falta. */
+  const requireOptions = () => {
+    const names = missingOptions(product, selection);
+    setMissing(names.every(isSizeOption) ? L.sizeRequired : `Selecciona ${names.map((n) => n.toLowerCase()).join(" y ")}`);
+    const firstMissing = options.findIndex((_, i) => needsChoice(product, i) && selection[i] === null);
+    const group = groupRefs.current[firstMissing] ?? groupRefs.current.find(Boolean) ?? null;
     if (!group) return;
     group.scrollIntoView({
       block: "center",
       behavior: prefersReducedMotion() ? "auto" : "smooth",
     });
-    chipRefs.current[0]?.focus({ preventScroll: true });
+    group.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus({ preventScroll: true });
     if (!prefersReducedMotion() && typeof group.animate === "function") {
       group.animate(SHAKE_KEYFRAMES, { duration: 420, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
     }
   };
 
   const handleAdd = async () => {
-    if (soldOut) return;
-    const chosenSize = size || sizes.find((s) => variants.find((v) => v.size === s)?.available) || sizes[0];
-    if (!size && chosenSize) setSize(chosenSize);
-    const variant = variants.find((v) => v.size === chosenSize);
-    if (!variant) return requireSize();
+    if (allSoldOut) return;
+    if (!variant) return requireOptions();
+    if (!variant.available) return;
+    setMissing(null);
+    setAttempted(true);
     if (await add(variant.id, qty, handle)) openCart();
   };
+
+  const message = missing ?? (attempted ? cartError : null);
 
   return (
     <div
@@ -141,13 +161,13 @@ export function ProductInfo({ product, labels = DEFAULT_DETAIL_LABELS }: Product
         <ol className={clsx("flex flex-wrap items-center gap-x-2 gap-y-1", microLabel)}>
           <li>
             <Link href="/" className="transition-colors duration-300 ease-out-expo hover:text-dept-white">
-              {L.home}<span className="sr-only"> Home</span>
+              {L.home}
             </Link>
           </li>
           <li aria-hidden>/</li>
           <li>
             <Link
-              href={`/collections/${L.collectionHandle}`}
+              href={`/collections/${encodeURIComponent(L.collectionHandle)}`}
               className="transition-colors duration-300 ease-out-expo hover:text-dept-white"
             >
               {L.collection}
@@ -161,24 +181,25 @@ export function ProductInfo({ product, labels = DEFAULT_DETAIL_LABELS }: Product
       </nav>
 
       {/* badge + name */}
-      {badge && (
+      {shownBadge && (
         <p
           className={clsx(
             "mt-8 inline-block px-2.5 py-1 font-condensed text-[11px] tracking-[0.2em]",
-            badge === "agotado"
+            shownBadge === "agotado"
               ? "border border-white/40 bg-dept-black text-dept-white"
               : "border border-dept-red bg-dept-red text-dept-white",
           )}
         >
-          {badge === "agotado" ? L.soldOut : L.sale}
+          {shownBadge === "agotado" ? L.soldOut : L.sale}
         </p>
       )}
-      <h1 className={clsx("font-display text-display-md text-balance", badge ? "mt-4" : "mt-8")}>{name}</h1>
+      <h1 className={clsx("font-display text-display-md text-balance", shownBadge ? "mt-4" : "mt-8")}>{name}</h1>
 
       {/* price */}
       <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
         <p className="font-condensed text-2xl tabular-nums tracking-[0.04em] md:text-3xl">
           <span className="sr-only">Precio: </span>
+          {priceVaries && price > 0 && <span className="mr-2 text-base text-dept-gray-300">Desde</span>}
           <span data-testid="product-price">{price && price > 0 ? formatCOP(price) : L.noPrice}</span>
         </p>
         {L.showDiscount && discount != null && compareAtPrice != null && (
@@ -200,56 +221,71 @@ export function ProductInfo({ product, labels = DEFAULT_DETAIL_LABELS }: Product
         ))}
       </div>
 
-      {/* size */}
+      {/* opciones: una fila de chips por opción (Talla, Color…) */}
       <div className="mt-8 border-t border-white/10 pt-6">
-        <p className={microLabel}>{L.size}</p>
-        <div
-          ref={groupRef}
-          role="radiogroup"
-          aria-label={L.size}
-          aria-required
-          aria-invalid={showError}
-          aria-describedby={errorId}
-          aria-disabled={soldOut || undefined}
-          onKeyDown={onGroupKeyDown}
-          className="mt-3 flex flex-wrap gap-2"
-        >
-          {sizes.map((s, i) => {
-            const selected = size === s;
-            return (
-              <button
-                key={s}
+        {visibleGroups.map(({ o, i }, g) => {
+          const label = isSizeOption(o.name) ? L.size : o.name;
+          const groupInvalid = missing !== null && selection[i] === null;
+          return (
+            <div key={o.name} className={g > 0 ? "mt-6" : undefined}>
+              <p className={microLabel} id={`${errorId}-label-${i}`}>
+                {label}
+                {selection[i] && !isSizeOption(o.name) && <span className="ml-2 text-dept-white/70 normal-case tracking-normal">{selection[i]}</span>}
+              </p>
+              <div
                 ref={(el) => {
-                  chipRefs.current[i] = el;
+                  groupRefs.current[i] = el;
                 }}
-                type="button"
-                role="radio"
-                data-testid="size-option"
-                aria-checked={selected}
-                disabled={soldOut || variants.find((v) => v.size === s)?.available === false}
-                tabIndex={selected || (size === null && i === 0) ? 0 : -1}
-                onClick={() => selectSize(s)}
-                className={clsx(
-                  "h-12 min-w-12 border px-3 font-condensed text-sm tracking-[0.12em]",
-                  "transition-[background-color,color,border-color] duration-300 ease-out-expo",
-                  "disabled:cursor-not-allowed disabled:opacity-40",
-                  selected
-                    ? "border-dept-white bg-dept-white text-dept-black"
-                    : clsx(
-                        "bg-transparent text-dept-white",
-                        showError ? "border-dept-red" : "border-white/20",
-                        !soldOut && "hover:border-dept-white",
-                      ),
-                )}
+                role="radiogroup"
+                aria-labelledby={`${errorId}-label-${i}`}
+                aria-required
+                aria-invalid={groupInvalid || undefined}
+                aria-describedby={errorId}
+                aria-disabled={allSoldOut || undefined}
+                onKeyDown={(e) => onGroupKeyDown(e, i)}
+                className="mt-3 flex flex-wrap gap-2"
               >
-                {s}
-              </button>
-            );
-          })}
-        </div>
+                {o.values.map((value, vi) => {
+                  const selected = selection[i] === value;
+                  const available = valueAvailable(product, selection, i, value);
+                  const firstEnabled = o.values.findIndex((v) => valueAvailable(product, selection, i, v));
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      data-testid={isSizeOption(o.name) ? "size-option" : "option-value"}
+                      data-value={value}
+                      aria-checked={selected}
+                      disabled={allSoldOut || !available}
+                      tabIndex={selected || (selection[i] === null && vi === firstEnabled) ? 0 : -1}
+                      onClick={() => choose(i, value)}
+                      className={clsx(
+                        "h-12 min-w-12 border px-3 font-condensed text-sm tracking-[0.12em]",
+                        "transition-[background-color,color,border-color] duration-300 ease-out-expo",
+                        "disabled:cursor-not-allowed disabled:opacity-40",
+                        !available && !allSoldOut && "line-through",
+                        selected
+                          ? "border-dept-white bg-dept-white text-dept-black"
+                          : clsx(
+                              "bg-transparent text-dept-white",
+                              groupInvalid ? "border-dept-red" : "border-white/20",
+                              available && !allSoldOut && "hover:border-dept-white",
+                            ),
+                      )}
+                    >
+                      {value}
+                      {!available && !allSoldOut && <span className="sr-only"> (agotado)</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
         {/* always mounted so the alert is announced when its text appears; reserved height = no layout shift */}
         <p id={errorId} role="alert" className="mt-2 min-h-5 font-body text-[13px] text-dept-red-light">
-          {showError ? L.sizeRequired : cartError}
+          {message}
         </p>
       </div>
 
@@ -299,12 +335,13 @@ export function ProductInfo({ product, labels = DEFAULT_DETAIL_LABELS }: Product
         </Button>
       </div>
 
-      {!soldOut && L.sticky && (
+      {!allSoldOut && L.sticky && (
         <StickyAddToCart
           name={name}
           price={price}
           targetRef={ctaRef}
-          hasSize={size !== null}
+          ready={variant !== undefined}
+          message={message}
           addLabel={L.stickyAdd}
           chooseLabel={L.stickyChoose}
           onAction={() => void handleAdd()}

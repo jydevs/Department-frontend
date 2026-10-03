@@ -6,6 +6,11 @@ import type { CmsSection } from "./types";
  */
 const s = (id: string, type: string, settings: Record<string, unknown> = {}, blocks?: CmsSection["blocks"]): CmsSection => ({ id, type, enabled: true, settings, blocks });
 
+/** Home mínima si el CMS aún no tiene la plantilla `home` (404). */
+export const fallbackHome = (brand: string, tagline: string): CmsSection[] => [
+  s("home-hero", "hero", { height: "large", heading: brand, subheading: tagline, ctaLabel: "Ver la colección", ctaHref: "/collections/all" }),
+];
+
 export const FALLBACK_COLLECTION: CmsSection[] = [
   s("collection-hero", "collection-hero", { showTabs: false }),
   s("collection-grid", "product-grid", { source: "current-collection", showFilters: true }),

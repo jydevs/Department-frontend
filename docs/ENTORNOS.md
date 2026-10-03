@@ -46,5 +46,5 @@ La base de datos se define solo allí: `DATABASE_URL` (+ `DATABASE_SSL=true` si 
 En QA conviene subir `THROTTLE_LIMIT` (el build de Next hace muchas peticiones desde una sola IP).
 
 ## Notas
-- El build necesita la API accesible (home, layout y colecciones se prerenderizan; los productos se generan bajo demanda).
+- El build necesita la API accesible (home, layout y colecciones se prerenderizan; los productos se generan bajo demanda). En CI (sin backend) se usa `scripts/ci-mock-api.mjs` + `API_URL=http://127.0.0.1:4010` (ver `.github/workflows/ci.yml`).
 - El checkout requiere zonas y tarifas de envío creadas en el admin (`/admin/shipping`).

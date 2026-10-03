@@ -128,10 +128,11 @@ const getCollectionRaw = cache((handle: string) =>
 export interface CollectionData { collection: Collection; products: Product[]; /** hay más piezas que las cargadas */ hasMore: boolean; nextCursor: string | null }
 
 /** Colección + sus productos (primera página de hasta 100; `hasMore`/`nextCursor` para seguir paginando). */
-export async function getCollection(handle: string): Promise<CollectionData | null> {
+export async function getCollection(handle: string, opts: { limit?: number } = {}): Promise<CollectionData | null> {
   const page = await getCollectionRaw(handle);
   if (!page) return null;
-  return { collection: toCollection(page.collection), products: await enrich(page.products.items), hasMore: page.products.hasMore, nextCursor: page.products.nextCursor };
+  const items = opts.limit ? page.products.items.slice(0, opts.limit) : page.products.items;
+  return { collection: toCollection(page.collection), products: await enrich(items), hasMore: page.products.hasMore || items.length < page.products.items.length, nextCursor: page.products.nextCursor };
 }
 
 /** Datos de la colección sin sus productos (metadatos, JSON-LD de migas…). */

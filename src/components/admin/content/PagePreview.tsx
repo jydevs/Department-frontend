@@ -4,7 +4,7 @@ import { ExternalLink, Monitor, RefreshCw, Smartphone, Tablet } from "lucide-rea
 import { useCallback, useRef, useState } from "react";
 import { Button } from "@/components/admin/ui/Button";
 import { Spinner } from "@/components/admin/ui/Display";
-import { useAllProducts } from "@/lib/admin/api/catalog";
+import { useProductSearch } from "@/lib/admin/api/catalog";
 import { usePreviewToken, type CmsDoc } from "@/lib/admin/api/content";
 import { errorMessage } from "@/lib/admin/errors";
 
@@ -38,7 +38,7 @@ export function PagePreview({ doc, savedAt = 0 }: { doc: Pick<CmsDoc, "kind" | "
   const [reload, setReload] = useState(0), [loaded, setLoaded] = useState(false);
   const [width, setWidth] = useState(0);
   const token = usePreviewToken(doc.kind, doc.key);
-  const first = useAllProducts().data?.[0]?.handle;
+  const first = useProductSearch("", { allowEmpty: true, pageSize: 1, enabled: doc.kind === "template" && doc.key === "product" }).data?.items[0]?.handle;
   const { path, note } = previewPath(doc, first);
   const src = token.data ? `${STORE}/api/preview?token=${encodeURIComponent(token.data.token)}&path=${encodeURIComponent(path)}` : null;
   const frameKey = `${token.data?.token ?? ""}:${path}:${savedAt}:${reload}`;

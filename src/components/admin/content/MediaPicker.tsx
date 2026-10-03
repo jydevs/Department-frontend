@@ -24,16 +24,15 @@ export function MediaPicker({ open, onClose, onPick, multiple }: { open: boolean
   const input = useRef<HTMLInputElement>(null);
   const toast = useToast(), qc = useQueryClient();
   const [up, setUp] = useState<number | null>(null);
-  const [uploaded, setUploaded] = useState<MediaItem[]>([]); // subidas en esta sesión (aún pueden no estar en la lista refrescada)
   const toggle = (m: MediaItem) => setSel((s) => (multiple ? (s.some((x) => x.id === m.id) ? s.filter((x) => x.id !== m.id) : [...s, m]) : [m]));
   const upload = async (files: FileList | null) => {
     if (!files) return;
     for (const f of Array.from(files)) {
-      try { setUp(0); const m = await uploadFile(f, setUp); setUploaded((u) => [m, ...u]); toggle(m); } catch (e) { toast.error(errorMessage(e)); }
+      try { setUp(0); const m = await uploadFile(f, setUp); toggle(m); } catch (e) { toast.error(errorMessage(e)); }
     }
     setUp(null); if (input.current) input.current.value = ""; await qc.invalidateQueries({ queryKey: ["media"] });
   };
-  const close = () => { setSel([]); setUploaded([]); onClose(); };
+  const close = () => { setSel([]); onClose(); };
   const done = () => {
     onPick(sel);
     close();

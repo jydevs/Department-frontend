@@ -20,7 +20,7 @@ interface Opt { h: string; t: string }
  * Selector con búsqueda de un handle (producto, colección o página). Los productos se buscan EN EL SERVIDOR (título, handle o SKU) y se muestra
  * "N de M", así que funciona con catálogos grandes; "No coincide" solo aparece cuando el servidor confirma que no existe (no mientras carga ni si falla).
  */
-export function HandlePicker({ kind, label, value, onChange, error, required }: { kind: HandleKind; label: string; value: string; onChange: (v: string) => void; error?: string; required?: boolean }) {
+export function HandlePicker({ kind, label, value, onChange, error, required, bare }: { kind: HandleKind; label: string; value: string; onChange: (v: string) => void; error?: string; required?: boolean; /** Sin etiqueta visible (filas compactas, p. ej. menús): usa `label` como nombre accesible. */ bare?: boolean }) {
   const [q, setQ] = useState(""), [focus, setFocus] = useState(false), [active, setActive] = useState(0);
   const listId = useId();
   const term = useDebounced(q, 250);
@@ -41,8 +41,7 @@ export function HandlePicker({ kind, label, value, onChange, error, required }: 
     if (kind === "product") hint = checked !== value || prod.isFetching && prod.data === undefined ? "Comprobando…" : prod.error ? "No se pudo comprobar este producto: reintenta más tarde" : prod.data ? prod.data.title : prod.data === null ? "No coincide con ningún producto existente" : undefined;
     else { const src = kind === "collection" ? cols : docs; const l = kind === "collection" ? (cols.data ?? []).map((c) => ({ h: c.handle, t: c.title })) : (docs.data ?? []).filter((d) => d.kind === "page").map((d) => ({ h: d.key, t: d.title })); hint = src.isLoading ? "Comprobando…" : src.error ? `No se pudo comprobar: ${errorMessage(src.error)}` : l.find((o) => o.h === value)?.t ?? `No coincide con ninguna ${NOUN[kind]} existente`; }
   }
-  return (
-    <Field label={label + (required ? " *" : "")} error={error} hint={hint}>
+  const body = (
       <div className="relative">
         <input role="combobox" aria-expanded={open} aria-controls={listId} aria-autocomplete="list" aria-activedescendant={open ? `${listId}-${active}` : undefined} aria-label={label}
           className="h-9 w-full rounded-sm border border-line bg-surface px-3 text-sm focus:border-accent" value={focus ? q : value} placeholder={`Buscar ${NOUN[kind]}…`}
@@ -61,6 +60,6 @@ export function HandlePicker({ kind, label, value, onChange, error, required }: 
           </div>
         )}
       </div>
-    </Field>
   );
+  return bare ? <div>{body}{(error || hint) && <p className={`mt-1 text-xs ${error ? "text-accent-text" : "text-muted"}`}>{error ?? hint}</p>}</div> : <Field label={label + (required ? " *" : "")} error={error} hint={hint}>{body}</Field>;
 }

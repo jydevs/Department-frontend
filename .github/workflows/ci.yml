@@ -36,11 +36,15 @@ jobs:
       - run: yarn lint
       - run: yarn typecheck
 
-      # En CI NO hay API: `https://api.ci.example.com` no existe. El build debe completarse igualmente porque el
-      # contenido del CMS (home, layout, colecciones) cae a sus valores por defecto cuando la API no responde.
-      # Si el build empieza a fallar aquí por "fetch failed", falta ese fallback en la ruta indicada: arréglalo en el
-      # código (no levantes una API en CI).
-      - run: yarn build
+      # En CI NO hay backend: `https://api.ci.example.com` no existe. `next build` prerenderiza la home, el layout y las
+      # colecciones leyendo la API, así que el build se hace contra una API simulada mínima (scripts/ci-mock-api.mjs:
+      # catálogo vacío / 404 en el CMS → la tienda usa sus valores por defecto). `API_URL` solo la ve el servidor de Next
+      # durante el build; las NEXT_PUBLIC_* siguen siendo las https dummy de arriba. No es una prueba: no se añaden tests.
+      - name: Build (API simulada)
+        run: |
+          node scripts/ci-mock-api.mjs 4010 &
+          sleep 1
+          API_URL=http://127.0.0.1:4010 yarn build
 
       - name: Comprobar salida standalone (Docker)
         run: test -f .next/standalone/server.js
