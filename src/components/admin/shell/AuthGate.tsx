@@ -1,13 +1,22 @@
 "use client";
-import { useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
+import { useAuth } from "@/lib/admin/auth";
 import { Marquee } from "@/components/ui/Marquee";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
-/** Estructura del panel: barra lateral, ticker y cabecera (sin inicio de sesión en la fase visual). */
+/** Estructura del panel (barra lateral, ticker y cabecera). Sin sesión redirige a `/admin/login`. */
 export function AuthGate({ children }: { children: ReactNode }) {
+  const { status } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    if (status === "anon") router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
+  }, [status, pathname, router]);
+  if (status !== "authed") return <div role="status" className="grid min-h-screen place-items-center text-sm text-muted">Cargando panel…</div>;
   return (
     <div className="flex min-h-screen">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-accent focus:px-3 focus:py-2 focus:text-white">Saltar al contenido</a>

@@ -2,103 +2,77 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { AuthCard, EMAIL_RE, Field, FormError, PASSWORD_HINT } from "@/components/account/ui";
+import { register } from "@/lib/account";
+import { ApiError, friendlyError } from "@/lib/api/errors";
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    password: "",
-  });
+  const [f, setF] = useState({ firstName: "", lastName: "", email: "", password: "", acceptsMarketing: false });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);
+  const set = (k: keyof typeof f, v: string | boolean) => { setF((p) => ({ ...p, [k]: v })); setErrors((p) => ({ ...p, [k]: "" })); setError(null); };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!EMAIL_RE.test(formData.email.trim())) {
-      setError("Introduce un correo electrónico válido");
-      return;
-    }
+    const errs: Record<string, string> = {};
+    if (!f.firstName.trim()) errs.firstName = "Introduce tu nombre";
+    if (!f.lastName.trim()) errs.lastName = "Introduce tu apellido";
+    if (!EMAIL_RE.test(f.email.trim())) errs.email = "Introduce un correo electrónico válido";
+    if (f.password.length < 12) errs.password = "La contraseña debe tener al menos 12 caracteres";
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
+    setBusy(true);
     setError(null);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("auth_token", "mock-jwt-token");
-      localStorage.setItem("auth_user", JSON.stringify({ email: formData.email, name: formData.name }));
+    try {
+      await register(f);
+      setSent(f.email.trim());
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "VALIDATION_ERROR") {
+        const fe = err.fieldErrors();
+        setErrors({ email: fe.email ? "Correo no válido" : "", password: fe.password ? "Contraseña no válida (12 a 256 caracteres)" : "", firstName: fe.firstName ? "Nombre no válido" : "", lastName: fe.lastName ? "Apellido no válido" : "" });
+      }
+      setError(friendlyError(err));
+    } finally {
+      setBusy(false);
     }
-    router.push("/account/orders");
   };
 
-  return (
-    <div className="flex min-h-[70vh] flex-col justify-center px-gutter pt-[calc(var(--chrome-h)+2rem)] pb-16">
-      <div className="mx-auto w-full max-w-md border border-white/15 bg-dept-black p-8 sm:p-10">
-        <p className="font-condensed mb-2 text-[11px] uppercase tracking-[0.24em] text-dept-gray-500">
-          Cuenta
+  if (sent) {
+    return (
+      <AuthCard eyebrow="Cuenta" title="Revisa tu correo" testId="register-sent" center>
+        <p role="status" className="font-condensed text-xs leading-relaxed tracking-[0.08em] text-dept-gray-300 mb-8">
+          Si <span className="text-dept-white">{sent}</span> puede registrarse, te enviamos un enlace para verificar tu correo y activar la cuenta.
         </p>
-        <h1 className="font-display text-display-md text-dept-white mb-6">Crear cuenta</h1>
+        <Button href="/account/login" variant="solid" size="lg" className="w-full">Ir a iniciar sesión</Button>
+      </AuthCard>
+    );
+  }
 
-        <form data-testid="register-form" onSubmit={handleSubmit} noValidate className="space-y-5">
-          {error && (
-            <p className="font-condensed text-xs tracking-[0.1em] text-dept-red-light">
-              {error}
-            </p>
-          )}
-
-          <div>
-            <label className="font-condensed block text-xs tracking-[0.12em] text-dept-gray-300 mb-2">
-              Nombre
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              className="w-full border border-white/20 bg-white/5 px-4 py-3 font-condensed text-sm text-dept-white outline-none focus:border-dept-white"
-            />
-          </div>
-
-          <div>
-            <label className="font-condensed block text-xs tracking-[0.12em] text-dept-gray-300 mb-2">
-              Correo electrónico
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => {
-                setFormData({ ...formData, email: e.target.value });
-                if (error) setError(null);
-              }}
-              required
-              className="w-full border border-white/20 bg-white/5 px-4 py-3 font-condensed text-sm text-dept-white outline-none focus:border-dept-white"
-            />
-          </div>
-
-          <div>
-            <label className="font-condensed block text-xs tracking-[0.12em] text-dept-gray-300 mb-2">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              required
-              className="w-full border border-white/20 bg-white/5 px-4 py-3 font-condensed text-sm text-dept-white outline-none focus:border-dept-white"
-            />
-          </div>
-
-          <Button type="submit" variant="red" size="lg" className="w-full mt-4">
-            Registrarse
-          </Button>
-
-          <p className="font-condensed mt-6 text-center text-xs tracking-[0.1em] text-dept-gray-400">
-            ¿Ya tienes cuenta?{" "}
-            <Link href="/account/login" className="text-dept-white underline underline-offset-4">
-              Inicia sesión
-            </Link>
-          </p>
-        </form>
-      </div>
-    </div>
+  return (
+    <AuthCard eyebrow="Cuenta" title="Crear cuenta">
+      <form data-testid="register-form" onSubmit={handleSubmit} noValidate className="space-y-5">
+        <FormError id="register-error">{error}</FormError>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field label="Nombre" autoComplete="given-name" data-testid="register-first-name" value={f.firstName} error={errors.firstName} required onChange={(e) => set("firstName", e.target.value)} />
+          <Field label="Apellido" autoComplete="family-name" data-testid="register-last-name" value={f.lastName} error={errors.lastName} required onChange={(e) => set("lastName", e.target.value)} />
+        </div>
+        <Field label="Correo electrónico" type="email" autoComplete="email" data-testid="register-email" value={f.email} error={errors.email} required onChange={(e) => set("email", e.target.value)} />
+        <Field label="Contraseña" type="password" autoComplete="new-password" data-testid="register-password" value={f.password} error={errors.password} hint={PASSWORD_HINT} required onChange={(e) => set("password", e.target.value)} />
+        <label className="font-condensed flex items-start gap-3 text-xs tracking-[0.08em] text-dept-gray-300">
+          <input type="checkbox" checked={f.acceptsMarketing} onChange={(e) => set("acceptsMarketing", e.target.checked)} className="mt-0.5 size-4 accent-[var(--color-dept-red,#e11d2e)]" />
+          Quiero recibir novedades y ofertas por correo.
+        </label>
+        <Button type="submit" variant="red" size="lg" data-testid="register-submit" disabled={busy} className="w-full mt-4">
+          {busy ? "Creando…" : "Registrarse"}
+        </Button>
+        <p className="font-condensed mt-6 text-center text-xs tracking-[0.1em] text-dept-gray-400">
+          ¿Ya tienes cuenta?{" "}
+          <Link href="/account/login" className="text-dept-white underline underline-offset-4">Inicia sesión</Link>
+        </p>
+      </form>
+    </AuthCard>
   );
 }

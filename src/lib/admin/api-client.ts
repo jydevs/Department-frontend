@@ -1,14 +1,23 @@
 /**
- * Cliente HTTP de la API real. En esta fase visual NO se usa (los hooks de
- * `lib/api/*` leen de `lib/mock`), pero queda listo para conectar después.
+ * Cliente HTTP del panel contra `/api/v1/admin/*` y `/api/v1/auth/*`.
+ * El access token vive SOLO en memoria; la sesión se renueva con la cookie httpOnly `dept_rt`
+ * (`POST /auth/refresh`). Si la renovación falla se avisa con `onSessionLost` (el panel vuelve al login).
  */
+import { API_PREFIX, API_URL_PUBLIC } from "@/lib/api/config";
 import { ApiError, type ApiErrorBody } from "./errors";
 
-const BASE = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/api/v1`;
+const BASE = `${API_URL_PUBLIC}${API_PREFIX}`;
 let accessToken: string | null = null; // solo en memoria
+let sessionLost: (() => void) | null = null;
 export const setAccessToken = (t: string | null): void => {
   accessToken = t;
 };
+export const getAccessToken = (): string | null => accessToken;
+export const onSessionLost = (fn: (() => void) | null): void => {
+  sessionLost = fn;
+};
+/** Intenta restaurar la sesión con la cookie de refresco (arranque del panel). */
+export const restoreSession = (): Promise<boolean> => refresh();
 
 type Query = Record<string, string | number | boolean | undefined | null>;
 interface Opts {
@@ -45,7 +54,11 @@ async function raw(method: string, path: string, body: unknown, opts: Opts = {},
     },
     body: isForm ? body : body === undefined ? undefined : JSON.stringify(body),
   });
-  if (res.status === 401 && retry && !path.startsWith("/auth/") && (await refresh())) return raw(method, path, body, opts, false);
+  if (res.status === 401 && retry && !path.startsWith("/auth/")) {
+    if (await refresh()) return raw(method, path, body, opts, false);
+    accessToken = null;
+    sessionLost?.();
+  }
   if (!res.ok) {
     const b = (await res.json().catch(() => null)) as ApiErrorBody | null;
     throw new ApiError(b ?? { statusCode: res.status, error: res.statusText, code: "UNKNOWN", message: "Error de red o servidor" });
