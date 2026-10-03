@@ -13,26 +13,26 @@ Fecha: 3 de octubre de 2026 · Rama (ambos repos): `claude/tender-heisenberg-w6j
 - **Seguridad ya corregida:** Next 16.3.8 (RCE en `next/og`), escape real del JSON-LD (XSS), `?next=` del login con `isSafePath`.
 - **Documentación:** `ESTADO.md`, `ADMIN.md`, `ENTORNOS.md`, `PLAN-PRODUCCION.md`, README y TASKS actualizados.
 
-## 2. En curso (agentes trabajando; aún sin commitear)
+## 2. Auditoría corregida (hecho y subido)
 
-Corrección de la auditoría completa (seguridad, calidad, rendimiento/SEO/a11y, flujos de la tienda y panel). Cinco frentes en paralelo:
+Corregidos los hallazgos de las cinco auditorías (seguridad, calidad, rendimiento/SEO/a11y, flujos de la tienda y panel):
 
-1. **Seguridad y despliegue:** CSP, validación del token de `/api/preview`, límites en imágenes OG, vista previa de producto sin regex, `/mock-checkout` bloqueado en servidor, validación de variables de entorno, `output: standalone`, Dockerfile, CI, secretos, proxy de redirecciones (stale-while-revalidate, `.html`/`.php`).
-2. **Catálogo, CMS y SEO:** build y runtime tolerantes a caídas de la API, menos peticiones por página (N+1), variantes multi-opción, metadata/canonical/JSON-LD/sitemap/robots, h1, focus trap, CLS, imágenes.
-3. **Carrito, checkout y cuenta:** avisos y errores en español, `[object Object]`, botón "+" con stock ilimitado, carrito sin condiciones de carrera, pago rechazado con reintento, reanudar pago, IVA, validación del teléfono, cuenta (departamentos, descargar datos, eliminar cuenta), sesión estable ante cortes de red.
-4. **Admin, sesión y transversal:** fuga de datos entre usuarios (limpiar caché al salir), logout con token caducado, errores en español y validación en cliente, permisos y rutas, accesibilidad, zonas de envío recuperables.
-5. **Admin, guardados y datos:** variantes sin pérdida, guardado parcial de producto, publicación del CMS sin falsos conflictos, colecciones manuales seguras, confirmaciones (importar, acciones masivas).
+- **Seguridad y despliegue:** CSP, `/api/preview` validado contra el backend, imágenes OG con allowlist/timeout/tope, vista previa de producto aislada (iframe sandbox), `/mock-checkout` 404 en producción, validación de variables de entorno, `output: standalone`, Dockerfile, CI con API simulada, proxy de redirecciones (stale-while-revalidate, `REDIRECT_ALLOWED_HOSTS`), webhook con límite de 16 KB.
+- **Tienda:** build y runtime tolerantes a caídas de la API (sin cachear HTML degradado), menos peticiones por página, variantes multi-opción, precio de oferta por variante, SEO (canonical, JSON-LD, sitemap paginado, robots), h1, focus trap, CLS 0, imágenes, 404 en handles inválidos.
+- **Carrito, checkout y cuenta:** errores y avisos en español, carrito sin carreras, pago rechazado con reintento, reanudar pago, IVA coherente, teléfono normalizado, descargar datos y eliminar cuenta, sesión estable ante cortes de red.
+- **Panel admin:** sin fuga de caché entre usuarios, logout con token caducado, errores y validación en español, guardado de variantes sin pisar cambios ajenos, guardado parcial de producto recuperable, publicación del CMS sin falsos conflictos, colecciones manuales seguras, confirmaciones, permisos por ruta, accesibilidad (axe 0).
+- **Backend (rama `claude/tender-heisenberg-w6jnxy` de `jydevs/department-backend`):** `version` de variante en el detalle admin, `customerId` en el checkout con token de cliente opcional, vinculación de pedidos de invitado al verificar correo, etiquetas `catalog:*` hacia la tienda tras cada cambio de catálogo. Smokes del repo pasan.
+- **Verificación final:** `typecheck` y `lint` sin errores ni warnings; `build:qa` OK; sobre el build de producción, compra completa con pago simulado y 25 pantallas del admin sin errores de consola.
 
-**Backend (rama `claude/tender-heisenberg-w6jnxy` de `jydevs/department-backend`, un agente):**
-- `version` de variante en el detalle admin.
-- `customerId` asignado en el checkout y vinculación de pedidos de invitado al verificar el correo.
-- Etiquetas de caché del catálogo (`catalog:*`) enviadas por el webhook a la tienda.
+## 3. Pendiente técnico
 
-## 3. Pendiente después de que terminen los agentes
-
-1. Revisar los informes, hacer `yarn typecheck`, `yarn lint` y `yarn build:qa`, barrer las rutas del admin y la tienda en el navegador y **commitear y subir todo** (frontend y backend).
-2. Conectar el focus trap (`src/lib/useFocusTrap.ts`) al carrito y al modal de cuenta si quedan sin conectar.
-3. Abrir el PR del backend (la rama tendrá cambios cuando el agente termine) y el del frontend, si los quieres.
+1. **Abrir los PR** (frontend y backend) cuando quieras mezclar.
+2. **Peticiones por página:** bajaron (/ 22→15, producto 19→13) pero no a ≤8, porque el listado de la API no trae segunda foto, oferta ni tallas. Se resolvería ampliando el listado en el backend.
+3. **Backend sin endpoint:** listar miembros de colección manual (y añadir/quitar de forma incremental), `If-Match`/`version` en `/publish` y `/schedule`, cancelar un pedido pendiente, `redirectUrl` de Wompi con número de pedido, medio por id.
+4. **Textos del CMS en inglés** (editar en `/admin`): hero ("Scroll", "Lookbook", "Uniforms for the unnoticed"), "New Arrivals", menú del footer ("Home", "Clothes"…), `priceLabel`/`availabilityLabel`, títulos de colección repetidos ("Clothes").
+5. **Footer y legales:** añadir el enlace a `/pages/contact` y crear las páginas Términos, Privacidad, Envíos y devoluciones, Cambios y garantías.
+6. **Sin probar:** `docker build` (no hay Docker en el entorno), 2FA con una cuenta real (solo simulado), Wompi real.
+7. **Menores:** alt descriptivo por producto en `opengraph-image`, `qualities` en `next.config.ts` para bajar la calidad del hero, `ContactForm` con nivel de encabezado configurable, `content/templates/404` registra un 404 en consola.
 
 ## 4. Pendiente por decisión o por datos tuyos
 
