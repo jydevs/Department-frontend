@@ -6,11 +6,28 @@ Actualizado: 3 de octubre de 2026 · rama de trabajo `claude/tender-heisenberg-w
 
 | Área | Estado |
 | --- | --- |
-| Tienda pública (`/`, colecciones, producto, carrito, búsqueda, contacto, community, cuenta, checkout) | **Terminada a nivel visual**, pero con datos locales: catálogo en `src/data/products.ts`, carrito en `localStorage`, formularios y login simulados. **No consume la API.** |
+| Tienda pública (`/`, colecciones, producto, carrito, búsqueda, contacto, community, cuenta, checkout) | **Terminada a nivel visual**, con datos locales: catálogo en `src/data/products.ts`, carrito en `localStorage`, login/registro simulados y checkout sin envío real. **Solo newsletter y contacto llaman a la API** (ver §1.1). |
 | Panel de administración `/admin` | **Terminado a nivel visual** (31 pantallas) con datos simulados en memoria (`src/lib/admin/mock`). **No consume la API** y **no tiene login** (ver §4). |
 | Conexión tienda ↔ API | **No iniciada** (solo reconocimiento del contrato, ver §5). |
 | Conexión panel ↔ API | **No iniciada**; el cliente HTTP (`src/lib/admin/api-client.ts`) y la firma de los hooks están listos para sustituir los mocks módulo a módulo. |
 | Plan de producción | Redactado: [`PLAN-PRODUCCION.md`](PLAN-PRODUCCION.md). |
+
+### 1.1 Qué ya estaba conectado en `main` antes de esta rama (no se repite)
+
+Revisado en el código el 3-oct-2026 (commit `727701f`, “conexion de componentes…”) y probado contra la API local:
+
+| Pieza | Estado real |
+| --- | --- |
+| Newsletter (`NewsletterFooter.tsx`) | `POST /api/v1/storefront/newsletter` → **202 OK**. Pero el `catch` muestra “éxito” aunque la API falle (errores silenciados) y no hay página de confirmación (`/newsletter/confirmar`, `/newsletter/baja`). |
+| Contacto (`ContactForm.tsx`) | `POST /api/v1/storefront/contact` → **400 `VALIDATION_ERROR`**: el formulario envía `phone`, que el esquema estricto del backend no admite (“Unrecognized key: phone”). Sin `phone` responde 202. Hoy el formulario siempre cae en error. |
+| Precios | `formatCOP()` (solo formato; los precios vienen de `src/data/products.ts`). |
+| Carrito | `localStorage` + catálogo local; **no** usa la API de carrito. |
+| Login / registro / verificación / reset (`src/app/account/*`) | UI; login y registro guardan `"mock-jwt-token"` en `localStorage`. **No** llaman a la API. |
+| Checkout (`src/app/checkout/page.tsx`) | Formulario de maqueta con IVA calculado en el cliente; **no** crea pedidos ni pagos. |
+| `tests/e2e/integration.spec.ts` | Especificación escrita contra `data-testid` (`product-grid`, `product-card`, …) que el código actual no define; no está en CI. |
+| `.env.production` | `NEXT_PUBLIC_API_URL`, llave pública de Wompi, URL del sitio e indexación. |
+
+Todo lo demás (catálogo, CMS, carrito, checkout, pagos, cuenta, panel) **no estaba conectado** en el repositorio remoto. Si existe trabajo de integración adicional en un clon local sin subir, hay que publicarlo en una rama para construir sobre él en lugar de rehacerlo.
 
 ## 2. Qué se hizo (historial de la rama)
 
