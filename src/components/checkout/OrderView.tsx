@@ -2,8 +2,8 @@ import Image from "next/image";
 import type { ApiPublicOrder } from "@/lib/api/types";
 import { formatCOP } from "@/lib/format";
 
-const PAYMENT: Record<string, string> = { pending: "Pago pendiente", paid: "Pagado", partially_refunded: "Reembolso parcial", refunded: "Reembolsado", failed: "Pago rechazado", voided: "Pago anulado" };
-const FULFILL: Record<string, string> = { unfulfilled: "Sin enviar", partial: "Envío parcial", fulfilled: "Enviado" };
+export const PAYMENT_LABEL: Record<string, string> = { pending: "Pago pendiente", paid: "Pagado", partially_refunded: "Reembolso parcial", refunded: "Reembolsado", failed: "Pago rechazado", voided: "Pago anulado" };
+export const FULFILL_LABEL: Record<string, string> = { unfulfilled: "Sin enviar", partial: "Envío parcial", fulfilled: "Enviado" };
 
 /** Resumen de un pedido (público por token o de la cuenta): líneas, totales, dirección y envíos. */
 export function OrderView({ order }: { order: ApiPublicOrder }) {
@@ -12,8 +12,8 @@ export function OrderView({ order }: { order: ApiPublicOrder }) {
     <div data-testid="order-view" className="space-y-10">
       <dl className="grid gap-6 sm:grid-cols-3">
         <div><dt className="font-condensed text-[11px] tracking-[0.2em] text-dept-gray-500">Pedido</dt><dd className="font-display text-display-md">#{order.orderNumber}</dd></div>
-        <div><dt className="font-condensed text-[11px] tracking-[0.2em] text-dept-gray-500">Pago</dt><dd data-testid="order-payment-status" className="font-condensed text-lg tracking-[0.08em]">{PAYMENT[order.paymentStatus] ?? order.paymentStatus}</dd></div>
-        <div><dt className="font-condensed text-[11px] tracking-[0.2em] text-dept-gray-500">Envío</dt><dd className="font-condensed text-lg tracking-[0.08em]">{order.status === "cancelled" ? "Cancelado" : (FULFILL[order.fulfillmentStatus] ?? order.fulfillmentStatus)}</dd></div>
+        <div><dt className="font-condensed text-[11px] tracking-[0.2em] text-dept-gray-500">Pago</dt><dd data-testid="order-payment-status" className="font-condensed text-lg tracking-[0.08em]">{PAYMENT_LABEL[order.paymentStatus] ?? order.paymentStatus}</dd></div>
+        <div><dt className="font-condensed text-[11px] tracking-[0.2em] text-dept-gray-500">Envío</dt><dd className="font-condensed text-lg tracking-[0.08em]">{order.status === "cancelled" ? "Cancelado" : (FULFILL_LABEL[order.fulfillmentStatus] ?? order.fulfillmentStatus)}</dd></div>
       </dl>
 
       <ul className="divide-y divide-white/10 border-y border-white/10">
