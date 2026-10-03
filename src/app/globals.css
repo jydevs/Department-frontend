@@ -49,6 +49,20 @@
   --color-dept-gray-500: var(--dept-gray-500);
   --color-dept-gray-900: var(--dept-gray-900);
 
+
+  /* ---- panel /admin (tokens de color; valores en .admin-root) ---- */
+  --color-accent: var(--adm-accent);
+  --color-accent-text: var(--adm-accent-text);
+  --color-bg: var(--adm-bg);
+  --color-surface: var(--adm-surface);
+  --color-surface2: var(--adm-surface-2);
+  --color-line: var(--adm-border);
+  --color-fg: var(--adm-fg);
+  --color-muted: var(--adm-muted);
+  --color-ok: var(--adm-ok);
+  --color-warn: var(--adm-warn);
+  --color-info: var(--adm-info);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
@@ -327,3 +341,46 @@
     animation: none !important;
   }
 }
+
+/* ============================================================
+   Panel de administración (/admin) — mismo lenguaje visual que la tienda:
+   negro, rojo Dept., esquinas rectas, tipografías Anton/Oswald.
+   Todo está acotado a .admin-root para no afectar a la tienda.
+   ============================================================ */
+.admin-root {
+  --adm-accent: var(--dept-red);
+  --adm-accent-text: var(--dept-red-light);
+  --adm-bg: var(--dept-black);
+  --adm-surface: var(--dept-gray-900);
+  --adm-surface-2: #1d1d1d;
+  --adm-border: #2c2c2c;
+  --adm-fg: var(--dept-white);
+  --adm-muted: #a0a0a0;
+  --adm-ok: #4ade80;
+  --adm-warn: #fbbf24;
+  --adm-info: #7aa2ff;
+  color-scheme: dark;
+  font-size: 14px;
+}
+.admin-root[data-theme="light"] {
+  --adm-accent-text: #b80000;
+  --adm-bg: var(--dept-gray-100);
+  --adm-surface: #ffffff;
+  --adm-surface-2: #ececec;
+  --adm-border: #d8d8d8;
+  --adm-fg: #111111;
+  --adm-muted: #5c5c5c;
+  --adm-ok: #15803d;
+  --adm-warn: #b45309;
+  --adm-info: #1d4ed8;
+  color-scheme: light;
+}
+.admin-root * { transition-property: background-color, border-color, color; transition-duration: .12s; }
+.admin-root .grid > *, .admin-root main { min-width: 0; }
+.admin-root ::selection { background: var(--dept-red); color: #fff; }
+.admin-root h1, .admin-root h2 { font-weight: 600; }
+.skel { animation: adm-pulse 1.4s ease-in-out infinite; background: var(--adm-surface-2); }
+@keyframes adm-pulse { 50% { opacity: .45; } }
+.toast-in { animation: adm-toast .18s ease-out; }
+@keyframes adm-toast { from { transform: translateY(8px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .admin-root *, .skel, .toast-in { animation: none !important; transition: none !important; } }

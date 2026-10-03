@@ -3,6 +3,7 @@ import { Anton, Oswald, Inter, Pinyon_Script } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { StoreChrome } from "@/components/layout/StoreChrome";
 import { OverlayProvider } from "@/components/layout/OverlayProvider";
 import { INDEXABLE, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -75,13 +76,10 @@ export default function RootLayout({
           Saltar al contenido
         </a>
         <OverlayProvider>
-          <Header />
-          <main id="main" className="flex-1">
+          <StoreChrome header={<Header />} footer={<SiteFooter />}>
             {children}
-          </main>
-          <SiteFooter />
+          </StoreChrome>
         </OverlayProvider>
-        <div className="grain" aria-hidden />
       </body>
     </html>
   );
