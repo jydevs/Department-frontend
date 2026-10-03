@@ -15,10 +15,14 @@ import { apiFetch } from "@/lib/api/client";
 import { fromSummary } from "@/lib/api/map";
 import type { ApiSearch, Cursor, ApiProductSummary } from "@/lib/api/types";
 import { cfg, useSite } from "@/components/layout/SiteProvider";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { SearchResultRow } from "./SearchResultRow";
 import { SearchSuggestions } from "./SearchSuggestions";
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]';
+/** Mínimo de caracteres que acepta la API de búsqueda. */
+const MIN_CHARS = 2;
+/** `fetch` cancelado con `AbortController` (según la versión del cliente HTTP llega como DOMException o como Error con ese nombre). */
+const isAborted = (e: unknown): boolean => typeof e === "object" && e !== null && (e as { name?: string }).name === "AbortError";
 
 interface SearchPanelProps {
   onClose: () => void;
@@ -38,7 +42,6 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
   const inputId = `${uid}-input`;
   const listId = `${uid}-list`;
 
-  const rootRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   /** true when a link was chosen → don't yank focus back to the header icon */
@@ -53,6 +56,7 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
     suggestions: c.str("suggestionsTitle", "Sugerencias"), popular: c.str("popularTitle", "Más buscado"),
     one: c.str("resultSingular", "resultado"), many: c.str("resultPlural", "resultados"),
     noTitle: c.str("noResultsTitle", "Sin resultados para «{query}»"), noText: c.str("noResultsText", "Prueba con otro nombre o explora las colecciones."),
+    minChars: c.str("minCharsText", "Escribe al menos 2 letras"), failed: c.str("searchErrorText", "No se pudo buscar. Intenta de nuevo"), retry: c.str("retryLabel", "Reintentar"),
     popularLimit: c.num("popularLimit", 4),
   };
 
@@ -61,6 +65,9 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
   const [featured, setFeatured] = useState<Product[]>([]);
   const [results, setResults] = useState<Product[]>([]);
   const [searching, setSearching] = useState(false);
+  const [failed, setFailed] = useState(false);
+  /** se incrementa para repetir la búsqueda actual (botón "Reintentar") */
+  const [attempt, setAttempt] = useState(0);
 
   const trimmed = query.trim();
   const hasQuery = trimmed.length > 0;
@@ -71,15 +78,18 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
     const ctl = new AbortController();
     apiFetch<Cursor<ApiProductSummary>>("/storefront/products", { query: { limit: L.popularLimit, sort: "newest" }, signal: ctl.signal })
       .then((r) => setFeatured(r.items.filter((p) => p.available).map(fromSummary)))
-      .catch(() => undefined);
+      .catch((e: unknown) => {
+        if (!isAborted(e)) setFeatured([]); // sin "Más buscado": no es un error que el visitante deba ver
+      });
     return () => ctl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // búsqueda en la API con espera de 250 ms (la API pide 2 caracteres como mínimo)
   useEffect(() => {
-    if (trimmed.length < 2) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFailed(false);
+    if (trimmed.length < MIN_CHARS) {
       setResults([]);
       setSearching(false);
       return;
@@ -89,55 +99,22 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
     const t = setTimeout(() => {
       apiFetch<ApiSearch>("/storefront/search", { query: { q: trimmed }, signal: ctl.signal })
         .then((r) => setResults(r.products.map(fromSummary)))
-        .catch((e: unknown) => { if (!(e instanceof DOMException)) setResults([]); })
+        .catch((e: unknown) => {
+          if (isAborted(e) || ctl.signal.aborted) return; // otra búsqueda ocupó su lugar
+          setResults([]);
+          setFailed(true); // la API no respondió: no es "sin resultados"
+        })
         .finally(() => { if (!ctl.signal.aborted) setSearching(false); });
     }, 250);
     return () => { clearTimeout(t); ctl.abort(); };
-  }, [trimmed]);
+  }, [trimmed, attempt]);
   const activeIdx = active >= 0 && active < items.length ? active : -1;
   const optionId = (product: Product) => `${uid}-opt-${product.handle}`;
   const activeId = activeIdx >= 0 ? optionId(items[activeIdx]) : undefined;
 
-  // focus the input on open; give focus back to whatever opened us on close
-  useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    inputRef.current?.focus();
-    return () => {
-      if (!navigating.current && opener && opener.isConnected) opener.focus();
-    };
-  }, []);
-
-  // Escape closes; Tab / Shift+Tab loop inside the dialog
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const root = rootRef.current;
-      if (!root) return;
-      const nodes = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (el) => el.tabIndex >= 0,
-      );
-      if (nodes.length === 0) return;
-      const first = nodes[0];
-      const last = nodes[nodes.length - 1];
-      const current = document.activeElement;
-      if (!(current instanceof Node) || !root.contains(current)) {
-        e.preventDefault();
-        first.focus();
-      } else if (e.shiftKey && current === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && current === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // foco en el campo al abrir; Tab gira dentro del diálogo, Escape cierra, el resto de la página queda inert
+  // y al cerrar el foco vuelve a quien abrió (salvo que se haya elegido un enlace)
+  const rootRef = useFocusTrap<HTMLDivElement>({ onEscape: onClose, initialFocus: inputRef, restoreFocus: () => !navigating.current });
 
   // keep the keyboard-selected row visible inside the scroll area
   useEffect(() => {
@@ -195,7 +172,8 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
   };
 
   const count = results.length;
-  const status = hasQuery ? (searching ? "…" : `${count} ${count === 1 ? L.one : L.many}`) : "";
+  const tooShort = hasQuery && trimmed.length < MIN_CHARS;
+  const status = !hasQuery || tooShort ? "" : failed ? "" : searching ? "…" : `${count} ${count === 1 ? L.one : L.many}`;
 
   return (
     <div
@@ -268,7 +246,26 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
             </div>
           )}
 
-          {hasQuery && count === 0 && !searching && trimmed.length >= 2 && (
+          {tooShort && (
+            <p className="mb-12 text-sm text-dept-gray-300" role="status" data-testid="search-min-chars">
+              {L.minChars}
+            </p>
+          )}
+
+          {failed && !searching && (
+            <div className="mb-12" role="alert" data-testid="search-error">
+              <p className="font-display text-display-md">{L.failed}</p>
+              <button
+                type="button"
+                onClick={() => setAttempt((n) => n + 1)}
+                className="font-condensed mt-6 inline-flex h-11 items-center border border-white/30 px-6 text-sm tracking-[0.14em] text-dept-white transition-colors duration-300 ease-out-expo hover:border-dept-white hover:bg-dept-white hover:text-dept-black"
+              >
+                {L.retry}
+              </button>
+            </div>
+          )}
+
+          {hasQuery && count === 0 && !searching && !failed && trimmed.length >= MIN_CHARS && (
             <div className="mb-12">
               <p className="font-display text-display-md break-words">
                 {L.noTitle.replace("{query}", trimmed)}

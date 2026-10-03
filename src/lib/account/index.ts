@@ -149,6 +149,7 @@ async function finishPendingLogout() {
 async function bootstrap() {
   if (started || typeof window === "undefined") return;
   started = true;
+  await Promise.resolve(); // nunca de forma síncrona dentro de `subscribe` (fase de commit)
   const gen = generation;
   const hint = readHint();
   if (hint === null) {

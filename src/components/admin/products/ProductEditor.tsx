@@ -113,7 +113,7 @@ export function ProductEditor({ initial }: { initial: Product }) {
   const setVariant = (i: number, patch: Partial<Product["variants"][number]>) => { const id = p.variants[i].id; set({ variants: p.variants.map((v, k) => (k === i ? { ...v, ...patch } : v)) }); clearErr(`variants.${id}`, ...Object.keys(patch).map((k) => `variants.${id}.${k}`)); };
   const setOptions = (options: Product["options"]) => set({ options, variants: generateVariants(options, p.variants, p.variants[0]) });
   const hasOptions = p.options.length > 0;
-  const variantErrors = [...p.variants.flatMap((v) => [errs[`variants.${v.id}.price`], errs[`variants.${v.id}.compareAt`], errs[`variants.${v.id}.sku`], errs[`variants.${v.id}.weight`], errs[`variants.${v.id}.barcode`], errs[`variants.${v.id}.title`], errs[`variants.${v.id}`]].filter(Boolean).map((m) => `${hasOptions ? v.title : "Predeterminado"}: ${m}`)), ...(errs.variants ? [errs.variants] : [])];
+  const variantErrors = [...p.variants.flatMap((v) => [errs[`variants.${v.id}.price`], errs[`variants.${v.id}.compareAt`], errs[`variants.${v.id}.sku`], errs[`variants.${v.id}.weight`], errs[`variants.${v.id}.barcode`], errs[`variants.${v.id}.title`]].filter(Boolean).map((m) => `${hasOptions ? v.title : "Predeterminado"}: ${m}`)), ...(errs.variants ? [errs.variants] : [])];
   const bad = (id: string, f: string) => !!errs[`variants.${id}.${f}`] || undefined;
   return (
     <>
@@ -130,7 +130,7 @@ export function ProductEditor({ initial }: { initial: Product }) {
       {blocked && can && <p role="status" className="mb-3 text-xs text-warn">Hay {issues.length} dato(s) por corregir antes de guardar: {issues.slice(0, 3).map((i) => i.message).join(" · ")}{issues.length > 3 ? "…" : ""}</p>}
       {outcome && (
         <div role="alert" className="mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-accent/50 bg-accent/10 p-3 text-sm">
-          <p className="min-w-0 flex-1 break-words">{outcome.message}. Tus cambios siguen en el formulario: {outcome.fresh ? "solo se reintentará lo pendiente." : "no se pudo recargar el estado del servidor."}</p>
+          <p className="min-w-0 flex-1 break-words">{outcome.message.replace(/[.\s]+$/, "")}. Tus cambios siguen en el formulario: {outcome.fresh ? "solo se reintentará lo pendiente." : "no se pudo recargar el estado del servidor."}</p>
           {can && <Button size="sm" variant="primary" loading={save.isPending} disabled={blocked} onClick={doSave}>Reintentar lo pendiente</Button>}
           <Button size="sm" variant="ghost" onClick={() => setOutcome(null)}>Ocultar aviso</Button>
         </div>

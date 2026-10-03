@@ -8,7 +8,7 @@ const ASPECT: Record<string, string> = { "1/1": "aspect-square", "2/3": "aspect-
 /** Lookbook (sección `lookbook`): mosaico por columnas CSS (masonry), cuadrícula o carrusel horizontal. */
 export function LookbookGallery({ section }: { section: CmsSection }) {
   const s = section.settings;
-  const photos = blocksOf(section, "photo");
+  const photos = blocksOf(section, "photo").filter((p) => optStr(p.settings, "imageUrl"));
   if (!photos.length) return null;
   const layout = str(s, "layout", "masonry");
   const cols = str(s, "columns", "3");

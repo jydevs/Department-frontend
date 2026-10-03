@@ -5,7 +5,7 @@ import { clsx } from "@/lib/clsx";
 import { blocksOf, bool, optStr, str, type CmsSection } from "@/lib/cms/types";
 
 /** Cabecera de colección (sección `collection-hero`): foto desaturada con parallax, título gigante y pestañas de colecciones. */
-export function CollectionHero({ section, collection, count }: { section: CmsSection; collection: Collection; count: number }) {
+export function CollectionHero({ section, collection, count, more = false }: { section: CmsSection; collection: Collection; count: number; /** hay más piezas que las cargadas */ more?: boolean }) {
   const s = section.settings;
   const tabs = blocksOf(section, "tab");
   const img = optStr(s, "imageUrl") ?? collection.heroImage;
@@ -27,7 +27,7 @@ export function CollectionHero({ section, collection, count }: { section: CmsSec
           <p className="font-condensed mb-4 flex items-center gap-3 text-[11px] tracking-[0.28em] text-dept-white/80">
             <span aria-hidden className="h-px w-10 bg-dept-red" />
             {optStr(s, "eyebrow") ?? "Colección"}
-            {bool(s, "showCount", true) ? ` — ${String(count).padStart(2, "0")} ${str(s, "countLabel", "piezas")}` : ""}
+            {bool(s, "showCount", true) ? ` — ${String(count).padStart(2, "0")}${more ? "+" : ""} ${str(s, "countLabel", "piezas")}` : ""}
           </p>
           <h1 data-testid="collection-title" className="font-display text-display-2xl text-dept-white">
             {collection.title}

@@ -50,6 +50,10 @@ export function SiteFooter({ site }: { site: SiteServerData }) {
     const href = safeHref(url);
     return href ? [{ name, href }] : [];
   });
+  // Respaldo mínimo SOLO si el CMS no aporta ningún enlace al pie (menú `footer` vacío y columnas sin enlaces):
+  // así la tienda siempre ofrece una vía de contacto. En cuanto el CMS tiene enlaces manda el CMS.
+  const hasCmsLinks = footerMenu.length > 0 || columns.some((b) => b.type !== "account-links" && columnLinks(b, footerMenu).length > 0);
+  const fallbackLinks: FooterLink[] = [{ label: "Contacto", href: "/pages/contact" }];
   const brand = site.client.brandName;
   const wordmark = str(f, "wordmark", brand);
 
@@ -83,6 +87,8 @@ export function SiteFooter({ site }: { site: SiteServerData }) {
             />
           ),
         )}
+
+        {!hasCmsLinks && <LinkColumn title="Ayuda" links={fallbackLinks} className="md:col-span-2 md:col-start-7" />}
 
         {bool(f, "showSocial", true) && social.length > 0 && (
           <nav aria-label="Redes sociales" className="col-span-2 md:col-span-12">

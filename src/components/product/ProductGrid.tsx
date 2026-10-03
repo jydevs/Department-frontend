@@ -12,6 +12,9 @@ interface ProductGridProps {
   columns?: 3 | 4;
   /** how many leading cards should load eagerly (above-the-fold grids) */
   priorityCount?: number;
+  /** estado vacío por filtros: botón para volver a ver todo */
+  onReset?: () => void;
+  resetLabel?: string;
 }
 
 /**
@@ -21,14 +24,24 @@ interface ProductGridProps {
  * columns = 4 (default): 2 / 3 / 4 columns (mobile / sm / lg)
  * columns = 3:           2 / 2 / 3 columns
  */
-export function ProductGrid({ products, className, columns = 4, priorityCount = 0, labels }: ProductGridProps) {
+export function ProductGrid({ products, className, columns = 4, priorityCount = 0, labels, onReset, resetLabel = "Limpiar filtros" }: ProductGridProps) {
   if (products.length === 0) {
     return (
-      <div className="px-gutter py-24 text-center">
+      <div className="px-gutter py-24 text-center" data-testid="empty-grid">
         <p className="font-display text-display-md text-dept-white">{labels?.emptyTitle ?? "Sin resultados"}</p>
-        <p className="font-condensed mt-3 text-[11px] tracking-[0.22em] text-dept-gray-500">
+        <p className="font-condensed mt-3 text-[11px] tracking-[0.22em] text-dept-gray-300">
           {labels?.emptyText ?? "Prueba con otro filtro"}
         </p>
+        {onReset && (
+          <button
+            type="button"
+            data-testid="reset-filters"
+            onClick={onReset}
+            className="font-condensed mt-8 inline-flex h-11 items-center border border-white/30 px-6 text-xs tracking-[0.16em] text-dept-white transition-colors duration-300 ease-out-expo hover:border-dept-white hover:bg-dept-white hover:text-dept-black"
+          >
+            {resetLabel}
+          </button>
+        )}
       </div>
     );
   }

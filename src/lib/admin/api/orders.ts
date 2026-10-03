@@ -205,11 +205,11 @@ export function useOrderTags(order: Order) {
           want.current = null;
           toast.error(errorMessage(e));
         }
-        version.current = null;
         // espera a que el pedido se recargue para no mostrar un instante las etiquetas anteriores
         await Promise.all([qc.invalidateQueries({ queryKey: ["order"] }), qc.invalidateQueries({ queryKey: ["orders"] })]).catch(() => undefined);
       } while (want.current);
     } finally {
+      version.current = null;
       running.current = false;
       setSaving(false);
       setPending(null);

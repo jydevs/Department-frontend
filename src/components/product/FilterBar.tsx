@@ -27,7 +27,7 @@ export interface FilterLabels {
   featured: string; priceAsc: string; priceDesc: string; reset: string; items: string;
 }
 export const DEFAULT_FILTER_LABELS: FilterLabels = {
-  filter: "Filtrar", availability: "Availability", price: "Price", sort: "Ordenar", all: "Todos", inStock: "En stock", soldOut: "Agotado",
+  filter: "Filtrar", availability: "Disponibilidad", price: "Precio", sort: "Ordenar", all: "Todos", inStock: "En stock", soldOut: "Agotado",
   featured: "Destacado", priceAsc: "Precio: menor a mayor", priceDesc: "Precio: mayor a menor", reset: "Limpiar filtros", items: "artículos",
 };
 
@@ -158,6 +158,23 @@ function Dropdown<T extends string>({
   );
 }
 
+/** Filtro activo como etiqueta con su texto legible (nunca el valor interno) y un botón para quitarlo. */
+function ActiveChip({ label, removeLabel, onRemove }: { label: string; removeLabel: string; onRemove: () => void }) {
+  return (
+    <span data-testid="active-filter" className="inline-flex items-center gap-1.5 border border-white/20 bg-white/5 py-0.5 pl-2 pr-1 text-[10px] text-dept-white">
+      {label}
+      <button
+        type="button"
+        aria-label={removeLabel}
+        onClick={onRemove}
+        className="grid size-5 place-items-center text-dept-white/70 transition-colors hover:text-dept-red focus-visible:text-dept-red"
+      >
+        <span aria-hidden>✕</span>
+      </button>
+    </span>
+  );
+}
+
 export function FilterBar({ count, value, onChange, labels = DEFAULT_FILTER_LABELS }: FilterBarProps) {
   const L = labels;
   const AVAILABILITY: Option<Availability>[] = [{ value: "all", label: L.all }, { value: "in-stock", label: L.inStock }, { value: "sold-out", label: L.soldOut }];
@@ -233,20 +250,18 @@ export function FilterBar({ count, value, onChange, labels = DEFAULT_FILTER_LABE
           triggerRef={priceRef}
         />
         {value.availability !== "all" && (
-          <span
-            data-testid="active-filter"
-            className="inline-flex items-center gap-1 border border-white/20 bg-white/5 px-2 py-0.5 text-[10px] text-dept-white"
-          >
-            {value.availability}
-          </span>
+          <ActiveChip
+            label={value.availability === "in-stock" ? L.inStock : L.soldOut}
+            removeLabel={`Quitar filtro: ${value.availability === "in-stock" ? L.inStock : L.soldOut}`}
+            onRemove={() => onChange({ ...value, availability: "all" })}
+          />
         )}
         {priceSorted && (
-          <span
-            data-testid="active-filter"
-            className="inline-flex items-center gap-1 border border-white/20 bg-white/5 px-2 py-0.5 text-[10px] text-dept-white"
-          >
-            {value.sort}
-          </span>
+          <ActiveChip
+            label={value.sort === "price-asc" ? L.priceAsc : L.priceDesc}
+            removeLabel={`Quitar filtro: ${value.sort === "price-asc" ? L.priceAsc : L.priceDesc}`}
+            onRemove={() => onChange({ ...value, sort: "featured" })}
+          />
         )}
       </div>
 

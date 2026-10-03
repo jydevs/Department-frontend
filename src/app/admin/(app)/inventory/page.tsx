@@ -6,7 +6,7 @@ import { DataTable } from "@/components/admin/ui/DataTable";
 import { Badge, Card, DateTime, EmptyState, PageHeader, Skeleton, Tabs } from "@/components/admin/ui/Display";
 import { Checkbox, Input, SearchInput, Select, Switch } from "@/components/admin/ui/Form";
 import { Dialog, useConfirm } from "@/components/admin/ui/Overlay";
-import { ADJUST_REASONS, useAdjustStock, useAdjustments, useDeleteLocation, useLevels, useLocations, useSaveLocation, type Location, type StockLevel } from "@/lib/admin/api/catalog";
+import { ADJUST_REASONS, LOW_STOCK_THRESHOLD, useAdjustStock, useAdjustments, useDeleteLocation, useLevels, useLocations, useSaveLocation, useStaffNames, type Location, type StockLevel } from "@/lib/admin/api/catalog";
 import { errorMessage } from "@/lib/admin/errors";
 import { useCan } from "@/lib/admin/permissions";
 
@@ -29,7 +29,7 @@ export default function InventoryPage() {
       <Tabs tabs={[{ key: "levels", label: "Niveles" }, { key: "history", label: "Historial" }, { key: "locations", label: "Ubicaciones" }]} value={tab} onChange={setTab} />
       <div className="mt-4">
         {tab === "levels" && <>
-          <div className="mb-3 grid items-center gap-2 sm:grid-cols-[2fr_1fr_auto]"><SearchInput onSearch={onSearch} placeholder="Producto o SKU" /><Select aria-label="Ubicación" value={loc} onChange={(e) => { setLoc(e.target.value); setPage(1); }}><option value="">Todas las ubicaciones</option>{locs.filter((l) => l.isActive).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select><Checkbox label="Solo stock bajo (≤ 5)" checked={low} onChange={(e) => { setLow(e.target.checked); setPage(1); }} /></div>
+          <div className="mb-3 grid items-center gap-2 sm:grid-cols-[2fr_1fr_auto]"><SearchInput onSearch={onSearch} placeholder="Producto o SKU" /><Select aria-label="Ubicación" value={loc} onChange={(e) => { setLoc(e.target.value); setPage(1); }}><option value="">Todas las ubicaciones</option>{locs.filter((l) => l.isActive).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select><Checkbox label={`Solo stock bajo (≤ ${LOW_STOCK_THRESHOLD})`} checked={low} onChange={(e) => { setLow(e.target.checked); setPage(1); }} /></div>
           <DataTable caption="Niveles de inventario" loading={levels.isLoading} error={levels.error ? errorMessage(levels.error) : undefined} rows={levels.data?.items} rowKey={(r) => r.id}
             pagination={levels.data && { page: levels.data.page, totalPages: levels.data.totalPages, total: levels.data.total, onChange: setPage }}
             empty={<EmptyState title="Sin resultados" text="No hay niveles de inventario con esos filtros." />}
@@ -60,6 +60,10 @@ export default function InventoryPage() {
 
 function HistoryTab({ locs }: { locs: Location[] }) {
   const h = useAdjustments();
+  const canStaff = useCan("staff:read");
+  const staff = useStaffNames(canStaff).data;
+  /** Nombre de quien hizo el ajuste: con permiso `staff:read` se resuelve con la lista del personal; sin él, "Equipo". */
+  const actor = (id: string | null) => (id === null ? "Sistema" : staff?.get(id) ?? "Equipo");
   const where = (id: string) => locs.find((l) => l.id === id)?.name ?? "—";
   return (
     <>
@@ -69,7 +73,7 @@ function HistoryTab({ locs }: { locs: Location[] }) {
           { key: "d", header: "Fecha", cell: (a) => <DateTime value={a.at} /> }, { key: "p", header: "Variante", cell: (a) => a.variantTitle }, { key: "l", header: "Ubicación", cell: (a) => where(a.locationId) },
           { key: "x", header: "Cambio", cell: (a) => <Badge tone={a.delta > 0 ? "ok" : "danger"}>{a.delta > 0 ? "+" : ""}{a.delta}</Badge> },
           { key: "r", header: "Motivo", cell: (a) => <>{ADJUST_REASONS[a.reason] ?? a.reason}{a.note && <span className="block text-xs text-muted">{a.note}</span>}</> },
-          { key: "u", header: "Usuario", cell: (a) => <span className="text-xs text-muted">{a.actorId ? a.actorId.slice(0, 8) : "sistema"}</span> },
+          { key: "u", header: "Usuario", cell: (a) => <span className="text-xs text-muted">{actor(a.actorId)}</span> },
         ]} />
       {h.hasNextPage && <div className="mt-3 text-center"><Button loading={h.isFetchingNextPage} onClick={() => void h.fetchNextPage()}>Cargar más</Button></div>}
     </>

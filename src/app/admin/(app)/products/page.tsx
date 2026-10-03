@@ -12,7 +12,7 @@ import { Dialog, useConfirm } from "@/components/admin/ui/Overlay";
 import { useToast } from "@/components/admin/ui/Toast";
 import { Can } from "@/lib/admin/permissions";
 import { errorMessage } from "@/lib/admin/errors";
-import { bulkSummary, useBulkProducts, useProducts, type ProductFilters } from "@/lib/admin/api/catalog";
+import { bulkSummary, LOW_STOCK_THRESHOLD, useBulkProducts, useProducts, type ProductFilters } from "@/lib/admin/api/catalog";
 
 export default function ProductsPage() {
   const router = useRouter(), confirm = useConfirm(), toast = useToast();
@@ -31,8 +31,17 @@ export default function ProductsPage() {
     if (!tag) return;
     bulk.mutate({ ids: sel, op: "tag", tag }, { onSuccess: () => { setSel([]); setTagOpen(false); setTagValue(""); } });
   };
+  const BULK: Record<"publish" | "archive" | "delete", { title: string; verb: string; extra: string; danger: boolean }> = {
+    publish: { title: "Publicar productos", verb: "publicarán", extra: "Los productos sin una variante activa con precio mayor a 0 se omitirán.", danger: false },
+    archive: { title: "Archivar productos", verb: "archivarán", extra: "Dejarán de mostrarse en la tienda.", danger: true },
+    delete: { title: "Eliminar productos", verb: "eliminarán", extra: "Dejarán de aparecer en la tienda y en las colecciones. Esta acción no se puede deshacer.", danger: true },
+  };
+  const here = (data?.items ?? []).filter((p) => sel.includes(p.id));
   const run = async (op: "publish" | "archive" | "delete") => {
-    if (op === "delete" && !(await confirm({ title: "Eliminar productos", message: `Se eliminarán ${sel.length} productos de forma permanente.`, danger: true, confirmLabel: "Eliminar" }))) return;
+    const b = BULK[op];
+    const names = here.slice(0, 5).map((p) => `“${p.title}”`).join(", ");
+    const more = sel.length - Math.min(here.length, 5);
+    if (!(await confirm({ title: b.title, message: `Se ${b.verb} ${sel.length} producto${sel.length === 1 ? "" : "s"}${names ? `: ${names}${more > 0 ? ` y ${more} más` : ""}` : ""}. ${b.extra}`, danger: b.danger, confirmLabel: `${b.title.split(" ")[0]} ${sel.length}` }))) return;
     bulk.mutate({ ids: sel, op }, { onSuccess: () => setSel([]) });
   };
   return (
@@ -47,23 +56,23 @@ export default function ProductsPage() {
       {sel.length > 0 && (
         <Can perm="products:write"><div role="toolbar" aria-label="Acciones masivas" className="mb-3 flex flex-wrap items-center gap-2 rounded-sm border border-line bg-surface p-2 text-sm">
           <span className="px-2">{sel.length} seleccionados</span>
-          <Button size="sm" loading={bulk.isPending} onClick={() => void run("publish")}>Publicar</Button><Button size="sm" onClick={() => void run("archive")}>Archivar</Button>
-          <Button size="sm" onClick={() => { setTagValue(""); setTagOpen(true); }}>Añadir etiqueta</Button><Button size="sm" variant="danger" onClick={() => void run("delete")}>Eliminar</Button>
+          <Button size="sm" loading={bulk.isPending} onClick={() => void run("publish")}>Publicar</Button><Button size="sm" disabled={bulk.isPending} onClick={() => void run("archive")}>Archivar</Button>
+          <Button size="sm" disabled={bulk.isPending} onClick={() => { setTagValue(""); setTagOpen(true); }}>Añadir etiqueta</Button><Button size="sm" variant="danger" disabled={bulk.isPending} onClick={() => void run("delete")}>Eliminar</Button>
         </div></Can>
       )}
       <DataTable caption="Lista de productos" loading={isLoading} error={error ? errorMessage(error) : undefined} rows={data?.items} rowKey={(p) => p.id} empty={<EmptyState title="Sin productos" text="No hay productos con esos filtros." />}
         selectable={{ selected: sel, onChange: setSel }} onRowClick={(p) => router.push(`/admin/products/${p.id}`)}
         pagination={data && { page: data.page, totalPages: data.totalPages, total: data.total, onChange: (page) => setF((x) => ({ ...x, page })) }}
         columns={[
-          { key: "t", header: "Producto", cell: (p) => <div className="flex items-center gap-3">{p.image ? <Image src={p.image.url} alt="" width={36} height={45} unoptimized className="h-11 w-9 rounded object-cover" /> : <span className="grid h-11 w-9 place-items-center rounded bg-surface2 text-[10px] text-muted" aria-hidden>—</span>}<div><p className="font-medium">{p.title}</p><p className="text-xs text-muted">/{p.handle}</p></div></div> },
+          { key: "t", header: "Producto", cell: (p) => <div className="flex items-center gap-3">{p.image ? <Image src={p.image.url} alt="" width={36} height={44} unoptimized loading={data?.items[0]?.id === p.id ? "eager" : "lazy"} className="h-11 w-9 rounded object-cover" /> : <span className="grid h-11 w-9 place-items-center rounded bg-surface2 text-[10px] text-muted" aria-hidden>—</span>}<div><p className="font-medium">{p.title}</p><p className="text-xs text-muted">/{p.handle}</p></div></div> },
           { key: "s", header: "Estado", cell: (p) => <StatusBadge status={p.status} /> },
-          { key: "i", header: "Inventario", cell: (p) => <span className={p.inventoryTotal <= 5 ? "text-warn" : ""}>{p.inventoryTotal} en {p.variantCount} variante(s)</span> },
+          { key: "i", header: "Inventario", cell: (p) => <span className={p.inventoryTotal <= LOW_STOCK_THRESHOLD ? "text-warn" : ""}>{p.inventoryTotal} en {p.variantCount} variante(s)</span> },
           { key: "p", header: "Precio", align: "right", cell: (p) => p.minPrice === null ? "—" : <Money value={p.minPrice} /> },
         ]} />
       <Dialog open={tagOpen} onClose={() => setTagOpen(false)} title="Añadir etiqueta" size="sm"
         footer={<><Button onClick={() => setTagOpen(false)}>Cancelar</Button><Button variant="primary" loading={bulk.isPending} disabled={!tagValue.trim()} onClick={applyTag}>Añadir a {sel.length}</Button></>}>
         <form onSubmit={(e) => { e.preventDefault(); applyTag(); }}>
-          <Input label="Etiqueta" value={tagValue} onChange={(e) => setTagValue(e.target.value)} hint={`Se añadirá a ${sel.length} producto(s) seleccionados.`} />
+          <Input label="Etiqueta" value={tagValue} maxLength={50} onChange={(e) => setTagValue(e.target.value)} hint={`Se añadirá a ${sel.length} producto${sel.length === 1 ? "" : "s"} seleccionado${sel.length === 1 ? "" : "s"}${here.length ? `: ${here.slice(0, 3).map((p) => `“${p.title}”`).join(", ")}${sel.length > Math.min(here.length, 3) ? ` y ${sel.length - Math.min(here.length, 3)} más` : ""}` : ""}.`} />
         </form>
       </Dialog>
     </>

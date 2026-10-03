@@ -2,7 +2,7 @@ import { MaskHeading } from "@/lib/cms/text";
 import { oneOf, optStr, str, type Settings } from "@/lib/cms/types";
 
 /** Cabecera de página interior (sección `page-header`): eyebrow, titular con máscara, entradilla y texto. */
-export function PageHeader({ s }: { s: Settings }) {
+export function PageHeader({ s, as: Heading = "h1" }: { s: Settings; /** nivel del titular (h1 salvo que otra sección ya lo sea) */ as?: "h1" | "h2" }) {
   const align = oneOf(s, "alignment", ["left", "center", "right"] as const, "left");
   return (
     <header className={`px-gutter pb-16 pt-[calc(var(--chrome-h)+3rem)] md:pb-24 ${align === "center" ? "text-center" : align === "right" ? "text-right" : ""}`}>
@@ -12,9 +12,9 @@ export function PageHeader({ s }: { s: Settings }) {
           {str(s, "eyebrow")}
         </p>
       )}
-      <h1 className="font-display text-display-xl text-dept-white">
+      <Heading className="font-display text-display-xl text-dept-white">
         <MaskHeading text={str(s, "heading")} accent={optStr(s, "headingAccent")} />
-      </h1>
+      </Heading>
       {(optStr(s, "lead") || optStr(s, "text")) && (
         <div className={`mt-10 max-w-xl md:mt-14 ${align === "center" ? "mx-auto" : align === "right" ? "ml-auto" : ""}`}>
           {optStr(s, "lead") && <p className="font-display text-display-md text-dept-white">{str(s, "lead")}</p>}

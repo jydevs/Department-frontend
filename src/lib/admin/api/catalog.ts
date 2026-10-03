@@ -340,17 +340,18 @@ function planVariant(srv: ApiVariant, want: VNorm, baseN: VNorm, ids: string[] |
 }
 const conflictError = (title: string, srv: ApiVariant, conflicts: VKey[]) => new RealConflict(`Variante “${title}”: ${listEs(conflicts.map((k) => VLABEL[k]))} cambió en el servidor mientras editabas (${conflicts.map((k) => `${VLABEL[k]}: ${String(normApi(srv)[k] ?? "—")}`).join(", ")}). No se sobrescribió.`);
 
-async function patchVariantSafe(pid: string, cur: ApiVariant, want: VNorm, baseN: VNorm, ids: string[] | null, title: string): Promise<void> {
+/** Devuelve `true` si escribió en el servidor. */
+async function patchVariantSafe(pid: string, cur: ApiVariant, want: VNorm, baseN: VNorm, ids: string[] | null, title: string): Promise<boolean> {
   const url = `/admin/products/${pid}/variants/${cur.id}`;
   let snap = cur, plan = planVariant(snap, want, baseN, ids);
   if (plan.conflicts.length) throw conflictError(title, snap, plan.conflicts);
-  if (!Object.keys(plan.body).length) return;
+  if (!Object.keys(plan.body).length) return false;
   let v = verCache.get(cur.id) ?? 1;
   for (let round = 0; round < 4; round++) {
     try {
       const r = await api.patch<{ version: number }>(url, { ...plan.body, version: v });
       verCache.set(cur.id, r.version);
-      return;
+      return true;
     } catch (e) {
       if (!isConflict(e)) throw e;
     }
@@ -364,7 +365,7 @@ async function patchVariantSafe(pid: string, cur: ApiVariant, want: VNorm, baseN
     snap = found;
     plan = planVariant(snap, want, baseN, ids);
     if (plan.conflicts.length) throw conflictError(title, snap, plan.conflicts);
-    if (!Object.keys(plan.body).length) return;
+    if (!Object.keys(plan.body).length) return false;
     v = found.version;
   }
   throw new Error(`La variante “${title}” cambia constantemente (otra persona la está editando). Inténtalo de nuevo.`);
@@ -390,6 +391,7 @@ async function syncVariants(pid: string, desired: VariantForm[], opts: ApiOption
   const baseMap = new Map((base?.variants ?? []).map((v) => [v.id, v]));
   const claimed = new Set<string>();
   const failures: string[] = [];
+  let applied = 0; // variantes que SÍ se escribieron (para informar de un guardado parcial dentro del paso)
   for (const v of desired) {
     const ids = opts.length ? v.options.map((val, oi) => idOf(oi, val)).filter((x): x is string => !!x) : [];
     let cur = curMap.get(v.id);
@@ -397,7 +399,7 @@ async function syncVariants(pid: string, desired: VariantForm[], opts: ApiOption
     try {
       if (!cur) {
         const r = await api.post<{ id: string; version: number }>(`/admin/products/${pid}/variants`, variantBody(v, ids));
-        verCache.set(r.id, r.version); claimed.add(r.id);
+        verCache.set(r.id, r.version); claimed.add(r.id); applied++;
         continue;
       }
       claimed.add(cur.id);
@@ -407,7 +409,7 @@ async function syncVariants(pid: string, desired: VariantForm[], opts: ApiOption
       const baseN = baseV ? normForm(baseV) : normApi(cur);
       // optionValueIds solo si el usuario cambió la estructura de opciones y se resolvieron todos los valores
       const sendIds = (optionsTouched || !base) && opts.length > 0 && ids.length === opts.length ? ids : null;
-      await patchVariantSafe(pid, cur, want, baseN, sendIds, v.title || TYPE_LABEL_DEFAULT);
+      if (await patchVariantSafe(pid, cur, want, baseN, sendIds, v.title || TYPE_LABEL_DEFAULT)) applied++;
     } catch (e) {
       const label = v.title || TYPE_LABEL_DEFAULT;
       if (e instanceof ApiError && e.code === "SKU_TAKEN") { errs[`variants.${v.id}.sku`] = `El SKU “${v.sku.trim()}” ya está en uso en otro producto o variante`; failures.push(`Variante “${label}”: el SKU “${v.sku.trim()}” ya está en uso`); }
@@ -417,9 +419,9 @@ async function syncVariants(pid: string, desired: VariantForm[], opts: ApiOption
   }
   for (const c of current) {
     if (!c.isActive || claimed.has(c.id) || (base && !baseMap.has(c.id))) continue;
-    try { await voidOk(api.delete(`/admin/products/${pid}/variants/${c.id}`)); } catch (e) { failures.push(`No se pudo quitar la variante “${c.title}”: ${errorMessage(e)}`); }
+    try { await voidOk(api.delete(`/admin/products/${pid}/variants/${c.id}`)); applied++; } catch (e) { failures.push(`No se pudo quitar la variante “${c.title}”: ${errorMessage(e)}`); }
   }
-  if (failures.length) throw new RealConflict(failures.join(" · "));
+  if (failures.length) throw Object.assign(new RealConflict(failures.join(" · ")), { applied });
 }
 
 async function putMetafields(pid: string, list: MetafieldForm[], base: MetafieldForm[]): Promise<boolean> {
@@ -562,7 +564,9 @@ export const useSaveProduct = (cb: { onSaved: (p: ProductForm, v: SaveVars) => v
       if (cause instanceof RealConflict && (cause as { handle?: boolean }).handle) fieldErrors.handle = cause.message;
       const why = cause instanceof RealConflict ? cause.message : errorMessage(cause);
       const label = (s: SaveStep) => (!base && s === "product" ? "el producto" : STEP_LABEL[s]);
-      const message = e.step === "create" ? `No se pudo crear el producto: ${why}` : done.length ? `Se guardaron ${listEs(done.map(label))}; falló ${STEP_LABEL[e.step]}: ${why}` : `No se guardó nada; falló ${STEP_LABEL[e.step]}: ${why}`;
+      const applied = (cause as { applied?: number }).applied ?? 0; // variantes ya escritas dentro del paso que falló
+      const saved = [...done.map(label), ...(applied > 0 ? [`${applied} variante${applied === 1 ? "" : "s"}`] : [])];
+      const message = e.step === "create" ? `No se pudo crear el producto: ${why}` : saved.length ? `Se guardaron ${listEs(saved)}; falló ${STEP_LABEL[e.step]}: ${why}` : `No se guardó nada; falló ${STEP_LABEL[e.step]}: ${why}`;
       const outcome: SaveOutcome = { fresh, failed: e.step, done: [...done], fieldErrors, createdId, conflict: e.conflict, message };
       void qc.invalidateQueries({ queryKey: ["products"] });
       if (id) { void qc.invalidateQueries({ queryKey: ["product-search"] }); if (fresh) qc.setQueryData(["product", id], fresh); }

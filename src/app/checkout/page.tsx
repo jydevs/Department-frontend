@@ -11,7 +11,7 @@ import { getAccessToken, listAddresses, useAccount, type CustomerAddress } from 
 import { apiFetch } from "@/lib/api/client";
 import { ApiError, discountReasonMessage, friendlyError } from "@/lib/api/errors";
 import type { ApiCheckoutResponse, ApiShippingRate } from "@/lib/api/types";
-import { clearCartError, getCartAuth, rebuildCartFrom, resetCart, useCart } from "@/lib/cart";
+import { clearCartError, getCartAuth, getCartError, rebuildCartFrom, resetCart, useCart } from "@/lib/cart";
 import { goToPayment, paymentDestination, saveLastOrder, totalsWithShipping, useLastOrder } from "@/lib/checkout";
 import { formatCOP, isValidPhone, normalizePhone } from "@/lib/format";
 import { DEPARTMENTS } from "@/lib/geo";
@@ -238,7 +238,8 @@ export default function CheckoutPage() {
       setCodeMsg({ ok: true, text: "Código aplicado" });
       setCode("");
     } else {
-      setCodeMsg({ ok: false, text: "No se pudo aplicar el código. Revisa que esté bien escrito." });
+      setCodeMsg({ ok: false, text: getCartError() ?? "No se pudo aplicar el código. Revisa que esté bien escrito." });
+      clearCartError();
     }
   };
 

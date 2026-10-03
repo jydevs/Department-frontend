@@ -83,7 +83,7 @@ export function ProductGallery({ images, name, imageLabel, className }: ProductG
                 src={src}
                 alt={total > 1 ? `${imageLabel} — foto ${i + 1} de ${total}` : imageLabel}
                 fill
-                priority={i === 0}
+                {...(i === 0 ? { loading: "eager" as const, fetchPriority: "high" as const } : {})}
                 sizes="(min-width: 1024px) 60vw, 88vw"
                 className="object-cover"
                 data-testid="product-image"

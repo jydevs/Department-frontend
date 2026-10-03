@@ -13,7 +13,7 @@ const veil = (color: string, pct: number) => `color-mix(in srgb, ${color} ${Math
  * Full-bleed hero (sección `hero` del CMS). Slow push-in on the photograph, headline revealed line by
  * line, two CTAs and a scroll cue. The fixed header overlays the top edge.
  */
-export function Hero({ s }: { s: Settings }) {
+export function Hero({ s, as: Heading = "h1" }: { s: Settings; /** nivel del titular (h1 salvo que otra sección ya lo sea) */ as?: "h1" | "h2" }) {
   const height = HEIGHT[oneOf(s, "height", ["full", "large", "medium"] as const, "large")];
   const op = num(s, "overlayOpacity", 0.2);
   const color = /^#[0-9a-fA-F]{6}$/.test(str(s, "overlayColor")) ? str(s, "overlayColor") : "#000000";
@@ -40,9 +40,9 @@ export function Hero({ s }: { s: Settings }) {
           </p>
         )}
 
-        <h1 className="font-display text-display-2xl text-dept-white">
+        <Heading className="font-display text-display-2xl text-dept-white">
           <MaskHeading text={str(s, "heading")} accent={optStr(s, "headingAccent")} />
-        </h1>
+        </Heading>
         {optStr(s, "subheading") && <p className="mt-5 max-w-xl text-base text-dept-white/80 md:text-lg">{str(s, "subheading")}</p>}
 
         <div className="mt-8 flex w-full flex-wrap items-end justify-between gap-6 md:mt-10">

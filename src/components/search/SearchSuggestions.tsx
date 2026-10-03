@@ -21,8 +21,8 @@ export function SearchSuggestions({ onNavigate }: SearchSuggestionsProps) {
     <nav aria-label={title}>
       <p className="mb-4 text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">{title}</p>
       <ul className="flex flex-wrap gap-3">
-        {items.map((s) => (
-          <li key={s.href}>
+        {items.map((s, i) => (
+          <li key={`${s.href}-${i}`}>
             <Link
               href={s.href}
               onClick={onNavigate}

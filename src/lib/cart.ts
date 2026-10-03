@@ -163,7 +163,8 @@ async function load(): Promise<void> {
 
 function start(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
-  startPromise ??= load();
+  // nunca de forma síncrona: `start()` se llama desde `subscribe` (fase de commit) y emitir ahí actualizaría componentes aún sin montar
+  startPromise ??= Promise.resolve().then(load);
   return startPromise;
 }
 
@@ -277,6 +278,9 @@ export async function rebuildCartFrom(lines: { variantId: string; qty: number }[
 export function clearCartError() {
   if (state.error) setError(null);
 }
+
+/** Último mensaje de error del carrito (p. ej. el motivo de un código de descuento rechazado). */
+export const getCartError = (): string | null => state.error;
 
 /** Credenciales del carrito actual para el checkout. */
 export const getCartAuth = (): { id: string; token: string } | null => (state.id && state.token ? { id: state.id, token: state.token } : null);

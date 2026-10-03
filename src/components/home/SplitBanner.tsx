@@ -13,7 +13,7 @@ export async function SplitBanner({ section }: { section: CmsSection }) {
   const s = section.settings;
   const tiles = blocksOf(section, "tile");
   if (!tiles.length) return null;
-  const counts = bool(s, "showCount", true) ? await Promise.all(tiles.map((t) => (optStr(t.settings, "collectionHandle") ? getCollectionCount(str(t.settings, "collectionHandle")) : Promise.resolve(undefined)))) : [];
+  const counts = bool(s, "showCount", true) ? await Promise.all(tiles.map((t) => (optStr(t.settings, "collectionHandle") ? getCollectionCount(str(t.settings, "collectionHandle")).then((n) => n ?? undefined) : Promise.resolve(undefined)))) : [];
   const numbered = bool(s, "numbered", true);
 
   return (

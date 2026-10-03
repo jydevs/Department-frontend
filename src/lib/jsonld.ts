@@ -4,7 +4,7 @@
  * ningún texto del catálogo/CMS puede cerrar la etiqueta ni inyectar HTML.
  */
 export function safeJsonLd(data: unknown): string {
-  return JSON.stringify(data).replace(/[<>&  ]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+  return JSON.stringify(data).replace(/[<>&\u2028\u2029]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
 }
 
 /** schema.org BreadcrumbList a partir de [{ name, url }] (url absoluta; el último elemento va sin enlace si no se indica). */

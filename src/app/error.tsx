@@ -3,13 +3,17 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 
-/** Route-level error boundary: keeps the header / footer, replaces the page body. */
+/**
+ * Límite de error de ruta: conserva cabecera y pie y reemplaza el cuerpo de la página.
+ * `retry()` vuelve a pedir y renderizar la ruta en el servidor (a diferencia de `reset()`, que solo limpia el estado),
+ * así que sirve cuando el fallo fue una caída momentánea de la API.
+ */
 export default function ErrorPage({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
     console.error(error);
@@ -17,6 +21,7 @@ export default function ErrorPage({
 
   return (
     <section
+      role="alert"
       aria-labelledby="error-title"
       className="flex min-h-[80svh] flex-col justify-center px-gutter pb-section pt-[calc(var(--chrome-h)+3rem)]"
     >
@@ -28,7 +33,7 @@ export default function ErrorPage({
         Algo <span className="text-outline">salió mal</span>
       </h1>
       <p className="mt-8 max-w-md text-dept-white/70">
-        Ocurrió un problema inesperado al cargar esta página. Puedes reintentar o volver al inicio.
+        No pudimos cargar esta página. Puede ser un problema momentáneo: reintenta o vuelve al inicio.
       </p>
       {error.digest && (
         <p className="font-condensed mt-4 text-[11px] tracking-[0.2em] text-dept-gray-500">
@@ -36,7 +41,7 @@ export default function ErrorPage({
         </p>
       )}
       <div className="mt-10 flex flex-wrap gap-3">
-        <Button variant="red" size="lg" arrow onClick={reset}>
+        <Button variant="red" size="lg" arrow onClick={retry}>
           Reintentar
         </Button>
         <Button href="/" variant="outline" size="lg">

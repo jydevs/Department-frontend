@@ -52,14 +52,14 @@ export default function MediaPage() {
         : !data?.length ? <EmptyState icon={<ImageIcon className="size-8" />} title="Sin archivos" text="Sube imágenes para usarlas en productos y contenido." />
         : <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">{data.map((m) => (
           <li key={m.id}><button type="button" onClick={() => { setSel(m); setAlt(m.alt); }} className="group block w-full overflow-hidden rounded-sm border border-line bg-surface text-left hover:border-accent">
-            <Image src={m.url} alt={m.alt || m.name} width={240} height={180} unoptimized className="aspect-[4/3] w-full object-cover" />
+            <span className="relative block aspect-[4/3] w-full"><Image src={m.url} alt={m.alt || m.name} fill sizes="240px" unoptimized loading={data[0]?.id === m.id ? "eager" : "lazy"} className="object-cover" /></span>
             <div className="p-2"><p className="truncate text-xs font-medium">{m.name}</p><p className="text-[11px] text-muted">{kb(m.size)}{m.alt ? "" : " · sin alt"}</p></div>
           </button></li>))}</ul>}
       {pageData && pageData.totalPages > 1 && <div className="mt-3 rounded-sm border border-line bg-surface"><Pagination page={pageData.page} totalPages={pageData.totalPages} total={pageData.total} onChange={setPage} /></div>}
       <Dialog open={!!sel} onClose={() => setSel(null)} title={sel?.name ?? ""} size="lg"
         footer={sel && can ? <><Button variant="danger" icon={<Trash2 className="size-4" />} onClick={() => void remove(sel)}>Eliminar</Button><Button variant="primary" loading={upd.isPending} disabled={alt === sel.alt} onClick={() => upd.mutate({ id: sel.id, alt }, { onSuccess: () => setSel({ ...sel, alt }) })}>Guardar</Button></> : undefined}>
         {sel && <div className="grid gap-4 sm:grid-cols-2">
-          <Image src={sel.url} alt={sel.alt || sel.name} width={400} height={300} unoptimized className="w-full rounded-sm" />
+          <Image src={sel.url} alt={sel.alt || sel.name} width={400} height={300} unoptimized className="h-auto w-full rounded-sm" />
           <div className="space-y-3 text-sm"><Input label="Texto alternativo" value={alt} disabled={!can} onChange={(e) => setAlt(e.target.value)} hint="Describe la imagen para lectores de pantalla y SEO." /><p className="text-muted">{sel.type} · {kb(sel.size)}{sel.url.startsWith("http") ? "" : " · archivo del sitio"}</p>
             <div><p className="mb-1 text-xs font-medium">Usos</p>{usagesQ.isLoading ? <Skeleton className="h-5" /> : usages?.length ? <ul className="space-y-1">{usages.map((u, i) => <li key={i}><Badge tone="info">{u.label}</Badge></li>)}</ul> : <p className="text-xs text-muted">No se usa en ningún documento.</p>}</div></div>
         </div>}

@@ -1,4 +1,4 @@
-import { getProducts } from "@/lib/api/catalog";
+import { getCollection, getProducts } from "@/lib/api/catalog";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import { Button } from "@/components/ui/Button";
 import { Reveal } from "@/components/ui/Reveal";
@@ -8,7 +8,10 @@ import { safeHref } from "@/lib/url";
 
 /** Campaña (sección `campaign`): titular indexado con segunda línea en contorno y rejilla de piezas de una colección. */
 export async function CampaignSection({ s }: { s: Settings }) {
-  const featured = await getProducts({ collection: optStr(s, "collectionHandle"), limit: num(s, "limit", 6) });
+  const handle = optStr(s, "collectionHandle");
+  const limit = num(s, "limit", 6);
+  // la colección sale de la misma petición cacheada que su página y el contador del menú; sin colección, lo más nuevo
+  const featured = handle ? ((await getCollection(handle, { limit }))?.products ?? []) : await getProducts({ limit });
   const cta = safeHref(optStr(s, "ctaHref"));
   const columns = str(s, "columns", "3") === "4" ? 4 : 3;
   const align = oneOf(s, "alignment", ["left", "center", "right"] as const, "left");

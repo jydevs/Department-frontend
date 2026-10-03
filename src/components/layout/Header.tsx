@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { clsx } from "@/lib/clsx";
 import { useCart } from "@/lib/cart";
+import { safeLinkHref } from "@/lib/cms/href";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { Marquee } from "@/components/ui/Marquee";
 import { Logo } from "./Logo";
 import { useOverlay } from "./OverlayProvider";
@@ -49,6 +51,8 @@ export function Header() {
   const { openAccount, openCart, openSearch } = useOverlay();
   const { count } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
+  /** el menú se cierra para abrir otro panel (cuenta/carrito): ese panel se queda con el foco */
+  const handOffFocus = useRef(false);
   const site = useSite();
   const h = cfg(site.header);
   const showSearch = h.bool("showSearch", true), showAccount = h.bool("showAccount", true), showCart = h.bool("showCart", true);
@@ -62,8 +66,9 @@ export function Header() {
   const ann = site.announcement;
   const showAnn = h.bool("showAnnouncement", true) && ann.enabled && ann.items.length > 0;
   // enlaces: nivel 1 del menú; en móvil también sus hijos
-  const nav = site.nav.map((n) => ({ ...n, sup: showCount && n.isCatalog ? String(site.productCount).padStart(2, "0") : undefined }));
-  const MENU_LINKS = site.nav.flatMap((n) => [{ label: n.label, href: n.href }, ...n.children]);
+  // los enlaces del CMS se revalidan aquí también (https, mailto, tel o ruta propia; lo demás → "/")
+  const nav = site.nav.map((n) => ({ ...n, href: safeLinkHref(n.href), sup: showCount && n.isCatalog ? String(site.productCount).padStart(2, "0") : undefined }));
+  const MENU_LINKS = site.nav.flatMap((n) => [{ label: n.label, href: n.href }, ...n.children]).map((l) => ({ ...l, href: safeLinkHref(l.href) }));
   const isActive = (href: string, isCatalog: boolean) =>
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`) || (isCatalog && (pathname.startsWith("/collections") || pathname.startsWith("/products")));
 
@@ -72,17 +77,28 @@ export function Header() {
   const solid = !overlayPage || !atTop || menuOpen;
   const hidden = chrome === "hidden" && !menuOpen;
 
-  // Escape closes the mobile menu; lock body scroll while it is open
+  // menú móvil abierto: el foco queda dentro (header + menú), Escape lo cierra y al cerrar vuelve al botón que lo abrió
+  const trapRef = useFocusTrap<HTMLDivElement>({
+    active: menuOpen,
+    onEscape: () => setMenuOpen(false),
+    initialFocus: "#mobile-menu a",
+    restoreFocus: () => {
+      const restore = !handOffFocus.current;
+      handOffFocus.current = false;
+      return restore;
+    },
+  });
+
+  // lock body scroll while the mobile menu is open; ciérralo si la ventana pasa a escritorio (el menú móvil se oculta)
   useEffect(() => {
     if (!menuOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
+    const mq = window.matchMedia("(min-width: 768px)");
+    const onChange = () => mq.matches && setMenuOpen(false);
+    mq.addEventListener("change", onChange);
     return () => {
-      document.removeEventListener("keydown", onKey);
+      mq.removeEventListener("change", onChange);
       document.body.style.overflow = overflow;
     };
   }, [menuOpen]);
@@ -102,7 +118,7 @@ export function Header() {
   }, [openSearch]);
 
   return (
-    <>
+    <div ref={trapRef}>
       <header
         className={clsx(
           "fixed inset-x-0 top-0 z-50 transition-transform duration-500 ease-out-expo focus-within:translate-y-0",
@@ -307,6 +323,7 @@ export function Header() {
               type="button"
               tabIndex={menuOpen ? 0 : -1}
               onClick={() => {
+                handOffFocus.current = true;
                 setMenuOpen(false);
                 openAccount();
               }}
@@ -318,6 +335,7 @@ export function Header() {
               type="button"
               tabIndex={menuOpen ? 0 : -1}
               onClick={() => {
+                handOffFocus.current = true;
                 setMenuOpen(false);
                 openCart();
               }}
@@ -328,6 +346,6 @@ export function Header() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -139,7 +139,7 @@ export function PublishBar({ doc, draft: d, invalidCount }: Props) {
           {neverPublished && <p role="alert" className="mb-3 rounded-sm border border-accent/50 bg-accent/10 p-2 text-sm">Este documento nunca se ha publicado. Al confirmar quedará visible en la tienda.</p>}
           <p className="mb-2 text-xs text-muted">Se publicará el borrador guardado en el servidor (versión {review.fresh.version}){neverPublished ? "." : " frente a la versión publicada:"}</p>
           {!neverPublished && (publishedData.isLoading ? <Spinner /> : <DiffTable rows={diffJson(publishedData.data?.data ?? null, review.fresh.draft)} />)}
-          {neverPublished && <DiffTable rows={diffJson(null, review.fresh.draft)} />}
+          {neverPublished && <DiffTable rows={diffJson({}, review.fresh.draft)} before="Publicado" after="Se publicará" />}
           {diffJson(review.fresh.draft, d.local).length > 0 && <p role="alert" className="mt-3 text-xs text-accent-text">Tu editor tiene {diffJson(review.fresh.draft, d.local).length} diferencia(s) que no están en el borrador del servidor; se guardarán antes de publicar.</p>}
           <div className="mt-3"><Input label="Nota de la versión (opcional)" maxLength={255} value={note} onChange={(e) => setNote(e.target.value)} /></div>
         </>}
