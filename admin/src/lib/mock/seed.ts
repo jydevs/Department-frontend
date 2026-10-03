@@ -140,13 +140,15 @@ export const seedStaff = (): T.Staff[] => [
   { id: "stf_4", name: "Sofía Contenido", email: "sofia@daregulardept.com", role: "editor", active: false, twoFactor: false, lastLogin: null },
 ];
 
-export const seedAudit = (): T.AuditEntry[] => [
+export const seedAudit = (): T.AuditEntry[] => sortAudit([
+  ...Array.from({ length: 14 }, (_, i): T.AuditEntry => ({ id: `au_g${i}`, at: daysAgo(4 + i), actor: i % 2 ? "camilo@daregulardept.com" : "owner@daregulardept.com", action: i % 3 === 0 ? "order.fulfill" : i % 3 === 1 ? "discount.update" : "customer.update", entity: i % 3 === 0 ? "order" : i % 3 === 1 ? "discount" : "customer", entityId: `x_${i}`, before: { status: "a" }, after: { status: "b" }, ip: "190.24.1.10" })),
   { id: "au_1", at: daysAgo(0, 1), actor: "owner@daregulardept.com", action: "product.update", entity: "product", entityId: "prd_2", before: { price: 229000, status: "draft" }, after: { price: 249000, status: "active" }, ip: "190.24.1.10" },
   { id: "au_2", at: daysAgo(0, 4), actor: "laura@daregulardept.com", action: "order.note", entity: "order", entityId: "ord_1", before: null, after: { note: "Cliente pidió empaque de regalo." }, ip: "181.52.8.3" },
   { id: "au_3", at: daysAgo(1), actor: "owner@daregulardept.com", action: "content.publish", entity: "template", entityId: "home", before: { version: 4 }, after: { version: 5 }, ip: "190.24.1.10" },
   { id: "au_4", at: daysAgo(2), actor: "camilo@daregulardept.com", action: "inventory.adjust", entity: "variant", entityId: "var_1_2", before: { stock: 10 }, after: { stock: 14 }, ip: "186.80.4.77" },
   { id: "au_5", at: daysAgo(3), actor: "owner@daregulardept.com", action: "staff.create", entity: "staff", entityId: "stf_4", before: null, after: { email: "sofia@daregulardept.com", role: "editor" }, ip: "190.24.1.10" },
-];
+]);
+const sortAudit = (l: T.AuditEntry[]): T.AuditEntry[] => l.sort((a, b) => b.at.localeCompare(a.at));
 
 export const seedImports = (): T.ImportJob[] => [
   { id: "imp_1", kind: "products", file: "products_export.csv", dryRun: false, status: "done", total: 120, processed: 120, errors: [] },

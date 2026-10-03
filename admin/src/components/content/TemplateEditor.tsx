@@ -1,7 +1,7 @@
 "use client";
 import clsx from "clsx";
 import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Badge, Card } from "@/components/ui/Display";
 import { Dialog, useConfirm } from "@/components/ui/Overlay";
@@ -30,7 +30,7 @@ export function TemplateEditor({ doc, extra }: { doc: ContentDoc; extra?: React.
   const [add, setAdd] = useState(false);
   const sel = sections.find((s) => s.id === selId) ?? null;
   const selType = types.find((t) => t.type === sel?.type);
-  const errors = useMemo(() => validateSections(sections, types), [sections, types]);
+  const errors = validateSections(sections, types);
   const setSections = (next: Section[]) => d.change(wrap(next));
   const patch = (id: string, p: Partial<Section>) => setSections(sections.map((s) => (s.id === id ? { ...s, ...p } : s)));
   const labelOf = (t: string) => types.find((x) => x.type === t)?.label ?? t;

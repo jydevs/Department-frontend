@@ -53,3 +53,6 @@ button, a, input, select, textarea { transition: background-color .12s, border-c
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } }
 .toast-in { animation: toast-in .18s ease-out; }
 @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation: none !important; transition: none !important; } }
+
+/* evita que el contenido ancho (tablas, vistas previas) desborde las rejillas */
+.grid > *, .flex > main, main { min-width: 0; }

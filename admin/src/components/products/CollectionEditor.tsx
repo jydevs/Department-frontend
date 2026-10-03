@@ -2,7 +2,7 @@
 import { ImagePlus, Plus, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { MediaPicker } from "@/components/content/MediaPicker";
 import { Button, IconButton } from "@/components/ui/Button";
 import { Badge, Card, PageHeader, Spinner } from "@/components/ui/Display";
@@ -28,7 +28,7 @@ export function CollectionEditor({ initial }: { initial: Collection }) {
   const del = useDeleteCollection(() => router.push("/collections"));
   const set = (p: Partial<Collection>) => { setC((x) => ({ ...x, ...p })); setDirty(true); };
   const preview = usePreviewRules(c);
-  const manual = useMemo(() => c.productIds.map((id) => all.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p), [c.productIds, all]);
+  const manual = c.productIds.map((id) => all.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p);
   const results = q.trim() ? all.filter((p) => p.title.toLowerCase().includes(q.toLowerCase()) && !c.productIds.includes(p.id)).slice(0, 6) : [];
   const setRule = (i: number, patch: Partial<Rule>) => set({ rules: c.rules.map((r, k) => (k === i ? { ...r, ...patch } : r)) });
   return (

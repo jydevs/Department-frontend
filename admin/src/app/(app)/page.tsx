@@ -45,7 +45,7 @@ export default function Dashboard() {
           actions={<Link href="/orders" className="text-xs text-accent hover:underline">Ver todos</Link>}>
           {!recent ? <div className="space-y-2 p-4"><Skeleton /><Skeleton /><Skeleton /></div> : (
             <ul>{recent.map((o) => (
-              <li key={o.id}><Link href={`/orders/${o.id}`} className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 last:border-0 hover:bg-surface2/60">
+              <li key={o.id}><Link href={`/orders/${o.id}`} className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3 last:border-0 hover:bg-surface2/60">
                 <div><p className="font-medium">#{o.number} · {o.customer.name}</p><p className="text-xs text-muted"><DateTime value={o.createdAt} /></p></div>
                 <div className="flex items-center gap-2"><StatusBadge status={o.financial} /><Money value={o.total} /></div>
               </Link></li>
