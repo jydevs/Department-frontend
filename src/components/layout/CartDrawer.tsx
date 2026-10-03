@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { formatCOP } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
+import { safeHref } from "@/lib/url";
+import { cfg, useSite } from "./SiteProvider";
 
 /**
  * Right-side cart drawer, wired to the client cart (`useCart`). Lines with
@@ -25,7 +27,16 @@ const stepBtn =
 
 function CartPanel({ onClose }: { onClose: () => void }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const { items, count, subtotal, setQty, remove } = useCart();
+  const { items, count, subtotal, setQty, remove, busy, error, warnings } = useCart();
+  const c = cfg(useSite().cart);
+  const L = {
+    title: c.str("title", "Carrito"), close: c.str("closeLabel", "Cerrar"), emptyTitle: c.str("emptyTitle", "Tu carrito está vacío"),
+    emptyText: c.str("emptyText", "¿Tienes una cuenta? Inicia sesión para pagar más rápido."), highlight: c.str("emptyTextHighlight", "Inicia sesión"),
+    cont: c.str("continueLabel", "Seguir comprando"), checkout: c.str("checkoutLabel", "Finalizar compra"), subtotal: c.str("subtotalLabel", "Subtotal"),
+    size: c.str("sizeLabel", "Talla"), remove: c.str("removeLabel", "Eliminar"), dec: c.str("decreaseLabel", "Quitar una unidad"), inc: c.str("increaseLabel", "Añadir una unidad"),
+  };
+  const checkoutHref = safeHref(c.str("checkoutHref", "/checkout")) ?? "/checkout";
+  const [before, after] = L.highlight && L.emptyText.includes(L.highlight) ? L.emptyText.split(L.highlight) : [L.emptyText, ""];
 
   useEffect(() => {
     closeButtonRef.current?.focus();
@@ -42,14 +53,14 @@ function CartPanel({ onClose }: { onClose: () => void }) {
       className="fixed inset-0 z-[60]"
       role="dialog"
       aria-modal="true"
-      aria-label="Carrito"
+      aria-label={L.title}
     >
       <style>{`@keyframes cart-drawer-in{from{transform:translateX(100%)}to{transform:translateX(0)}}@keyframes cart-fade-in{from{opacity:0}to{opacity:1}}`}</style>
 
       {/* Backdrop */}
       <button
         type="button"
-        aria-label="Cerrar"
+        aria-label={L.close}
         onClick={onClose}
         style={{ animation: "cart-fade-in 0.4s ease-out both" }}
         className="absolute inset-0 h-full w-full cursor-default bg-black/60 backdrop-blur-sm"
@@ -62,7 +73,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <h2 className="font-display text-display-md">
-            Carrito{" "}
+            {L.title}{" "}
             <span className="font-condensed align-top text-[11px] tracking-[0.2em] text-dept-gray-500">
               {String(count).padStart(2, "0")}
             </span>
@@ -70,7 +81,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
           <button
             ref={closeButtonRef}
             type="button"
-            aria-label="Cerrar"
+            aria-label={L.close}
             onClick={onClose}
             className="flex h-10 w-10 items-center justify-center transition-opacity hover:opacity-60"
           >
@@ -82,10 +93,11 @@ function CartPanel({ onClose }: { onClose: () => void }) {
 
         {items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-5 px-8 text-center">
-            <p className="font-display text-display-md">Tu carrito está vacío</p>
+            <p className="font-display text-display-md">{L.emptyTitle}</p>
             <p className="max-w-[28ch] text-sm text-dept-white/60">
-              ¿Tienes una cuenta? <span className="text-dept-white underline underline-offset-4">Inicia sesión</span> para
-              pagar más rápido.
+              {before}
+              {after !== "" || L.emptyText.includes(L.highlight) ? <span className="text-dept-white underline underline-offset-4">{L.highlight}</span> : null}
+              {after}
             </p>
             <Button
               variant="red"
@@ -95,7 +107,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
               data-testid="continue-shopping-btn"
               className="mt-2"
             >
-              Seguir comprando
+              {L.cont}
             </Button>
           </div>
         ) : (
@@ -103,35 +115,29 @@ function CartPanel({ onClose }: { onClose: () => void }) {
             <ul className="flex-1 overflow-y-auto px-6">
               {items.map((item) => (
                 <li
-                  key={`${item.handle}-${item.size}`}
+                  key={item.variantId}
                   className="grid grid-cols-[84px_1fr] gap-4 border-b border-white/10 py-5"
                 >
                   <Link
-                    href={`/products/${item.handle}`}
-                    onClick={onClose}
+                    href={item.handle ? `/products/${item.handle}` : "#"}
+                    onClick={item.handle ? onClose : (e) => e.preventDefault()}
                     className="relative block aspect-[4/5] overflow-hidden bg-dept-gray-900"
                   >
-                    <Image
-                      src={item.product.images[0]}
-                      alt={item.product.imageLabel}
-                      fill
-                      sizes="84px"
-                      className="object-cover"
-                    />
+                    {item.image && <Image src={item.image} alt={item.name} fill sizes="84px" className="object-cover" />}
                   </Link>
 
                   <div className="flex min-w-0 flex-col justify-between gap-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <Link
-                          href={`/products/${item.handle}`}
-                          onClick={onClose}
+                          href={item.handle ? `/products/${item.handle}` : "#"}
+                          onClick={item.handle ? onClose : (e) => e.preventDefault()}
                           className="link-underline font-condensed text-[13px] leading-snug tracking-[0.1em]"
                         >
-                          {item.product.name}
+                          {item.name}
                         </Link>
                         <p className="font-condensed mt-1 text-[11px] tracking-[0.2em] text-dept-gray-500">
-                          Talla {item.size}
+                          {L.size} {item.size}{!item.available ? " · no disponible" : ""}
                         </p>
                       </div>
                       <p className="font-condensed shrink-0 text-[13px] tracking-[0.06em] tabular-nums">
@@ -140,12 +146,13 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center" role="group" aria-label={`Cantidad de ${item.product.name}`}>
+                      <div className="flex items-center" role="group" aria-label={`Cantidad de ${item.name}`}>
                         <button
                           type="button"
                           className={stepBtn}
-                          aria-label="Quitar una unidad"
-                          onClick={() => setQty(item.handle, item.size, item.qty - 1)}
+                          aria-label={L.dec}
+                          disabled={busy}
+                          onClick={() => void setQty(item.variantId, item.qty - 1)}
                         >
                           −
                         </button>
@@ -155,9 +162,9 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                         <button
                           type="button"
                           className={stepBtn}
-                          aria-label="Añadir una unidad"
-                          disabled={item.qty >= 10}
-                          onClick={() => setQty(item.handle, item.size, item.qty + 1)}
+                          aria-label={L.inc}
+                          disabled={busy || item.qty >= item.maxQuantity}
+                          onClick={() => void setQty(item.variantId, item.qty + 1)}
                         >
                           +
                         </button>
@@ -165,10 +172,11 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                       <button
                         type="button"
                         data-testid="remove-item-btn"
-                        onClick={() => remove(item.handle, item.size)}
+                        disabled={busy}
+                        onClick={() => void remove(item.variantId)}
                         className="link-underline font-condensed text-[11px] tracking-[0.2em] text-dept-gray-300 hover:text-dept-white"
                       >
-                        Eliminar
+                        {L.remove}
                       </button>
                     </div>
                   </div>
@@ -177,19 +185,24 @@ function CartPanel({ onClose }: { onClose: () => void }) {
             </ul>
 
             <div className="border-t border-white/10 px-6 py-6">
+              {(error || warnings.length > 0) && (
+                <p role="alert" data-testid="cart-warning" className="font-condensed mb-4 text-[11px] leading-relaxed tracking-[0.12em] text-dept-red-light">
+                  {error ?? warnings.join(" · ")}
+                </p>
+              )}
               <div className="flex items-baseline justify-between">
-                <span className="font-condensed text-[11px] tracking-[0.24em] text-dept-gray-300">Subtotal</span>
+                <span className="font-condensed text-[11px] tracking-[0.24em] text-dept-gray-300">{L.subtotal}</span>
                 <span data-testid="cart-subtotal" className="font-display text-display-md tabular-nums">{formatCOP(subtotal)}</span>
               </div>
               <Button
-                href="/checkout"
+                href={checkoutHref}
                 variant="red"
                 size="lg"
                 arrow
                 className="mt-5 w-full"
                 onClick={onClose}
               >
-                Finalizar compra
+                {L.checkout}
               </Button>
               <button
                 type="button"
@@ -197,7 +210,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                 onClick={onClose}
                 className="link-underline font-condensed mx-auto mt-2 block text-[11px] tracking-[0.2em] text-dept-white/70 hover:text-dept-white"
               >
-                Seguir comprando
+                {L.cont}
               </button>
             </div>
           </>

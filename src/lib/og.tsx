@@ -10,10 +10,25 @@ interface OgOptions {
   subtitle?: string;
 }
 
+/** `photo` = archivo de public/images, o URL absoluta (medios de la API). Si no se puede leer, la tarjeta sale sin foto. */
+async function photoDataUrl(photo: string): Promise<string> {
+  try {
+    if (/^https?:\/\//.test(photo)) {
+      const res = await fetch(photo);
+      if (!res.ok) throw new Error("foto no disponible");
+      const type = res.headers.get("content-type") ?? "image/jpeg";
+      return `data:${type};base64,${Buffer.from(await res.arrayBuffer()).toString("base64")}`;
+    }
+    const file = await readFile(path.join(process.cwd(), "public", "images", photo.replace(/^\/?images\//, "")));
+    return `data:image/jpeg;base64,${file.toString("base64")}`;
+  } catch {
+    return "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+  }
+}
+
 /** 1200×630 social card: cropped photo, dark falloff, big uppercase headline. */
 export async function renderOg({ photo, kicker, title, subtitle }: OgOptions) {
-  const file = await readFile(path.join(process.cwd(), "public", "images", photo));
-  const src = `data:image/jpeg;base64,${file.toString("base64")}`;
+  const src = await photoDataUrl(photo);
 
   return new ImageResponse(
     (

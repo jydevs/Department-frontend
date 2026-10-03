@@ -5,45 +5,11 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { clsx } from "@/lib/clsx";
 import { useCart } from "@/lib/cart";
-import { products } from "@/data/products";
 import { Marquee } from "@/components/ui/Marquee";
 import { Logo } from "./Logo";
 import { useOverlay } from "./OverlayProvider";
 import { useChromeState } from "./useChromeState";
-
-interface NavItem {
-  label: string;
-  href: string;
-  /** small superscript, e.g. number of pieces */
-  sup?: string;
-  active: (pathname: string) => boolean;
-}
-
-const NAV: NavItem[] = [
-  { label: "Home", href: "/", active: (p) => p === "/" },
-  {
-    label: "Clothes",
-    href: "/collections/all",
-    sup: String(products.length).padStart(2, "0"),
-    active: (p) => p.startsWith("/collections") || p.startsWith("/products"),
-  },
-  { label: "Community", href: "/pages/contact", active: (p) => p.startsWith("/pages") },
-];
-
-const MENU_LINKS = [
-  { label: "Home", href: "/" },
-  { label: "Clothes", href: "/collections/all" },
-  { label: "Men", href: "/collections/men" },
-  { label: "Women", href: "/collections/women" },
-  { label: "Community", href: "/pages/contact" },
-];
-
-const ANNOUNCEMENT = [
-  "Rags to Riches — Extended Version",
-  "Uniforms for the unnoticed",
-  "Regular members only",
-  "Precios en COP",
-];
+import { cfg, useSite } from "./SiteProvider";
 
 /** pages that open on a full-bleed photo: the header starts transparent there */
 function hasHero(pathname: string) {
@@ -83,8 +49,25 @@ export function Header() {
   const { openAccount, openCart, openSearch } = useOverlay();
   const { count } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
+  const site = useSite();
+  const h = cfg(site.header);
+  const showSearch = h.bool("showSearch", true), showAccount = h.bool("showAccount", true), showCart = h.bool("showCart", true);
+  const showCount = h.bool("showProductCount", true);
+  const logoVariant = h.str("logoVariant", "red") === "black" ? "black" : "red";
+  const L = {
+    home: h.str("homeAriaLabel", "Daregular Dept. — inicio"), search: h.str("searchLabel", "Buscar"), account: h.str("accountLabel", "Cuenta"),
+    cart: h.str("cartLabel", "Carrito"), open: h.str("menuOpenLabel", "Abrir menú"), close: h.str("menuCloseLabel", "Cerrar menú"),
+    nav: h.str("navLabel", "Principal"), mobile: h.str("mobileMenuLabel", "Menú"), tagline: h.str("mobileMenuTagline", site.tagline),
+  };
+  const ann = site.announcement;
+  const showAnn = h.bool("showAnnouncement", true) && ann.enabled && ann.items.length > 0;
+  // enlaces: nivel 1 del menú; en móvil también sus hijos
+  const nav = site.nav.map((n) => ({ ...n, sup: showCount && n.isCatalog ? String(site.productCount).padStart(2, "0") : undefined }));
+  const MENU_LINKS = site.nav.flatMap((n) => [{ label: n.label, href: n.href }, ...n.children]);
+  const isActive = (href: string, isCatalog: boolean) =>
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`) || (isCatalog && (pathname.startsWith("/collections") || pathname.startsWith("/products")));
 
-  const overlayPage = hasHero(pathname);
+  const overlayPage = h.bool("transparentOnHero", true) && hasHero(pathname);
   const atTop = chrome === "top";
   const solid = !overlayPage || !atTop || menuOpen;
   const hidden = chrome === "hidden" && !menuOpen;
@@ -142,18 +125,22 @@ export function Header() {
           )}
         />
 
+        {!showAnn && <style>{":root{--announce-h:0px}"}</style>}
         {/* announcement ticker — collapses once the page scrolls */}
         <div
           className={clsx(
             "relative grid transition-[grid-template-rows] duration-500 ease-out-expo",
-            atTop ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            atTop && showAnn ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
           )}
         >
           <div className="min-h-0 overflow-hidden">
-            <div className="flex h-[var(--announce-h)] items-center bg-dept-red text-dept-white">
+            <div
+              className="flex h-[var(--announce-h)] items-center bg-dept-red text-dept-white"
+              style={{ background: ann.backgroundColor || undefined, color: ann.textColor || undefined }}
+            >
               <Marquee
-                items={ANNOUNCEMENT}
-                duration={38}
+                items={ann.items}
+                duration={ann.duration}
                 separator="✦"
                 separatorClassName="text-dept-white/70"
                 itemClassName="font-condensed text-[11px] tracking-[0.24em]"
@@ -165,10 +152,10 @@ export function Header() {
 
         {/* main bar */}
         <div className="relative grid h-[var(--header-h)] grid-cols-[1fr_auto_1fr] items-center px-gutter">
-          <nav aria-label="Principal" className="flex items-center">
+          <nav aria-label={L.nav} className="flex items-center">
             <button
               type="button"
-              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+              aria-label={menuOpen ? L.close : L.open}
               aria-expanded={menuOpen}
               aria-controls="mobile-menu"
               data-testid="mobile-menu"
@@ -190,8 +177,8 @@ export function Header() {
             </button>
 
             <ul className="hidden items-center gap-9 md:flex">
-              {NAV.map((item) => {
-                const active = item.active(pathname);
+              {nav.map((item) => {
+                const active = isActive(item.href, item.isCatalog);
                 return (
                   <li key={item.href}>
                     <Link
@@ -216,16 +203,16 @@ export function Header() {
           <Link
             href="/"
             data-testid="logo"
-            aria-label="Daregular Dept. — inicio"
+            aria-label={L.home}
             className="justify-self-center px-2 transition-opacity duration-300 hover:opacity-80"
           >
-            <Logo variant="red" size="lg" className="h-8 w-auto md:h-10" />
+            <Logo variant={logoVariant} size="lg" className="h-8 w-auto md:h-10" />
           </Link>
 
           <div className="flex items-center justify-end gap-0.5">
-            <button
+            {showSearch && <button
               type="button"
-              aria-label="Buscar"
+              aria-label={L.search}
               data-testid="search-button"
               onClick={openSearch}
               className={iconBtn}
@@ -234,10 +221,10 @@ export function Header() {
                 <circle cx="11" cy="11" r="7" />
                 <path d="M20 20l-3.5-3.5" />
               </Icon>
-            </button>
-            <button
+            </button>}
+            {showAccount && <button
               type="button"
-              aria-label="Cuenta"
+              aria-label={L.account}
               data-testid="account-button"
               aria-haspopup="dialog"
               onClick={openAccount}
@@ -247,10 +234,10 @@ export function Header() {
                 <circle cx="12" cy="8" r="4" />
                 <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
               </Icon>
-            </button>
-            <button
+            </button>}
+            {showCart && <button
               type="button"
-              aria-label={count ? `Carrito, ${count} artículos` : "Carrito"}
+              aria-label={count ? `${L.cart}, ${count} artículos` : L.cart}
               data-testid="cart-button"
               aria-haspopup="dialog"
               onClick={openCart}
@@ -267,7 +254,7 @@ export function Header() {
               >
                 {count}
               </span>
-            </button>
+            </button>}
           </div>
         </div>
       </header>
@@ -281,7 +268,7 @@ export function Header() {
           menuOpen ? "visible opacity-100" : "invisible opacity-0",
         )}
       >
-        <nav aria-label="Menú">
+        <nav aria-label={L.mobile}>
           <ul>
             {MENU_LINKS.map((link, i) => (
               <li key={link.href} className="border-b border-white/10">
@@ -313,7 +300,7 @@ export function Header() {
 
         <div className="flex items-end justify-between gap-6">
           <p className="max-w-[16ch] font-condensed text-[11px] leading-relaxed tracking-[0.2em] text-dept-gray-500">
-            Uniforms for the unnoticed.
+            {L.tagline}
           </p>
           <div className="flex gap-3">
             <button
@@ -325,7 +312,7 @@ export function Header() {
               }}
               className="font-condensed border border-white/25 px-4 py-2.5 text-[11px] tracking-[0.2em] text-dept-white"
             >
-              Cuenta
+              {L.account}
             </button>
             <button
               type="button"
@@ -336,7 +323,7 @@ export function Header() {
               }}
               className="font-condensed border border-white/25 px-4 py-2.5 text-[11px] tracking-[0.2em] text-dept-white"
             >
-              Carrito{count ? ` (${count})` : ""}
+              {L.cart}{count ? ` (${count})` : ""}
             </button>
           </div>
         </div>

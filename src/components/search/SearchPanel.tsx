@@ -10,14 +10,13 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useRouter } from "next/navigation";
-import { products } from "@/data/products";
 import type { Product } from "@/data/types";
+import { apiFetch } from "@/lib/api/client";
+import { fromSummary } from "@/lib/api/map";
+import type { ApiSearch, Cursor, ApiProductSummary } from "@/lib/api/types";
+import { cfg, useSite } from "@/components/layout/SiteProvider";
 import { SearchResultRow } from "./SearchResultRow";
 import { SearchSuggestions } from "./SearchSuggestions";
-import { searchProducts } from "./search";
-
-/** "Más buscado": the first four products that are still available. */
-const FEATURED: Product[] = products.filter((p) => p.badge !== "agotado").slice(0, 4);
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]';
 
@@ -47,13 +46,54 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
   /** true when the last active-row change came from the keyboard → scroll it into view */
   const scrollActive = useRef(false);
 
+  const site = useSite();
+  const c = cfg(site.search.settings);
+  const L = {
+    title: c.str("title", "Buscar"), placeholder: c.str("placeholder", "¿Qué buscas?"), close: c.str("closeLabel", "Cerrar"),
+    suggestions: c.str("suggestionsTitle", "Sugerencias"), popular: c.str("popularTitle", "Más buscado"),
+    one: c.str("resultSingular", "resultado"), many: c.str("resultPlural", "resultados"),
+    noTitle: c.str("noResultsTitle", "Sin resultados para «{query}»"), noText: c.str("noResultsText", "Prueba con otro nombre o explora las colecciones."),
+    popularLimit: c.num("popularLimit", 4),
+  };
+
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(-1);
+  const [featured, setFeatured] = useState<Product[]>([]);
+  const [results, setResults] = useState<Product[]>([]);
+  const [searching, setSearching] = useState(false);
 
   const trimmed = query.trim();
   const hasQuery = trimmed.length > 0;
-  const results = hasQuery ? searchProducts(query, products) : [];
-  const items = hasQuery ? results : FEATURED;
+  const items = hasQuery ? results : featured;
+
+  // "Más buscado": los productos más recientes disponibles
+  useEffect(() => {
+    const ctl = new AbortController();
+    apiFetch<Cursor<ApiProductSummary>>("/storefront/products", { query: { limit: L.popularLimit, sort: "newest" }, signal: ctl.signal })
+      .then((r) => setFeatured(r.items.filter((p) => p.available).map(fromSummary)))
+      .catch(() => undefined);
+    return () => ctl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // búsqueda en la API con espera de 250 ms (la API pide 2 caracteres como mínimo)
+  useEffect(() => {
+    if (trimmed.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const ctl = new AbortController();
+    const t = setTimeout(() => {
+      apiFetch<ApiSearch>("/storefront/search", { query: { q: trimmed }, signal: ctl.signal })
+        .then((r) => setResults(r.products.map(fromSummary)))
+        .catch((e: unknown) => { if (!(e instanceof DOMException)) setResults([]); })
+        .finally(() => { if (!ctl.signal.aborted) setSearching(false); });
+    }, 250);
+    return () => { clearTimeout(t); ctl.abort(); };
+  }, [trimmed]);
   const activeIdx = active >= 0 && active < items.length ? active : -1;
   const optionId = (product: Product) => `${uid}-opt-${product.handle}`;
   const activeId = activeIdx >= 0 ? optionId(items[activeIdx]) : undefined;
@@ -155,14 +195,14 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
   };
 
   const count = results.length;
-  const status = hasQuery ? `${count} ${count === 1 ? "resultado" : "resultados"}` : "";
+  const status = hasQuery ? (searching ? "…" : `${count} ${count === 1 ? L.one : L.many}`) : "";
 
   return (
     <div
       ref={rootRef}
       role="dialog"
       aria-modal="true"
-      aria-label="Buscar"
+      aria-label={L.title}
       data-testid="search-overlay"
       style={{ animation: "search-overlay-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) backwards" }}
       className="fixed inset-0 z-[60] flex flex-col bg-dept-black/95 text-dept-white"
@@ -171,10 +211,10 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
 
       {/* Top bar */}
       <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-white/10 px-gutter">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">Buscar</p>
+        <p className="text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">{L.title}</p>
         <button
           type="button"
-          aria-label="Cerrar"
+          aria-label={L.close}
           onClick={onClose}
           className="flex size-11 items-center justify-center border border-white/15 text-lg leading-none transition-colors duration-300 ease-out-expo hover:border-dept-white hover:bg-dept-white hover:text-dept-black"
         >
@@ -201,7 +241,7 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
           autoCapitalize="off"
           spellCheck={false}
           enterKeyHint="search"
-          placeholder="¿Qué buscas?"
+          placeholder={L.placeholder}
           value={query}
           onChange={handleChange}
           onKeyDown={handleInputKeyDown}
@@ -228,13 +268,13 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
             </div>
           )}
 
-          {hasQuery && count === 0 && (
+          {hasQuery && count === 0 && !searching && trimmed.length >= 2 && (
             <div className="mb-12">
               <p className="font-display text-display-md break-words">
-                Sin resultados para «{trimmed}»
+                {L.noTitle.replace("{query}", trimmed)}
               </p>
               <p className="mt-3 text-sm text-dept-gray-500">
-                Prueba con otro nombre o explora las colecciones.
+                {L.noText}
               </p>
               <div className="mt-10">
                 <SearchSuggestions onNavigate={handleNavigate} />
@@ -246,13 +286,13 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
             <section>
               {!hasQuery && (
                 <p className="mb-4 text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">
-                  Más buscado
+                  {L.popular}
                 </p>
               )}
               <ul
                 id={listId}
                 role="listbox"
-                aria-label={hasQuery ? "Resultados" : "Más buscado"}
+                aria-label={hasQuery ? c.str("resultsLabel", "Resultados") : L.popular}
                 className="grid border-t border-white/10 md:grid-cols-2 md:gap-x-12 md:border-t-0 md:[&>li:nth-child(-n+2)]:border-t md:[&>li:nth-child(-n+2)]:border-white/10"
               >
                 {items.map((product, i) => (

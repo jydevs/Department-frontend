@@ -7,7 +7,7 @@ export const ph = (label: string, hue = 0, w = 600, h = 750): string => {
 };
 
 const daysAgo = (d: number, h = 0): string => new Date(Date.now() - d * 864e5 - h * 36e5).toISOString();
-export const DEPARTMENTS = ["Amazonas","Antioquia","Arauca","Atlántico","Bogotá D.C.","Bolívar","Boyacá","Caldas","Caquetá","Casanare","Cauca","Cesar","Chocó","Córdoba","Cundinamarca","Guainía","Guaviare","Huila","La Guajira","Magdalena","Meta","Nariño","Norte de Santander","Putumayo","Quindío","Risaralda","San Andrés y Providencia","Santander","Sucre","Tolima","Valle del Cauca","Vaupés","Vichada"];
+export { DEPARTMENTS } from "@/lib/geo";
 
 const PRODUCT_DEFS: [string, string, number, number | undefined, string, string[]][] = [
   ["Camiseta Oversize Classic", "Camisetas", 129000, undefined, "active", ["oversize", "algodon", "basicos"]],

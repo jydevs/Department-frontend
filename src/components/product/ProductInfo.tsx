@@ -11,7 +11,6 @@ import { formatCOP } from "@/lib/format";
 import { StickyAddToCart } from "./StickyAddToCart";
 
 const MIN_QTY = 1;
-const MAX_QTY = 10;
 
 const microLabel = "text-[11px] tracking-[0.2em] text-dept-gray-500 uppercase";
 
@@ -28,8 +27,18 @@ function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+export interface ProductDetailLabels {
+  home: string; collection: string; collectionHandle: string; size: string; quantity: string; max: number; add: string; soldOut: string; sale: string;
+  noPrice: string; sizeRequired: string; stickyAdd: string; stickyChoose: string; showDiscount: boolean; sticky: boolean;
+}
+export const DEFAULT_DETAIL_LABELS: ProductDetailLabels = {
+  home: "Inicio", collection: "Clothes", collectionHandle: "all", size: "Talla", quantity: "Cantidad", max: 10, add: "Añadir al carrito", soldOut: "Agotado", sale: "Oferta",
+  noPrice: "Precio no disponible", sizeRequired: "Selecciona una talla", stickyAdd: "Añadir", stickyChoose: "Elegir talla", showDiscount: true, sticky: true,
+};
+
 interface ProductInfoProps {
   product: Product;
+  labels?: ProductDetailLabels;
 }
 
 /**
@@ -37,11 +46,13 @@ interface ProductInfoProps {
  * quantity stepper and the add-to-cart CTA (+ the mobile sticky bar).
  * `lg:sticky` so it stays in view while the tall photo column scrolls.
  */
-export function ProductInfo({ product }: ProductInfoProps) {
-  const { handle, name, price, compareAtPrice, badge, sizes, description } = product;
+export function ProductInfo({ product, labels = DEFAULT_DETAIL_LABELS }: ProductInfoProps) {
+  const L = labels;
+  const MAX_QTY = L.max;
+  const { handle, name, price, compareAtPrice, badge, sizes, description, variants } = product;
   const soldOut = badge === "agotado";
 
-  const { add } = useCart();
+  const { add, busy, error: cartError } = useCart();
   const { openCart } = useOverlay();
 
   const [size, setSize] = useState<string | null>(null);
@@ -111,14 +122,13 @@ export function ProductInfo({ product }: ProductInfoProps) {
     }
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (soldOut) return;
-    const chosenSize = size || sizes[0] || "M";
-    if (!size) {
-      setSize(chosenSize);
-    }
-    add(handle, chosenSize, qty);
-    openCart();
+    const chosenSize = size || sizes.find((s) => variants.find((v) => v.size === s)?.available) || sizes[0];
+    if (!size && chosenSize) setSize(chosenSize);
+    const variant = variants.find((v) => v.size === chosenSize);
+    if (!variant) return requireSize();
+    if (await add(variant.id, qty, handle)) openCart();
   };
 
   return (
@@ -131,16 +141,16 @@ export function ProductInfo({ product }: ProductInfoProps) {
         <ol className={clsx("flex flex-wrap items-center gap-x-2 gap-y-1", microLabel)}>
           <li>
             <Link href="/" className="transition-colors duration-300 ease-out-expo hover:text-dept-white">
-              Inicio<span className="sr-only"> Home</span>
+              {L.home}<span className="sr-only"> Home</span>
             </Link>
           </li>
           <li aria-hidden>/</li>
           <li>
             <Link
-              href="/collections/all"
+              href={`/collections/${L.collectionHandle}`}
               className="transition-colors duration-300 ease-out-expo hover:text-dept-white"
             >
-              Clothes
+              {L.collection}
             </Link>
           </li>
           <li aria-hidden>/</li>
@@ -160,7 +170,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
               : "border border-dept-red bg-dept-red text-dept-white",
           )}
         >
-          {badge === "agotado" ? "Agotado" : "Oferta"}
+          {badge === "agotado" ? L.soldOut : L.sale}
         </p>
       )}
       <h1 className={clsx("font-display text-display-md text-balance", badge ? "mt-4" : "mt-8")}>{name}</h1>
@@ -169,9 +179,9 @@ export function ProductInfo({ product }: ProductInfoProps) {
       <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
         <p className="font-condensed text-2xl tabular-nums tracking-[0.04em] md:text-3xl">
           <span className="sr-only">Precio: </span>
-          <span data-testid="product-price">{price && price > 0 ? formatCOP(price) : "Precio no disponible"}</span>
+          <span data-testid="product-price">{price && price > 0 ? formatCOP(price) : L.noPrice}</span>
         </p>
-        {discount != null && compareAtPrice != null && (
+        {L.showDiscount && discount != null && compareAtPrice != null && (
           <>
             <p className="font-condensed text-base tabular-nums text-dept-gray-500 line-through">
               <span className="sr-only">Precio anterior: </span>
@@ -184,17 +194,19 @@ export function ProductInfo({ product }: ProductInfoProps) {
         )}
       </div>
 
-      <p className="mt-6 max-w-prose font-body text-sm leading-relaxed text-white/70 md:text-base">
-        {description}
-      </p>
+      <div className="mt-6 max-w-prose space-y-3 font-body text-sm leading-relaxed text-white/70 md:text-base">
+        {description.split(/\n{2,}/).map((p, i) => (
+          <p key={i}>{p}</p>
+        ))}
+      </div>
 
       {/* size */}
       <div className="mt-8 border-t border-white/10 pt-6">
-        <p className={microLabel}>Talla</p>
+        <p className={microLabel}>{L.size}</p>
         <div
           ref={groupRef}
           role="radiogroup"
-          aria-label="Talla"
+          aria-label={L.size}
           aria-required
           aria-invalid={showError}
           aria-describedby={errorId}
@@ -214,7 +226,7 @@ export function ProductInfo({ product }: ProductInfoProps) {
                 role="radio"
                 data-testid="size-option"
                 aria-checked={selected}
-                disabled={soldOut}
+                disabled={soldOut || variants.find((v) => v.size === s)?.available === false}
                 tabIndex={selected || (size === null && i === 0) ? 0 : -1}
                 onClick={() => selectSize(s)}
                 className={clsx(
@@ -237,13 +249,13 @@ export function ProductInfo({ product }: ProductInfoProps) {
         </div>
         {/* always mounted so the alert is announced when its text appears; reserved height = no layout shift */}
         <p id={errorId} role="alert" className="mt-2 min-h-5 font-body text-[13px] text-dept-red-light">
-          {showError ? "Selecciona una talla" : null}
+          {showError ? L.sizeRequired : cartError}
         </p>
       </div>
 
       {/* quantity */}
       <div className="mt-4">
-        <p className={microLabel}>Cantidad</p>
+        <p className={microLabel}>{L.quantity}</p>
         <div className="mt-3 inline-flex items-stretch border border-white/20">
           <button
             type="button"
@@ -278,22 +290,24 @@ export function ProductInfo({ product }: ProductInfoProps) {
           variant="red"
           size="lg"
           arrow={!soldOut}
-          disabled={soldOut}
-          onClick={() => handleAdd()}
+          disabled={soldOut || busy}
+          onClick={() => void handleAdd()}
           className="w-full"
           data-testid="add-to-cart-btn"
         >
-          {soldOut ? "Agotado" : "Añadir al carrito"}
+          {soldOut ? L.soldOut : L.add}
         </Button>
       </div>
 
-      {!soldOut && (
+      {!soldOut && L.sticky && (
         <StickyAddToCart
           name={name}
           price={price}
           targetRef={ctaRef}
           hasSize={size !== null}
-          onAction={() => handleAdd()}
+          addLabel={L.stickyAdd}
+          chooseLabel={L.stickyChoose}
+          onAction={() => void handleAdd()}
         />
       )}
     </div>

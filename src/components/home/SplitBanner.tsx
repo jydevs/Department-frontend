@@ -1,43 +1,37 @@
 import Link from "next/link";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { Reveal } from "@/components/ui/Reveal";
-import { getCollectionProducts } from "@/data/products";
+import { getCollectionCount } from "@/lib/api/catalog";
+import { blocksOf, bool, optStr, str, type CmsSection } from "@/lib/cms/types";
+import { safeHref } from "@/lib/url";
 
 /**
- * 50/50 collection entry: WOMEN → /collections/women, MEN → /collections/men.
- * Photos start slightly desaturated and bloom on hover; a square arrow fills in.
- * Stacks on mobile.
+ * Entrada 50/50 a colecciones (sección `split-banner`, bloques `tile`). Las fotos arrancan algo
+ * desaturadas y florecen al pasar el cursor; en móvil se apilan.
  */
-const TILES = [
-  {
-    label: "Women",
-    handle: "women" as const,
-    src: "/images/banner-women.jpg",
-    alt: "Colección Women — mujer de pie frente a un muro con grafiti",
-  },
-  {
-    label: "Men",
-    handle: "men" as const,
-    src: "/images/banner-men.jpg",
-    alt: "Colección Men — grupo posando frente a un muro",
-  },
-];
+export async function SplitBanner({ section }: { section: CmsSection }) {
+  const s = section.settings;
+  const tiles = blocksOf(section, "tile");
+  if (!tiles.length) return null;
+  const counts = bool(s, "showCount", true) ? await Promise.all(tiles.map((t) => (optStr(t.settings, "collectionHandle") ? getCollectionCount(str(t.settings, "collectionHandle")) : Promise.resolve(undefined)))) : [];
+  const numbered = bool(s, "numbered", true);
 
-export function SplitBanner() {
   return (
-    <section aria-label="Colecciones" className="grid gap-px bg-white/10 md:grid-cols-2">
-      {TILES.map((tile, i) => {
-        const count = getCollectionProducts(tile.handle).length;
+    <section aria-label={optStr(s, "ariaLabel")} className="grid gap-px bg-white/10 md:grid-cols-2" style={{ background: optStr(s, "backgroundColor") }}>
+      {tiles.map((tile, i) => {
+        const t = tile.settings;
+        const label = str(t, "label");
+        const eyebrow = [numbered ? `0${i + 1}` : null, counts[i] !== undefined ? `${String(counts[i]).padStart(2, "0")} ${str(s, "countLabel", "piezas")}` : null].filter(Boolean).join(" — ");
         return (
-          <Reveal key={tile.handle} delay={i * 120} className="h-full bg-dept-black">
+          <Reveal key={tile.id} delay={i * 120} className="h-full bg-dept-black">
             <Link
-              href={`/collections/${tile.handle}`}
-              aria-label={`Ver colección ${tile.label}`}
+              href={optStr(t, "collectionHandle") ? `/collections/${encodeURIComponent(str(t, "collectionHandle"))}` : (safeHref(optStr(t, "href")) ?? "/")}
+              aria-label={optStr(t, "ariaLabel") ?? label}
               className="group relative block aspect-[4/5] overflow-hidden md:aspect-auto md:h-[92svh]"
             >
               <PlaceholderImage
-                label={tile.alt}
-                src={tile.src}
+                label={str(t, "imageAlt", label)}
+                src={optStr(t, "imageUrl")}
                 tone="dark"
                 hideLabel
                 fill
@@ -48,12 +42,8 @@ export function SplitBanner() {
 
               <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-6 p-[var(--gutter)]">
                 <div>
-                  <p className="font-condensed mb-3 text-[11px] tracking-[0.28em] text-dept-white/80">
-                    0{i + 1} — {String(count).padStart(2, "0")} piezas
-                  </p>
-                  <span className="font-display block text-display-xl text-dept-white transition-transform duration-700 ease-out-expo group-hover:translate-x-2">
-                    {tile.label}
-                  </span>
+                  {eyebrow && <p className="font-condensed mb-3 text-[11px] tracking-[0.28em] text-dept-white/80">{eyebrow}</p>}
+                  <span className="font-display block text-display-xl text-dept-white transition-transform duration-700 ease-out-expo group-hover:translate-x-2">{label}</span>
                 </div>
                 <span
                   aria-hidden

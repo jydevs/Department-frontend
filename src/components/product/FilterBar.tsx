@@ -22,11 +22,22 @@ export const DEFAULT_FILTER: FilterState = {
   sort: "featured",
 };
 
+export interface FilterLabels {
+  filter: string; availability: string; price: string; sort: string; all: string; inStock: string; soldOut: string;
+  featured: string; priceAsc: string; priceDesc: string; reset: string; items: string;
+}
+export const DEFAULT_FILTER_LABELS: FilterLabels = {
+  filter: "Filtrar", availability: "Availability", price: "Price", sort: "Ordenar", all: "Todos", inStock: "En stock", soldOut: "Agotado",
+  featured: "Destacado", priceAsc: "Precio: menor a mayor", priceDesc: "Precio: mayor a menor", reset: "Limpiar filtros", items: "artículos",
+};
+
 interface FilterBarProps {
   /** number of items currently shown */
   count: number;
   value: FilterState;
   onChange: (next: FilterState) => void;
+  /** textos editables desde el CMS (sección `product-grid`) */
+  labels?: FilterLabels;
 }
 
 type MenuId = "availability" | "price" | "sort";
@@ -35,23 +46,6 @@ interface Option<T extends string> {
   value: T;
   label: string;
 }
-
-const AVAILABILITY: Option<Availability>[] = [
-  { value: "all", label: "Todos" },
-  { value: "in-stock", label: "En stock" },
-  { value: "sold-out", label: "Agotado" },
-];
-
-const PRICE: Option<SortOrder>[] = [
-  { value: "price-asc", label: "Precio: menor a mayor" },
-  { value: "price-desc", label: "Precio: mayor a menor" },
-];
-
-const SORT: Option<SortOrder>[] = [
-  { value: "featured", label: "Destacado" },
-  { value: "price-asc", label: "Precio: menor a mayor" },
-  { value: "price-desc", label: "Precio: mayor a menor" },
-];
 
 function Caret({ open }: { open: boolean }) {
   return (
@@ -72,6 +66,7 @@ function Caret({ open }: { open: boolean }) {
 
 interface DropdownProps<T extends string> {
   id: MenuId;
+  resetLabel?: string;
   label: string;
   options: Option<T>[];
   selected: T | null;
@@ -88,6 +83,7 @@ interface DropdownProps<T extends string> {
 
 function Dropdown<T extends string>({
   id,
+  resetLabel = "Limpiar filtros",
   label,
   options,
   selected,
@@ -152,7 +148,7 @@ function Dropdown<T extends string>({
               onClick={onReset}
               className="flex w-full items-center justify-between border-t border-white/10 px-4 py-3 text-left text-[11px] tracking-[0.18em] text-dept-red hover:bg-white/10 focus-visible:bg-dept-white focus-visible:text-dept-black"
             >
-              <span>Limpiar filtros</span>
+              <span>{resetLabel}</span>
               <span aria-hidden>✕</span>
             </button>
           )}
@@ -162,7 +158,11 @@ function Dropdown<T extends string>({
   );
 }
 
-export function FilterBar({ count, value, onChange }: FilterBarProps) {
+export function FilterBar({ count, value, onChange, labels = DEFAULT_FILTER_LABELS }: FilterBarProps) {
+  const L = labels;
+  const AVAILABILITY: Option<Availability>[] = [{ value: "all", label: L.all }, { value: "in-stock", label: L.inStock }, { value: "sold-out", label: L.soldOut }];
+  const PRICE: Option<SortOrder>[] = [{ value: "price-asc", label: L.priceAsc }, { value: "price-desc", label: L.priceDesc }];
+  const SORT: Option<SortOrder>[] = [{ value: "featured", label: L.featured }, { value: "price-asc", label: L.priceAsc }, { value: "price-desc", label: L.priceDesc }];
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const availabilityRef = useRef<HTMLButtonElement>(null);
@@ -197,10 +197,11 @@ export function FilterBar({ count, value, onChange }: FilterBarProps) {
       className="font-condensed relative z-20 flex items-center justify-between gap-4 border-y border-white/10 bg-dept-black px-gutter py-3.5 text-[11px] tracking-[0.16em] text-dept-white sm:gap-6 sm:text-[12px] sm:tracking-[0.2em]"
     >
       <div className="flex items-center gap-5 sm:gap-7">
-        <span className="hidden text-[11px] text-dept-gray-500 sm:block">Filtrar</span>
+        <span className="hidden text-[11px] text-dept-gray-500 sm:block">{L.filter}</span>
         <Dropdown
           id="availability"
-          label="Availability"
+          label={L.availability}
+          resetLabel={L.reset}
           testId="filter-btn"
           options={AVAILABILITY}
           selected={value.availability}
@@ -219,7 +220,7 @@ export function FilterBar({ count, value, onChange }: FilterBarProps) {
         />
         <Dropdown
           id="price"
-          label="Price"
+          label={L.price}
           options={PRICE}
           selected={priceSorted ? value.sort : null}
           openMenu={openMenu}
@@ -251,11 +252,11 @@ export function FilterBar({ count, value, onChange }: FilterBarProps) {
 
       <div className="flex items-center gap-5 sm:gap-7">
         <span className="hidden text-[11px] tabular-nums text-dept-gray-300 sm:block" aria-live="polite">
-          {String(count).padStart(2, "0")} artículos
+          {String(count).padStart(2, "0")} {L.items}
         </span>
         <Dropdown
           id="sort"
-          label="Ordenar"
+          label={L.sort}
           options={SORT}
           selected={value.sort}
           openMenu={openMenu}

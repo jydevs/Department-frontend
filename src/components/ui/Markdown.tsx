@@ -1,5 +1,5 @@
 import { Fragment, type ReactNode } from "react";
-import { safeHref } from "@/lib/admin/format";
+import { safeHref } from "@/lib/url";
 
 /** Renderer Markdown mínimo y seguro: nunca inserta HTML; los enlaces pasan por `safeHref`. */
 function inline(text: string): ReactNode[] {

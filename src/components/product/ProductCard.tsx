@@ -11,6 +11,7 @@ interface ProductCardProps {
   sizes?: string;
   priority?: boolean;
   className?: string;
+  badgeLabels?: { soldOut: string; sale: string };
 }
 
 /**
@@ -23,6 +24,7 @@ export function ProductCard({
   sizes = "(min-width: 1024px) 25vw, 50vw",
   priority = false,
   className,
+  badgeLabels,
 }: ProductCardProps) {
   const soldOut = product.badge === "agotado";
   const onSale = product.badge === "oferta" && product.compareAtPrice != null;
@@ -66,7 +68,7 @@ export function ProductCard({
               soldOut ? "bg-dept-white text-dept-black" : "bg-dept-red text-dept-white",
             )}
           >
-            {soldOut ? "Agotado" : "Oferta"}
+            {soldOut ? (badgeLabels?.soldOut ?? "Agotado") : (badgeLabels?.sale ?? "Oferta")}
           </span>
         )}
 

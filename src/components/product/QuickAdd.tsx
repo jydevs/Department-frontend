@@ -22,19 +22,19 @@ export function QuickAdd({ product }: { product: Product }) {
       <p className="font-condensed mb-2 text-[10px] tracking-[0.24em] text-dept-gray-300">
         Añadir rápido
       </p>
-      <div className="grid grid-cols-4 gap-px bg-white/15">
-        {product.sizes.map((size) => (
+      <div className="grid gap-px bg-white/15" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(6, product.variants.length))}, minmax(0, 1fr))` }}>
+        {product.variants.map((v) => (
           <button
-            key={size}
+            key={v.id}
             type="button"
-            onClick={() => {
-              add(product.handle, size);
-              openCart();
+            disabled={!v.available}
+            onClick={async () => {
+              if (await add(v.id, 1, product.handle)) openCart();
             }}
-            className="font-condensed bg-dept-black py-2.5 text-xs tracking-[0.12em] text-dept-white transition-colors duration-200 hover:bg-dept-white hover:text-dept-black focus-visible:bg-dept-white focus-visible:text-dept-black"
-            aria-label={`Talla ${size}`}
+            className="font-condensed bg-dept-black py-2.5 text-xs tracking-[0.12em] text-dept-white transition-colors duration-200 hover:bg-dept-white hover:text-dept-black focus-visible:bg-dept-white focus-visible:text-dept-black disabled:opacity-30 disabled:hover:bg-dept-black disabled:hover:text-dept-white"
+            aria-label={`Talla ${v.size}`}
           >
-            {size}
+            {v.size}
           </button>
         ))}
       </div>

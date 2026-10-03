@@ -3,7 +3,10 @@ import { clsx } from "@/lib/clsx";
 import { Reveal } from "@/components/ui/Reveal";
 import { ProductCard } from "./ProductCard";
 
+export interface GridLabels { emptyTitle: string; emptyText: string; soldOut: string; sale: string }
+
 interface ProductGridProps {
+  labels?: GridLabels;
   products: Product[];
   className?: string;
   columns?: 3 | 4;
@@ -18,13 +21,13 @@ interface ProductGridProps {
  * columns = 4 (default): 2 / 3 / 4 columns (mobile / sm / lg)
  * columns = 3:           2 / 2 / 3 columns
  */
-export function ProductGrid({ products, className, columns = 4, priorityCount = 0 }: ProductGridProps) {
+export function ProductGrid({ products, className, columns = 4, priorityCount = 0, labels }: ProductGridProps) {
   if (products.length === 0) {
     return (
       <div className="px-gutter py-24 text-center">
-        <p className="font-display text-display-md text-dept-white">Sin resultados</p>
+        <p className="font-display text-display-md text-dept-white">{labels?.emptyTitle ?? "Sin resultados"}</p>
         <p className="font-condensed mt-3 text-[11px] tracking-[0.22em] text-dept-gray-500">
-          Prueba con otro filtro
+          {labels?.emptyText ?? "Prueba con otro filtro"}
         </p>
       </div>
     );
@@ -51,7 +54,7 @@ export function ProductGrid({ products, className, columns = 4, priorityCount = 
     >
       {products.map((product, i) => (
         <Reveal as="li" key={product.handle} delay={(i % cols) * 90}>
-          <ProductCard product={product} sizes={sizes} priority={i < priorityCount} />
+          <ProductCard product={product} sizes={sizes} priority={i < priorityCount} badgeLabels={labels} />
         </Reveal>
       ))}
     </ul>

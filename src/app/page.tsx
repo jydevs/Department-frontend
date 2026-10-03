@@ -1,25 +1,11 @@
-import { Hero } from "@/components/home/Hero";
-import { MarqueeBand } from "@/components/home/MarqueeBand";
-import { NewArrivals } from "@/components/home/NewArrivals";
-import { SplitBanner } from "@/components/home/SplitBanner";
-import { CampaignSection } from "@/components/home/CampaignSection";
-import { EditorialBlock } from "@/components/home/EditorialBlock";
-import { ValueProps } from "@/components/home/ValueProps";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
+import { getTemplate } from "@/lib/cms/content";
 
 /**
- * Home. Rhythm: hero → ticker → new arrivals → collections → campaign grid →
- * manifesto → values (the footer / newsletter is rendered by the root layout).
+ * Home dirigida por el CMS (`template/home`): hero, marquesina, novedades, colecciones, campaña, manifiesto y valores.
+ * Se edita en `/admin/content/templates/home`; publicar revalida la página (etiqueta `content:template:home`).
  */
-export default function HomePage() {
-  return (
-    <>
-      <Hero />
-      <MarqueeBand />
-      <NewArrivals />
-      <SplitBanner />
-      <CampaignSection />
-      <EditorialBlock />
-      <ValueProps />
-    </>
-  );
+export default async function HomePage() {
+  const home = await getTemplate("home");
+  return <SectionRenderer sections={home?.sections ?? []} />;
 }
