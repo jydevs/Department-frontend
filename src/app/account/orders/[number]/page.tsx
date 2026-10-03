@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { OrderView } from "@/components/checkout/OrderView";
-import { Loading, useRequireSession } from "@/components/account/ui";
+import { Loading, SessionPending, useRequireSession } from "@/components/account/ui";
 import { getOrder } from "@/lib/account";
 import { ApiError, friendlyError } from "@/lib/api/errors";
 import type { ApiPublicOrder } from "@/lib/api/types";
@@ -35,7 +35,7 @@ export default function AccountOrderPage() {
         </p>
         <h1 className="font-display text-display-xl mb-10">Pedido #{number}</h1>
         {error ? <p role="alert" className="font-condensed text-xs tracking-[0.1em] text-dept-red-light">{error}</p>
-          : status !== "authenticated" || !cur?.order ? <Loading /> : <OrderView order={cur.order} />}
+          : status !== "authenticated" ? <SessionPending status={status} /> : !cur?.order ? <Loading /> : <OrderView order={cur.order} />}
       </div>
     </div>
   );

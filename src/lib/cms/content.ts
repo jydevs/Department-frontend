@@ -2,19 +2,25 @@
  * Lectura del contenido publicado (o del borrador en modo vista previa) desde el CMS del backend.
  * Cada documento se cachea con la etiqueta `content:<kind>:<key>` (la misma que envía el backend en
  * `POST /api/revalidate`), de modo que publicar en el panel actualiza la tienda en segundos.
+ *
+ * Un documento que no existe (404) devuelve `null` y la tienda usa su contenido por defecto; un fallo de la API
+ * (red, 5xx) se lanza: nunca se cachea una página degradada (ver `lib/api/server.ts`).
  */
+import { cache } from "react";
 import { cookies, draftMode } from "next/headers";
 import { APP_ENV } from "@/lib/api/config";
 import { ApiError } from "@/lib/api/errors";
 import { sfGet } from "@/lib/api/server";
-import type { ApiContentDoc, ApiPageListItem, ApiRedirect } from "@/lib/api/types";
+import type { ApiContentDoc, ApiPageListItem } from "@/lib/api/types";
+import { safeLinkHref } from "./href";
 import type { MenuData, PageData, SiteSettings, TemplateData } from "./types";
 
 export const PREVIEW_COOKIE = "dept_preview";
 /** Respaldo por tiempo si el webhook de revalidación no llega (la etiqueta lo invalida antes). */
 const REVALIDATE = Number(process.env.CONTENT_REVALIDATE_SECONDS ?? (APP_ENV === "qa" ? 10 : 300));
 
-async function previewToken(): Promise<string | undefined> {
+/** Token de vista previa (modo borrador) de la petición actual, si lo hay. */
+export async function previewToken(): Promise<string | undefined> {
   try {
     const dm = await draftMode();
     if (!dm.isEnabled) return undefined;
@@ -39,27 +45,35 @@ async function getDoc<T>(path: string, tag: string): Promise<T | null> {
   return doc?.data ?? null;
 }
 
-export const getSettings = () => getDoc<SiteSettings>("/storefront/content/settings", "content:settings:site");
-export const getMenu = (key: string) => getDoc<MenuData>(`/storefront/content/menus/${encodeURIComponent(key)}`, `content:menu:${key}`);
-export const getTemplate = (key: string) => getDoc<TemplateData>(`/storefront/content/templates/${encodeURIComponent(key)}`, `content:template:${key}`);
-export const getPage = (key: string) => getDoc<PageData>(`/storefront/content/pages/${encodeURIComponent(key)}`, `content:page:${key}`);
+export const getSettings = cache(() => getDoc<SiteSettings>("/storefront/content/settings", "content:settings:site"));
+export const getMenu = cache((key: string) => getDoc<MenuData>(`/storefront/content/menus/${encodeURIComponent(key)}`, `content:menu:${key}`));
+export const getTemplate = cache((key: string) => getDoc<TemplateData>(`/storefront/content/templates/${encodeURIComponent(key)}`, `content:template:${key}`));
+export const getPage = cache((key: string) => getDoc<PageData>(`/storefront/content/pages/${encodeURIComponent(key)}`, `content:page:${key}`));
 
-export async function getPageList(): Promise<ApiPageListItem[]> {
-  return (await sfGet<ApiPageListItem[]>("/storefront/content/pages", { tags: ["content", "content:pages"], revalidate: REVALIDATE })) ?? [];
+export interface ContentBundle {
+  settings: SiteSettings | null;
+  menus: { main: MenuData | null; footer: MenuData | null };
+  template: TemplateData | null;
 }
 
-export async function getRedirects(): Promise<ApiRedirect[]> {
-  try {
-    return (await sfGet<ApiRedirect[]>("/storefront/redirects", { tags: ["content", "content:redirects"], revalidate: REVALIDATE })) ?? [];
-  } catch {
-    return [];
-  }
+/** Ajustes + menús `main`/`footer` + una plantilla en UNA petición (`/storefront/content/bundle`); no admite vista previa. */
+export const getBundle = cache(async (template: string): Promise<ContentBundle> => {
+  const b = await sfGet<{ settings: ApiContentDoc<SiteSettings> | null; menus: { main: ApiContentDoc<MenuData> | null; footer: ApiContentDoc<MenuData> | null }; template: ApiContentDoc<TemplateData> | null }>(
+    "/storefront/content/bundle",
+    { query: { template }, tags: ["content", "content:settings:site", "content:menu:main", "content:menu:footer", `content:template:${template}`], revalidate: REVALIDATE },
+  );
+  return { settings: b?.settings?.data ?? null, menus: { main: b?.menus.main?.data ?? null, footer: b?.menus.footer?.data ?? null }, template: b?.template?.data ?? null };
+});
+
+export async function getPageList(opts: { bail?: boolean } = {}): Promise<ApiPageListItem[]> {
+  return (await sfGet<ApiPageListItem[]>("/storefront/content/pages", { tags: ["content", "content:pages"], revalidate: REVALIDATE, bail: opts.bail })) ?? [];
 }
 
-/** Resuelve un enlace de menú del CMS a una ruta de la tienda. */
+/** Resuelve un enlace de menú del CMS a una ruta de la tienda o a un enlace seguro (https, mailto, tel); lo inseguro → "/". */
 export function menuHref(link: { type: string; handle?: string; url?: string }): string {
-  if (link.type === "collection") return `/collections/${link.handle}`;
-  if (link.type === "product") return `/products/${link.handle}`;
-  if (link.type === "page") return `/pages/${link.handle}`;
-  return link.url ?? "/";
+  const h = link.handle ? encodeURIComponent(link.handle) : "";
+  if (link.type === "collection") return h ? `/collections/${h}` : "/";
+  if (link.type === "product") return h ? `/products/${h}` : "/";
+  if (link.type === "page") return h ? `/pages/${h}` : "/";
+  return safeLinkHref(link.url);
 }

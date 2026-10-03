@@ -30,11 +30,16 @@ export interface ApiSearch { products: ApiProductSummary[]; collections: ApiColl
 /* ── carrito / checkout ── */
 export interface ApiCartLine {
   variantId: string; productId: string; productTitle: string; variantTitle: string; sku: string | null; imageUrl: string | null;
-  unitPrice: number; compareAtPrice: number | null; quantity: number; lineTotal: number; available: boolean; maxQuantity: number;
+  unitPrice: number; compareAtPrice: number | null; quantity: number; lineTotal: number; available: boolean;
+  /** unidades que se pueden comprar de esta variante; `null` = sin límite de stock (solo aplica el tope por línea del carrito) */
+  maxQuantity: number | null;
 }
+export type ApiQuoteWarningCode = "VARIANT_UNAVAILABLE" | "INSUFFICIENT_STOCK" | "DISCOUNT_INVALID";
+export interface ApiQuoteWarning { code: ApiQuoteWarningCode | (string & {}); message: string; variantId?: string }
+export interface ApiQuoteDiscount { code: string; type: "percent" | "fixed" | "free_shipping"; amount: number }
 export interface ApiQuote {
-  currency: string; lines: ApiCartLine[]; subtotal: number; discountTotal: number; discount: { code: string; title?: string } | null;
-  shippingTotal: number; shippingRate: { id: string; name: string } | null; taxTotal: number; total: number; warnings: string[];
+  currency: string; lines: ApiCartLine[]; subtotal: number; discountTotal: number; discount: ApiQuoteDiscount | null;
+  shippingTotal: number; shippingRate: { id: string; name: string } | null; taxTotal: number; total: number; warnings: ApiQuoteWarning[];
 }
 export interface ApiCart { id: string; currency: string; discountCode: string | null; itemCount: number; expiresAt: string; quote: ApiQuote }
 export interface ApiCartCreated { id: string; token: string; expiresAt: string }
@@ -59,5 +64,5 @@ export interface ApiPublicOrder {
 
 /* ── contenido (CMS) ── */
 export interface ApiContentDoc<T = unknown> { kind: "settings" | "menu" | "template" | "page"; key: string; title: string | null; data: T; publishedAt?: string | null }
-export interface ApiPageListItem { handle: string; title: string | null; key?: string; seoTitle?: string | null; publishedAt?: string | null }
+export interface ApiPageListItem { handle: string; title: string }
 export interface ApiRedirect { from: string; to: string; status: number }

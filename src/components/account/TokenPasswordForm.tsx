@@ -2,9 +2,9 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { AuthCard, Field, FormError, PASSWORD_HINT } from "./ui";
+import { AuthCard, AuthSkeleton, Field, FormError, PASSWORD_HINT, useUrlToken } from "./ui";
 import { friendlyError } from "@/lib/api/errors";
 
 interface Props {
@@ -18,7 +18,7 @@ interface Props {
 
 function Form(p: Props) {
   const router = useRouter();
-  const token = useSearchParams().get("token") ?? "";
+  const token = useUrlToken();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -74,5 +74,5 @@ function Form(p: Props) {
 }
 
 export function TokenPasswordForm(p: Props) {
-  return <Suspense fallback={null}><Form {...p} /></Suspense>;
+  return <Suspense fallback={<AuthSkeleton rows={2} />}><Form {...p} /></Suspense>;
 }

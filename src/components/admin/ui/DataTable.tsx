@@ -21,7 +21,7 @@ export function DataTable<R>({ columns, rows, rowKey, loading, error, caption, o
     <div className="overflow-hidden rounded-sm border border-line bg-surface">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <caption className="sr-only">{caption}</caption>
+          <caption className="sr-only">{caption}{onRowClick ? ". Pulsa Intro o Espacio sobre una fila para abrirla." : ""}</caption>
           <thead className="adm-label border-b border-line bg-surface2/50 !text-[10px]">
             <tr>
               {selectable && (
@@ -36,7 +36,7 @@ export function DataTable<R>({ columns, rows, rowKey, loading, error, caption, o
                     <button type="button" className="inline-flex min-h-10 items-center gap-1 uppercase tracking-[inherit] hover:text-fg" onClick={() => setSort(sort?.key === c.key ? { key: c.key, dir: sort.dir === 1 ? -1 : 1 } : { key: c.key, dir: 1 })}>
                       {c.header}{sort?.key === c.key && (sort.dir === 1 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
                     </button>
-                  ) : c.header}
+                  ) : c.header || <span className="sr-only">Acciones</span>}
                 </th>
               ))}
             </tr>
@@ -51,9 +51,9 @@ export function DataTable<R>({ columns, rows, rowKey, loading, error, caption, o
             {!loading && data?.map((r) => {
               const id = rowKey(r);
               return (
-                <tr key={id} className={clsx("border-b border-line last:border-0", onRowClick && "cursor-pointer hover:bg-surface2/60")}
+                <tr key={id} className={clsx("border-b border-line last:border-0", onRowClick && "cursor-pointer hover:bg-surface2/60 focus-visible:bg-surface2/60")}
                   tabIndex={onRowClick ? 0 : undefined} onClick={() => onRowClick?.(r)}
-                  onKeyDown={(e) => { if (onRowClick && e.key === "Enter" && e.target === e.currentTarget) onRowClick(r); }}>
+                  onKeyDown={(e) => { if (onRowClick && (e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); onRowClick(r); } }}>
                   {selectable && (
                     <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" aria-label="Seleccionar fila" className="size-[18px] accent-[var(--adm-accent)]" checked={sel.includes(id)} onChange={(e) => selectable.onChange(e.target.checked ? [...sel, id] : sel.filter((x) => x !== id))} />

@@ -13,7 +13,7 @@ export function OrderView({ order }: { order: ApiPublicOrder }) {
       <dl className="grid gap-6 sm:grid-cols-3">
         <div><dt className="font-condensed text-[11px] tracking-[0.2em] text-dept-gray-500">Pedido</dt><dd className="font-display text-display-md">#{order.orderNumber}</dd></div>
         <div><dt className="font-condensed text-[11px] tracking-[0.2em] text-dept-gray-500">Pago</dt><dd data-testid="order-payment-status" className="font-condensed text-lg tracking-[0.08em]">{PAYMENT_LABEL[order.paymentStatus] ?? order.paymentStatus}</dd></div>
-        <div><dt className="font-condensed text-[11px] tracking-[0.2em] text-dept-gray-500">Envío</dt><dd className="font-condensed text-lg tracking-[0.08em]">{order.status === "cancelled" ? "Cancelado" : (FULFILL_LABEL[order.fulfillmentStatus] ?? order.fulfillmentStatus)}</dd></div>
+        <div><dt className="font-condensed text-[11px] tracking-[0.2em] text-dept-gray-500">Envío</dt><dd className="font-condensed text-lg tracking-[0.08em]">{order.status === "cancelled" ? "Cancelado" : order.status === "expired" ? "Vencido" : (FULFILL_LABEL[order.fulfillmentStatus] ?? order.fulfillmentStatus)}</dd></div>
       </dl>
 
       <ul className="divide-y divide-white/10 border-y border-white/10">

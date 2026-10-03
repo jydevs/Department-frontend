@@ -7,6 +7,7 @@ import { Input } from "./Form";
 
 /** Pila de modales abiertos: solo el de arriba atiende Escape y gestiona el scroll del body. */
 const modalStack: symbol[] = [];
+const noop = () => undefined;
 
 function useModal(open: boolean, onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null);
@@ -43,18 +44,18 @@ function useModal(open: boolean, onClose: () => void) {
   return ref;
 }
 
-interface DlgProps { open: boolean; onClose: () => void; title: string; children: ReactNode; footer?: ReactNode; size?: "sm" | "md" | "lg" | "xl" }
-export function Dialog({ open, onClose, title, children, footer, size = "md" }: DlgProps) {
-  const ref = useModal(open, onClose);
+interface DlgProps { open: boolean; onClose: () => void; title: string; children: ReactNode; footer?: ReactNode; size?: "sm" | "md" | "lg" | "xl"; /** `false`: ni Escape, ni clic en el fondo, ni la X lo cierran (solo el botón del pie). Para datos que se muestran una sola vez. */ dismissable?: boolean }
+export function Dialog({ open, onClose, title, children, footer, size = "md", dismissable = true }: DlgProps) {
+  const ref = useModal(open, dismissable ? onClose : noop);
   const id = useId();
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/60" onClick={dismissable ? onClose : undefined} aria-hidden />
       <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={id} className={clsx("relative flex max-h-[90vh] w-full flex-col rounded-sm border border-line bg-surface shadow-2xl", { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-3xl", xl: "max-w-5xl" }[size])}>
         <header className="flex items-center justify-between border-b border-line px-4 py-3">
           <h2 id={id} className="font-semibold">{title}</h2>
-          <button type="button" data-close aria-label="Cerrar" onClick={onClose} className="rounded-sm p-1 text-muted hover:bg-surface2"><X className="size-4" /></button>
+          {dismissable && <button type="button" data-close aria-label="Cerrar" onClick={onClose} className="rounded-sm p-1 text-muted hover:bg-surface2"><X className="size-4" /></button>}
         </header>
         <div className="overflow-y-auto p-4">{children}</div>
         {footer && <footer className="flex justify-end gap-2 border-t border-line px-4 py-3">{footer}</footer>}

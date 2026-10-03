@@ -5,8 +5,10 @@
  * el editor ofrece exactamente los campos que el servidor valida y la tienda renderiza.
  */
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { API_URL_PUBLIC } from "@/lib/api/config";
 import { api } from "../api-client";
 import { useAction, useApi } from "../query";
+import { storedMediaUrl } from "./media";
 import type { DocKind, JsonValue, Section } from "../types";
 
 /* ======================================================================= *
@@ -85,6 +87,16 @@ export function isSafeUrl(v: string, allowMailTel = true): boolean {
   return allowMailTel && (/^mailto:[^\s@]+@[^\s@]+$/.test(v) || /^tel:\+?[0-9()\-.]{3,30}$/.test(v));
 }
 
+/** URL absoluta de un medio subido servido por la API (`http://localhost:4000/media/…`): válida en campos de imagen; al guardar se normaliza a `/media/…` (el backend solo admite https:// o /ruta). */
+export const isApiMediaUrl = (v: string): boolean => v.startsWith(`${API_URL_PUBLIC}/media/`) && v.length <= 2000 && !/[\u0000-\u0020\u007f\\]/.test(v);
+/** Recorre el JSON y convierte las URLs absolutas de medios de la API en rutas `/media/…`. */
+export function normalizeMediaUrls(v: JsonValue): JsonValue {
+  if (typeof v === "string") return isApiMediaUrl(v) ? storedMediaUrl(v) : v;
+  if (Array.isArray(v)) return v.map(normalizeMediaUrls);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, normalizeMediaUrls(x)]));
+  return v;
+}
+
 const empty = (v: JsonValue | undefined): boolean => v === undefined || v === null || v === "";
 export function validateField(f: CmsField, v: JsonValue | undefined): string | undefined {
   if (empty(v)) return f.required && f.default === undefined ? "Obligatorio" : undefined;
@@ -104,7 +116,7 @@ export function validateField(f: CmsField, v: JsonValue | undefined): string | u
     if (f.maxLength && v.length > f.maxLength) return `Máximo ${f.maxLength} caracteres`;
     if (f.minLength && v.length < f.minLength) return `Mínimo ${f.minLength} caracteres`;
     if (f.type === "color" && !HEX.test(v)) return "Color hex inválido (#RRGGBB)";
-    if (f.type === "image" && !isSafeUrl(v, false)) return "Debe ser https:// o /ruta";
+    if (f.type === "image" && !isSafeUrl(v, false) && !isApiMediaUrl(v)) return "Debe ser https://, /ruta o un medio de la biblioteca";
     if (f.type === "url" && !isSafeUrl(v)) return "Debe ser https://, /ruta, mailto: o tel:";
     if (f.type === "markdown") { if (/<[a-zA-Z/!?]/.test(v)) return "HTML no permitido: usa solo Markdown"; }
     if (f.pattern && f.type !== "color" && !new RegExp(f.pattern).test(v)) return f.type === "collection" || f.type === "product" || f.type === "menu" ? "Handle inválido (minúsculas, números y guiones)" : "Formato inválido";
@@ -245,27 +257,40 @@ export const docStatus = (d: Pick<CmsDoc, "scheduledAt" | "publishedAt" | "dirty
   d.scheduledAt ? "scheduled" : d.publishedAt === null ? "draft-unpublished" : d.dirty ? "dirty" : "published";
 
 export const saveDraft = async (qc: QueryClient, a: { kind: DocKind; key: string; draft: JsonValue; version: number }): Promise<CmsDoc> =>
-  putDoc(qc, await api.put<DocDetailDto>(docPath(a.kind, a.key), { data: prune(a.draft) ?? {}, version: a.version }));
+  putDoc(qc, await api.put<DocDetailDto>(docPath(a.kind, a.key), { data: normalizeMediaUrls(prune(a.draft) ?? {}), version: a.version }));
 
 type Ref = { kind: DocKind; key: string };
 export function useDiscard() {
   const qc = useQueryClient();
   return useAction(async ({ kind, key }: Ref) => putDoc(qc, await api.post<DocDetailDto>(`${docPath(kind, key)}/discard`)), { success: "Cambios descartados" });
 }
+/** El documento del servidor cambió (otra persona guardó) respecto a la versión que ve el editor: NO se publica ni se programa. */
+export class DocChanged extends Error {
+  constructor(public fresh: CmsDoc) { super("Otra persona modificó este documento: revisa los cambios antes de publicar."); }
+}
+/** Lee el documento del servidor sin tocar la caché de la pantalla (para comprobar `version` justo antes de publicar). */
+export async function fetchDocFresh(kind: DocKind, key: string): Promise<CmsDoc> {
+  return fromDetail(await api.get<DocDetailDto>(docPath(kind, key)));
+}
+/** Publicar publica el borrador DEL SERVIDOR (el endpoint no acepta `version`/If-Match): por eso se relee y se compara la versión con la que ve el editor. REQUIERE BACKEND: aceptar `version` en `/publish` y `/schedule` para cerrar la ventana entre la comprobación y la publicación. */
 export function usePublish() {
   const qc = useQueryClient();
-  return useAction(async ({ kind, key, note }: Ref & { note?: string }) => {
+  return useAction(async ({ kind, key, note, expectedVersion }: Ref & { note?: string; expectedVersion: number }) => {
+    const fresh = await fetchDocFresh(kind, key);
+    if (fresh.version !== expectedVersion) throw new DocChanged(fresh);
     const d = await api.post<DocDetailDto>(`${docPath(kind, key)}/publish`, note?.trim() ? { note: note.trim() } : {});
     void qc.invalidateQueries({ queryKey: ["doc-versions"] });
     return putDoc(qc, d);
-  }, { success: "Publicado. La tienda se actualizará en segundos." });
+  }, { success: "Publicado. La tienda se actualizará en segundos.", inline: true });
 }
 export function useSchedule() {
   const qc = useQueryClient();
-  return useAction(async ({ kind, key, at, note }: Ref & { at: string; note?: string }) => {
+  return useAction(async ({ kind, key, at, note, expectedVersion }: Ref & { at: string; note?: string; expectedVersion: number }) => {
+    const fresh = await fetchDocFresh(kind, key);
+    if (fresh.version !== expectedVersion) throw new DocChanged(fresh);
     await api.post(`${docPath(kind, key)}/schedule`, { publishAt: new Date(at).toISOString(), ...(note?.trim() ? { note: note.trim() } : {}) });
     await qc.invalidateQueries({ queryKey: docKey(kind, key) }); void qc.invalidateQueries({ queryKey: ["doc-versions"] }); void qc.invalidateQueries({ queryKey: ["docs"] });
-  }, { success: "Publicación programada" });
+  }, { success: "Publicación programada", inline: true });
 }
 export function useCancelSchedule() {
   const qc = useQueryClient();

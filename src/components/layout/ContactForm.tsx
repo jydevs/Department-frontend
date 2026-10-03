@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api/client";
-import { ApiError } from "@/lib/api/errors";
+import { ApiError, friendlyError } from "@/lib/api/errors";
 import { bool, str, type Settings } from "@/lib/cms/types";
 
 type FormState = "idle" | "loading" | "success" | "error";
@@ -35,6 +35,7 @@ export function ContactForm({ settings = {} }: { settings?: Settings }) {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (state === "loading") return;
     setState("loading");
     setErrorText("");
     const phone = form.phone.trim();
@@ -52,7 +53,12 @@ export function ContactForm({ settings = {} }: { settings?: Settings }) {
       setState("success");
       setForm({ name: "", email: "", phone: "", subject: "", message: "", website: "" });
     } catch (err) {
-      setErrorText(err instanceof ApiError && err.status === 429 ? "Demasiados intentos. Prueba de nuevo en un minuto." : err instanceof ApiError && err.code === "VALIDATION_ERROR" ? err.details.map((d) => d.message).join(" · ") : "");
+      // red caída / 5xx / límite de peticiones: mensaje claro; los datos escritos se conservan para reintentar
+      setErrorText(
+        err instanceof ApiError && err.code === "VALIDATION_ERROR" ? "Revisa los datos: nombre, correo, asunto y mensaje son obligatorios."
+          : err instanceof ApiError && err.isTransient ? `No se pudo enviar tu mensaje. ${friendlyError(err)}`
+          : "",
+      );
       setState("error");
     }
   };

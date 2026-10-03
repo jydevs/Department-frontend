@@ -10,6 +10,8 @@ import { useAnonymize, useCustomer, useSaveCustomer } from "@/lib/admin/api/admi
 import { useAuth } from "@/lib/admin/auth";
 import { errorMessage } from "@/lib/admin/errors";
 import { useCan } from "@/lib/admin/permissions";
+import { formatDate } from "@/lib/admin/format";
+import { optionalPhone } from "@/lib/admin/validate";
 import type { Customer } from "@/lib/admin/types";
 
 const ORDER_STATUS: Record<string, string> = { pending: "Pendiente", paid: "Pagado", failed: "Fallido", refunded: "Reembolsado", partially_refunded: "Reembolso parcial", unfulfilled: "Sin enviar", partial: "Envío parcial", fulfilled: "Enviado", cancelled: "Cancelado", open: "Abierto", completed: "Completado" };
@@ -22,12 +24,14 @@ function Editor({ initial }: { initial: Customer }) {
   const canErase = can && (user?.role === "owner" || user?.role === "admin");
   const save = useSaveCustomer(), anon = useAnonymize();
   const dirty = JSON.stringify(c) !== JSON.stringify(initial);
+  let phoneErr: string | undefined;
+  try { optionalPhone(c.phone, "El teléfono"); } catch (e) { phoneErr = e instanceof Error ? e.message : "Teléfono no válido"; }
   return (
-    <Card title="Datos del cliente" actions={can && !c.anonymized ? <Button size="sm" variant="primary" loading={save.isPending} disabled={!dirty} onClick={() => save.mutate(c)}>Guardar</Button> : undefined}>
+    <Card title="Datos del cliente" actions={can && !c.anonymized ? <Button size="sm" variant="primary" loading={save.isPending} disabled={!dirty || !!phoneErr} onClick={() => save.mutate(c)}>Guardar</Button> : undefined}>
       <fieldset disabled={!can || c.anonymized} className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2"><Input label="Nombre" value={c.firstName} onChange={(e) => setC({ ...c, firstName: e.target.value })} /><Input label="Apellido" value={c.lastName} onChange={(e) => setC({ ...c, lastName: e.target.value })} /></div>
         <Input label="Correo" type="email" value={c.email} disabled hint="El correo no se puede editar desde el panel." />
-        <Input label="Teléfono" value={c.phone} placeholder="+573001234567" onChange={(e) => setC({ ...c, phone: e.target.value })} /><TagInput label="Etiquetas" value={c.tags} onChange={(tags) => setC({ ...c, tags })} />
+        <Input label="Teléfono" type="tel" value={c.phone} placeholder="+573001234567" error={phoneErr} hint="Solo números (7 a 20 dígitos); puedes usar espacios o guiones." onChange={(e) => setC({ ...c, phone: e.target.value })} /><TagInput label="Etiquetas" value={c.tags} onChange={(tags) => setC({ ...c, tags })} />
         <Textarea label="Nota interna" rows={3} value={c.note} onChange={(e) => setC({ ...c, note: e.target.value })} />
         <label className="flex items-center justify-between text-sm">Cuenta activa (puede iniciar sesión)<Switch label="Cuenta activa" checked={c.isActive} onChange={(v) => setC({ ...c, isActive: v })} /></label>
         <p className="text-xs text-muted">Acepta marketing: <b>{c.marketing ? "Sí" : "No"}</b> (lo decide el cliente; solo cuenta con el correo verificado: {c.emailVerified ? "verificado" : "sin verificar"}).</p>
@@ -46,7 +50,7 @@ export default function CustomerDetail() {
   const { customer: c, orders } = data;
   return (
     <>
-      <PageHeader title={c.name} breadcrumbs={[{ label: "Clientes", href: "/admin/customers" }, { label: c.name }]} description={`${orders.length} pedidos · cliente desde ${new Date(c.createdAt).toLocaleDateString("es-CO")}${c.lastLoginAt ? " · último acceso " + new Date(c.lastLoginAt).toLocaleDateString("es-CO") : ""}`} actions={c.anonymized ? <Badge tone="danger">Anonimizado</Badge> : undefined} />
+      <PageHeader title={c.name} breadcrumbs={[{ label: "Clientes", href: "/admin/customers" }, { label: c.name }]} description={`${orders.length} pedidos · cliente desde ${formatDate(c.createdAt)}${c.lastLoginAt ? " · último acceso " + formatDate(c.lastLoginAt) : ""}`} actions={c.anonymized ? <Badge tone="danger">Anonimizado</Badge> : undefined} />
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <Card title="Pedidos" pad={false}>{orders.length === 0 ? <EmptyState title="Sin pedidos" /> : <ul>{orders.map((o) => <li key={o.id}><Link href={`/admin/orders/${o.id}`} className="flex items-center justify-between gap-2 border-b border-line px-4 py-3 last:border-0 hover:bg-surface2/60"><span className="font-medium">#{o.number} <span className="font-normal text-muted"><DateTime value={o.createdAt} /></span></span><span className="flex items-center gap-2"><Badge tone={o.paymentStatus === "paid" ? "ok" : "neutral"}>{label(o.paymentStatus)}</Badge><Badge tone={o.fulfillmentStatus === "fulfilled" ? "ok" : "warn"}>{label(o.fulfillmentStatus)}</Badge><Money value={o.total} /></span></Link></li>)}</ul>}</Card>

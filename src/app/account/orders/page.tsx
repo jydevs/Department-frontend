@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Loading, ghostClass, useRequireSession } from "@/components/account/ui";
+import { Loading, SessionPending, ghostClass, useRequireSession } from "@/components/account/ui";
 import { PAYMENT_LABEL, FULFILL_LABEL } from "@/components/checkout/OrderView";
 import { listOrders, logout, type OrderPage } from "@/lib/account";
 import { friendlyError } from "@/lib/api/errors";
@@ -40,13 +40,13 @@ export default function OrdersPage() {
             <h1 className="font-display text-display-lg text-dept-white mt-1">Historial de pedidos</h1>
           </div>
           {status === "authenticated" && (
-            <button type="button" data-testid="logout-btn" onClick={() => logout().finally(() => router.push("/account/login"))} className={ghostClass}>
+            <button type="button" data-testid="logout-btn" onClick={() => void logout().then(() => router.push("/account/login"))} className={ghostClass}>
               Cerrar sesión
             </button>
           )}
         </div>
 
-        {status !== "authenticated" || !loaded ? <Loading /> : loaded.error ? (
+        {status !== "authenticated" ? <SessionPending status={status} /> : !loaded ? <Loading /> : loaded.error ? (
           <p role="alert" className="font-condensed text-xs tracking-[0.1em] text-dept-red-light">{loaded.error}</p>
         ) : !loaded.res || loaded.res.items.length === 0 ? (
           <div className="border border-white/10 bg-white/[0.02] p-8 text-center sm:py-16">

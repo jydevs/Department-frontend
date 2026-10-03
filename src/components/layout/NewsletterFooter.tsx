@@ -21,7 +21,7 @@ export function NewsletterFooter({ settings = {} }: { settings?: Settings }) {
     eyebrow: str(settings, "eyebrow", "Newsletter"), heading: str(settings, "heading", "Únete a Regular Members Only."),
     placeholder: str(settings, "placeholder", "Dirección de correo electrónico"), inputLabel: str(settings, "inputLabel", "Dirección de correo electrónico"),
     button: str(settings, "buttonLabel", "Suscribirse"), loading: str(settings, "loadingMessage", "Enviando..."),
-    success: str(settings, "successMessage", "Gracias por suscribirte."), error: str(settings, "errorMessage", "Introduce un correo válido."),
+    success: str(settings, "successMessage", "Revisa tu correo para confirmar tu suscripción."), error: str(settings, "errorMessage", "Introduce un correo válido."),
   };
   const [failMsg, setFailMsg] = useState("");
   const [state, setState] = useState<FormState>("idle");
@@ -33,8 +33,10 @@ export function NewsletterFooter({ settings = {} }: { settings?: Settings }) {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (state === "loading") return;
 
     if (!EMAIL_RE.test(email.trim())) {
+      setFailMsg("");
       setState("error");
       return;
     }
@@ -46,8 +48,12 @@ export function NewsletterFooter({ settings = {} }: { settings?: Settings }) {
       setState("success");
       setEmail("");
     } catch (err) {
-      // errores reales de la API (límite de peticiones, validación…), no un "éxito" falso
-      setFailMsg(err instanceof ApiError && err.status === 429 ? "Demasiados intentos. Prueba en un minuto." : "");
+      // errores reales de la API, no un "éxito" falso: un correo inválido (400) se distingue de un fallo de red / servidor
+      setFailMsg(
+        err instanceof ApiError && err.status === 429 ? "Demasiados intentos. Prueba en un minuto."
+          : err instanceof ApiError && err.status >= 400 && err.status < 500 ? ""
+          : "No se pudo enviar. Inténtalo de nuevo.",
+      );
       setState("error");
     }
   };
@@ -98,7 +104,8 @@ export function NewsletterFooter({ settings = {} }: { settings?: Settings }) {
                 type="submit"
                 data-testid="newsletter-subscribe"
                 aria-label={T.button}
-                className="group/arrow grid size-14 shrink-0 place-items-center text-dept-white transition-colors duration-300 ease-out-expo hover:text-dept-red md:size-16"
+                disabled={state === "loading"}
+                className="group/arrow grid size-14 shrink-0 place-items-center text-dept-white transition-colors duration-300 ease-out-expo hover:text-dept-red disabled:opacity-40 md:size-16"
               >
                 <svg
                   width="28"

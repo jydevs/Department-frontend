@@ -42,11 +42,16 @@ export default function RegisterPage() {
 
   if (sent) {
     return (
-      <AuthCard eyebrow="Cuenta" title="Revisa tu correo" testId="register-sent" center>
-        <p role="status" className="font-condensed text-xs leading-relaxed tracking-[0.08em] text-dept-gray-300 mb-8">
+      <AuthCard eyebrow="Cuenta" title="Revisa tu correo para verificar tu cuenta" testId="register-sent" center>
+        <p role="status" className="font-condensed text-xs leading-relaxed tracking-[0.08em] text-dept-gray-300 mb-4">
           Si <span className="text-dept-white">{sent}</span> puede registrarse, te enviamos un enlace para verificar tu correo y activar la cuenta.
         </p>
-        <Button href="/account/login" variant="solid" size="lg" className="w-full">Ir a iniciar sesión</Button>
+        <p className="font-condensed text-xs leading-relaxed tracking-[0.08em] text-dept-gray-400 mb-8">
+          En ese enlace elegirás la contraseña de tu cuenta; hasta entonces no podrás iniciar sesión. Si no llega en unos minutos, revisa la carpeta de spam o pide un enlace nuevo desde «Recuperar contraseña».
+        </p>
+        <Button href="/account/login" variant="red" size="lg" className="w-full" data-testid="register-back">Volver a iniciar sesión</Button>
+        <Button href="/account/forgot-password" variant="outline" size="lg" className="mt-3 w-full" data-testid="register-resend">Reenviar enlace</Button>
+        <button type="button" onClick={() => setSent(null)} className="font-condensed mt-5 text-xs tracking-[0.1em] text-dept-gray-300 underline underline-offset-4">Usar otro correo</button>
       </AuthCard>
     );
   }

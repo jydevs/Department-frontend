@@ -27,7 +27,7 @@ export function useApi<D, R = D>(key: QueryKey, path: string | null, opts: { que
 }
 
 /** Mutación con toast de éxito/error e invalidación de claves. */
-export function useAction<V, R = unknown>(fn: (v: V) => R | Promise<R>, opts: { invalidate?: QueryKey[]; success?: string; onSuccess?: (r: R) => void } = {}) {
+export function useAction<V, R = unknown>(fn: (v: V) => R | Promise<R>, opts: { invalidate?: QueryKey[]; success?: string; onSuccess?: (r: R) => void; /** El llamador muestra el error en su propio diálogo/formulario: no se repite como aviso emergente. */ inline?: boolean } = {}) {
   const qc = useQueryClient();
   const toast = useToast();
   return useMutation({
@@ -37,6 +37,6 @@ export function useAction<V, R = unknown>(fn: (v: V) => R | Promise<R>, opts: { 
       if (opts.success) toast.success(opts.success);
       opts.onSuccess?.(r as R);
     },
-    onError: (e) => toast.error(errorMessage(e)),
+    onError: (e) => { if (!opts.inline) toast.error(errorMessage(e)); },
   });
 }

@@ -13,17 +13,52 @@ import { useConfirm } from "@/components/admin/ui/Overlay";
 import { SortableList } from "@/components/admin/ui/Sortable";
 import { generateVariants, METAFIELD_TYPES, useDeleteProduct, useDuplicateProduct, useSaveProduct, useSetProductStatus, type ProductForm as Product } from "@/lib/admin/api/catalog";
 import { useCan } from "@/lib/admin/permissions";
+import { safeHref } from "@/lib/url";
 
 import { SeoPreview } from "./SeoPreview";
 
-/** Vista previa del HTML de la descripción: elimina scripts, manejadores de eventos y URLs peligrosas (el servidor sanea de nuevo al guardar). */
-function safeHtml(html: string): string {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  doc.querySelectorAll("script,style,iframe,object,embed,link,meta,form").forEach((n) => n.remove());
-  doc.body.querySelectorAll("*").forEach((el) => {
-    for (const a of [...el.attributes]) if (/^on/i.test(a.name) || (/^(href|src)$/i.test(a.name) && /^\s*(javascript|data):/i.test(a.value))) el.removeAttribute(a.name);
+const ALLOWED_TAGS = new Set(["P", "BR", "STRONG", "EM", "B", "I", "U", "UL", "OL", "LI", "H2", "H3", "H4", "BLOCKQUOTE", "A", "IMG"]);
+/** Elementos que se descartan CON su contenido (el resto de etiquetas no permitidas se "desenvuelven" y queda su texto). */
+const DROP_TAGS = new Set(["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "LINK", "META", "BASE", "FORM", "SVG", "MATH", "TEMPLATE", "NOSCRIPT", "TITLE", "HEAD", "FRAME", "FRAMESET", "APPLET", "AUDIO", "VIDEO", "CANVAS", "TEXTAREA", "SELECT", "INPUT", "BUTTON"]);
+const allowedLink = (v: string): boolean => /^(mailto|tel):[^\u0000-\u0020\u007f\\]+$/i.test(v) || safeHref(v) !== null;
+
+/** Copia SOLO lo permitido a un árbol nuevo: no se conserva ningún atributo fuera de href/src/alt/title y las URLs se validan enteras. */
+function cleanInto(from: Node, to: Node, doc: Document): void {
+  from.childNodes.forEach((n) => {
+    if (n.nodeType === Node.TEXT_NODE) { to.appendChild(doc.createTextNode(n.textContent ?? "")); return; }
+    if (n.nodeType !== Node.ELEMENT_NODE) return;
+    const el = n as Element;
+    const tag = el.tagName.toUpperCase();
+    if (DROP_TAGS.has(tag) || el.namespaceURI !== "http://www.w3.org/1999/xhtml") return;
+    if (!ALLOWED_TAGS.has(tag)) { cleanInto(el, to, doc); return; }
+    const out = doc.createElement(tag.toLowerCase());
+    if (tag === "A") {
+      const href = el.getAttribute("href") ?? "";
+      if (allowedLink(href)) { out.setAttribute("href", href); out.setAttribute("rel", "noopener noreferrer nofollow"); out.setAttribute("target", "_blank"); }
+    } else if (tag === "IMG") {
+      const src = el.getAttribute("src") ?? "";
+      if (safeHref(src) === null) return;
+      out.setAttribute("src", src);
+      out.setAttribute("alt", el.getAttribute("alt") ?? "");
+    }
+    if (tag !== "IMG" && tag !== "BR") cleanInto(el, out, doc);
+    to.appendChild(out);
   });
-  return doc.body.innerHTML;
+}
+
+/**
+ * Vista previa del HTML de la descripción. Doble barrera: (1) lista blanca estricta (análisis en un <template> inerte) y
+ * (2) el resultado se muestra en un iframe `sandbox=""` (sin scripts, origen opaco) con CSP propia. El servidor sanea de nuevo al guardar.
+ */
+function descriptionSrcDoc(html: string): string {
+  // <template> es inerte: no carga imágenes ni ejecuta nada (ni aplica <base>) mientras se analiza
+  const tpl = document.createElement("template");
+  tpl.innerHTML = html;
+  const doc = document.implementation.createHTMLDocument("");
+  cleanInto(tpl.content, doc.body, doc);
+  const body = doc.body.innerHTML.trim() || "<em>Sin descripción</em>";
+  const csp = `default-src 'none'; img-src https: ${window.location.origin}; style-src 'unsafe-inline'`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="color-scheme" content="light dark"><style>body{font:14px/1.5 system-ui,sans-serif;margin:12px;overflow-wrap:anywhere}img{max-width:100%;height:auto}blockquote{margin:0 0 0 8px;padding-left:12px;border-left:3px solid #8884}</style></head><body>${body}</body></html>`;
 }
 const STATUS_LABEL = { draft: "Borrador", active: "Activo", archived: "Archivado" } as const;
 
@@ -70,7 +105,7 @@ export function ProductEditor({ initial }: { initial: Product }) {
               <Input label="Título" value={p.title} error={titleErr} onChange={(e) => set({ title: e.target.value })} />
               <Field label="Descripción" hint="HTML básico: &lt;p&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;ul&gt;&lt;li&gt;, &lt;a href&gt;. El servidor elimina lo no permitido al guardar.">
                 <Tabs label="Modo de edición" tabs={[{ key: "edit", label: "Editar" }, { key: "preview", label: "Vista previa" }]} value={tab} onChange={setTab} />
-                {tab === "edit" ? <Textarea aria-label="Descripción" rows={8} value={p.description} onChange={(e) => set({ description: e.target.value })} /> : <div className="prose-sm min-h-32 rounded-sm border border-line p-3 text-sm" dangerouslySetInnerHTML={{ __html: p.description.trim() ? safeHtml(p.description) : "<em>Sin descripción</em>" }} />}
+                {tab === "edit" ? <Textarea aria-label="Descripción" rows={8} value={p.description} onChange={(e) => set({ description: e.target.value })} /> : <iframe title="Vista previa de la descripción" sandbox="" srcDoc={descriptionSrcDoc(p.description)} className="h-72 w-full rounded-sm border border-line" />}
               </Field>
             </div>
           </Card>

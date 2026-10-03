@@ -1,10 +1,12 @@
 import { cookies, draftMode } from "next/headers";
-import { redirect } from "next/navigation";
 import { PREVIEW_COOKIE } from "@/lib/cms/content";
 
-/** Sale del modo borrador y vuelve al inicio. */
-export async function GET() {
+/**
+ * Sale del modo borrador. Solo POST (un GET se podría disparar desde cualquier página con una imagen/enlace).
+ * Nada del panel ni de la tienda lo llama por GET.
+ */
+export async function POST() {
   (await draftMode()).disable();
   (await cookies()).delete(PREVIEW_COOKIE);
-  redirect("/");
+  return new Response(null, { status: 204 });
 }

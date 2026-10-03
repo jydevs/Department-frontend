@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useId, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { logout, useAccount } from "@/lib/account";
+import { logout, retrySession, useAccount } from "@/lib/account";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 
 /**
  * Account dropdown panel anchored under the header's account icon (top-right).
  * Sin sesión: iniciar sesión / crear cuenta. Con sesión: Mi cuenta, Pedidos y Cerrar sesión (API real).
- * Closes on backdrop click / Escape; focus moves to the first action on open.
+ * Modal: focus trap, focus moves to the first action on open and returns to the opener on close;
+ * closes on backdrop click / Escape.
  * API: controlled via `open` / `onClose`.
  */
 interface AccountModalProps {
@@ -21,21 +23,22 @@ const ghostBtn =
 
 function AccountPanel({ onClose }: { onClose: () => void }) {
   const firstButtonRef = useRef<HTMLAnchorElement>(null);
+  const panelRef = useFocusTrap<HTMLDivElement>({ onEscape: onClose, initialFocus: firstButtonRef });
+  const titleId = useId();
   const { status, customer } = useAccount();
   const router = useRouter();
   const authed = status === "authenticated";
 
-  useEffect(() => {
-    firstButtonRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const signOut = () => {
+    void logout().then((ok) => {
+      onClose();
+      // si el servidor no confirmó, el aviso se muestra en la pantalla de inicio de sesión
+      router.push(ok ? "/" : "/account/login");
+    });
+  };
 
   return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-label="Cuenta">
+    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <style>{`@keyframes account-in{from{opacity:0;transform:translateY(-10px) scale(.98)}to{opacity:1;transform:none}}`}</style>
 
       {/* Backdrop */}
@@ -48,11 +51,20 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
 
       {/* Panel */}
       <div
+        ref={panelRef}
+        tabIndex={-1}
         data-testid="account-modal"
         style={{ animation: "account-in 0.4s cubic-bezier(0.16,1,0.3,1) both" }}
-        className="absolute right-[var(--gutter)] top-[calc(var(--chrome-h)+0.5rem)] w-[min(20rem,calc(100vw-2rem))] border border-white/15 bg-dept-black p-5 text-dept-white shadow-2xl"
+        className="absolute right-[var(--gutter)] top-[calc(var(--chrome-h)+0.5rem)] w-[min(20rem,calc(100vw-2rem))] border border-white/15 bg-dept-black p-5 text-dept-white shadow-2xl outline-none"
       >
-        <p className="font-condensed text-[11px] tracking-[0.28em] text-dept-gray-500">Cuenta</p>
+        <p id={titleId} className="font-condensed text-[11px] tracking-[0.28em] text-dept-gray-500">Cuenta</p>
+
+        {status === "unavailable" && (
+          <p role="alert" className="font-condensed mt-3 text-xs tracking-[0.08em] text-dept-red-light">
+            No pudimos comprobar tu sesión.{" "}
+            <button type="button" onClick={retrySession} className="underline underline-offset-4">Reintentar</button>
+          </p>
+        )}
 
         {authed ? (
           <>
@@ -62,7 +74,7 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
             </Link>
             <div className="mt-2 flex gap-2">
               <Link href="/account/orders" onClick={onClose} className={ghostBtn}>Pedidos</Link>
-              <button type="button" data-testid="account-modal-logout" onClick={() => { void logout().finally(() => { onClose(); router.push("/"); }); }} className={ghostBtn}>
+              <button type="button" data-testid="account-modal-logout" onClick={signOut} className={ghostBtn}>
                 Cerrar sesión
               </button>
             </div>

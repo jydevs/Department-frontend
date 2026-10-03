@@ -30,16 +30,20 @@ function Editor({ initial }: { initial: EmailTemplate }) {
   const bad = [...new Set(used.filter((v) => !t.variables.includes(v)))];
   return (
     <Card title={t.name} actions={can ? <span className="flex gap-2"><Button size="sm" icon={<Send className="size-3.5" />} disabled={dirty} title={dirty ? "Guarda antes de enviar la prueba" : undefined} onClick={() => setTest(true)}>Enviar prueba</Button><Button size="sm" variant="primary" loading={save.isPending} disabled={!dirty || bad.length > 0} onClick={() => save.mutate(t)}>Guardar</Button></span> : undefined}>
-      <fieldset disabled={!can} className="space-y-3">
-        <Input label="Asunto" value={t.subject} onChange={(e) => setT({ ...t, subject: e.target.value })} />
-        <label className="flex items-center justify-between text-sm">Plantilla activa<Switch label="Plantilla activa" checked={t.active} onChange={(v) => setT({ ...t, active: v })} /></label>
+      <div className="space-y-3">
+        {/* solo los campos de edición se deshabilitan; las pestañas siguen disponibles para leer HTML y texto */}
+        <fieldset disabled={!can} className="space-y-3">
+          <Input label="Asunto" value={t.subject} onChange={(e) => setT({ ...t, subject: e.target.value })} />
+          <label className="flex items-center justify-between text-sm">Plantilla activa<Switch label="Plantilla activa" checked={t.active} onChange={(v) => setT({ ...t, active: v })} /></label>
+        </fieldset>
         <p className="text-xs text-muted">Variables permitidas: {t.variables.map((v) => <code key={v} className="mr-1 rounded bg-surface2 px-1">{`{{${v}}}`}</code>)}</p>
         {bad.length > 0 && <p role="alert" className="text-xs text-accent-text">Variables no permitidas: {bad.join(", ")}</p>}
-        <Tabs label="Modo" tabs={[{ key: "html", label: "HTML" }, { key: "text", label: "Texto" }, { key: "preview", label: "Vista previa" }]} value={tab} onChange={setTab} />
-        {tab === "html" && <Textarea aria-label="HTML" rows={12} className="font-mono text-xs" value={t.html} onChange={(e) => setT({ ...t, html: e.target.value })} />}
-        {tab === "text" && <Textarea aria-label="Texto plano" rows={12} className="font-mono text-xs" value={t.text} onChange={(e) => setT({ ...t, text: e.target.value })} />}
-        {tab === "preview" && <Preview t={initial} dirty={dirty} />}
-      </fieldset>
+        {!can && <p className="text-xs text-muted">Solo lectura: tu rol no puede editar plantillas.</p>}
+        <Tabs label="Modo" tabs={[{ key: "html", label: "HTML" }, { key: "text", label: "Texto" }, ...(can ? [{ key: "preview" as const, label: "Vista previa" }] : [])]} value={tab} onChange={setTab} />
+        {tab === "html" && <Textarea aria-label="HTML" rows={12} className="font-mono text-xs" readOnly={!can} value={t.html} onChange={(e) => setT({ ...t, html: e.target.value })} />}
+        {tab === "text" && <Textarea aria-label="Texto plano" rows={12} className="font-mono text-xs" readOnly={!can} value={t.text} onChange={(e) => setT({ ...t, text: e.target.value })} />}
+        {tab === "preview" && can && <Preview t={initial} dirty={dirty} />}
+      </div>
       <Dialog open={test} onClose={() => setTest(false)} title="Enviar correo de prueba" size="sm" footer={<><Button onClick={() => setTest(false)}>Cancelar</Button><Button variant="primary" loading={send.isPending} onClick={() => send.mutate({ key: t.key, to }, { onSuccess: () => setTest(false) })}>Enviar</Button></>}>
         <Input label="Enviar a" type="email" value={to} onChange={(e) => setTo(e.target.value)} hint="Se usan datos de ejemplo para las variables (máx. 5 envíos por minuto)." />
       </Dialog>

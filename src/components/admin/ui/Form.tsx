@@ -5,13 +5,15 @@ import { useEffect, useId, useState, type InputHTMLAttributes, type ReactNode, t
 
 const base = "w-full rounded-sm border border-line bg-surface px-3 text-sm text-fg placeholder:text-muted/70 focus:border-accent disabled:opacity-50";
 const err = "border-accent";
+/** `aria-describedby` hacia el mensaje (error o ayuda) que `Field` pinta con id `${control}-msg`. */
+const described = (id: string, hint?: string, error?: string) => (error || hint ? `${id}-msg` : undefined);
 
 export function Field({ label, hint, error, htmlFor, children, className }: { label: string; hint?: string; error?: string; htmlFor?: string; children: ReactNode; className?: string }) {
   return (
     <div className={clsx("flex flex-col gap-1.5", className)}>
       <label htmlFor={htmlFor} className="adm-label !text-fg">{label}</label>
       {children}
-      {error ? <p role="alert" className="text-xs text-accent-text">{error}</p> : hint ? <p className="text-xs text-muted">{hint}</p> : null}
+      {error ? <p id={htmlFor ? `${htmlFor}-msg` : undefined} role="alert" className="text-xs text-accent-text">{error}</p> : hint ? <p id={htmlFor ? `${htmlFor}-msg` : undefined} className="text-xs text-muted">{hint}</p> : null}
     </div>
   );
 }
@@ -19,17 +21,17 @@ export function Field({ label, hint, error, htmlFor, children, className }: { la
 type FP = { label?: string; hint?: string; error?: string };
 export function Input({ label, hint, error, className, id, ...rest }: InputHTMLAttributes<HTMLInputElement> & FP) {
   const gid = useId(); const i = id ?? gid;
-  const el = <input id={i} aria-invalid={!!error || undefined} className={clsx(base, "h-9", error && err, className)} {...rest} />;
+  const el = <input id={i} aria-invalid={!!error || undefined} aria-describedby={described(i, hint, error)} className={clsx(base, "h-9", error && err, className)} {...rest} />;
   return label ? <Field label={label} hint={hint} error={error} htmlFor={i}>{el}</Field> : el;
 }
 export function Textarea({ label, hint, error, className, id, rows = 4, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & FP) {
   const gid = useId(); const i = id ?? gid;
-  const el = <textarea id={i} rows={rows} aria-invalid={!!error || undefined} className={clsx(base, "py-2", error && err, className)} {...rest} />;
+  const el = <textarea id={i} rows={rows} aria-invalid={!!error || undefined} aria-describedby={described(i, hint, error)} className={clsx(base, "py-2", error && err, className)} {...rest} />;
   return label ? <Field label={label} hint={hint} error={error} htmlFor={i}>{el}</Field> : el;
 }
 export function Select({ label, hint, error, className, id, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement> & FP) {
   const gid = useId(); const i = id ?? gid;
-  const el = <select id={i} aria-invalid={!!error || undefined} className={clsx(base, "h-9", error && err, className)} {...rest}>{children}</select>;
+  const el = <select id={i} aria-invalid={!!error || undefined} aria-describedby={described(i, hint, error)} className={clsx(base, "h-9", error && err, className)} {...rest}>{children}</select>;
   return label ? <Field label={label} hint={hint} error={error} htmlFor={i}>{el}</Field> : el;
 }
 export function Checkbox({ label, className, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { label?: string }) {
@@ -61,10 +63,12 @@ export function MoneyInput({ value, onChange, label, error, hint, disabled }: { 
       onBlur={() => setFocused(false)} />
   );
 }
-/** `value` en ISO; el input nativo trabaja en hora local del navegador. */
+/** Fecha y hora en la zona del negocio (Colombia, UTC−5, sin horario de verano), sin depender de la zona del navegador. `value` es ISO. */
+const BOGOTA_OFFSET_MS = 5 * 3_600_000;
+export const isoToBogotaLocal = (iso: string): string => { const t = new Date(iso).getTime(); return Number.isNaN(t) ? "" : new Date(t - BOGOTA_OFFSET_MS).toISOString().slice(0, 16); };
+export const bogotaLocalToIso = (local: string): string | null => { const d = new Date(`${local}:00-05:00`); return Number.isNaN(d.getTime()) ? null : d.toISOString(); };
 export function DateTimeInput({ value, onChange, label, error }: { value: string | null; onChange: (iso: string | null) => void; label?: string; error?: string }) {
-  const local = value ? new Date(new Date(value).getTime() - new Date(value).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "";
-  return <Input type="datetime-local" label={label} error={error} value={local} onChange={(e) => onChange(e.target.value ? new Date(e.target.value).toISOString() : null)} />;
+  return <Input type="datetime-local" label={label} error={error} hint="Hora de Colombia (UTC−5)" value={value ? isoToBogotaLocal(value) : ""} onChange={(e) => onChange(e.target.value ? bogotaLocalToIso(e.target.value) : null)} />;
 }
 export function TagInput({ value, onChange, label, placeholder = "Escribe y pulsa Enter" }: { value: string[]; onChange: (v: string[]) => void; label?: string; placeholder?: string }) {
   const [txt, setTxt] = useState("");

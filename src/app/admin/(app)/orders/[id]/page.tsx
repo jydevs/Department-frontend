@@ -3,6 +3,7 @@ import { Ban, CheckCircle2, CreditCard, Pencil, Truck, Undo2 } from "lucide-reac
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import type { Order } from "@/lib/admin/types";
 import { OrderStatusBadge } from "@/components/admin/orders/OrderStatus";
 import { CancelDialog, ContactDialog, MarkPaidDialog, NoteForm, RefundDialog, ShipmentDialog } from "@/components/admin/orders/OrderDialogs";
 import { Button } from "@/components/admin/ui/Button";
@@ -12,7 +13,13 @@ import { useConfirm } from "@/components/admin/ui/Overlay";
 import { errorMessage, ApiError } from "@/lib/admin/errors";
 import { safeHref } from "@/lib/admin/format";
 import { useCan } from "@/lib/admin/permissions";
-import { REFUND_PENDING_TAG, canCancel, canCancelShipment, canEditContact, canMarkPaid, canRefund, canShip, useAddNote, useCancelShipment, useOrder, useSetTags } from "@/lib/admin/api/orders";
+import { REFUND_PENDING_TAG, canCancel, canCancelShipment, canEditContact, canMarkPaid, canRefund, canShip, useAddNote, useCancelShipment, useOrder, useOrderTags } from "@/lib/admin/api/orders";
+
+/** Etiquetas editables: los cambios seguidos se guardan en orden (ver `useOrderTags`). */
+function OrderTags({ order }: { order: Order }) {
+  const { tags, setTags, saving } = useOrderTags(order);
+  return <div aria-busy={saving || undefined}><TagInput value={tags} onChange={setTags} /></div>;
+}
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -20,7 +27,7 @@ export default function OrderDetail() {
   const can = useCan("orders:write");
   const [dlg, setDlg] = useState<"paid" | "ship" | "refund" | "cancel" | "contact" | null>(null);
   const confirm = useConfirm();
-  const cancelShip = useCancelShipment(), addNote = useAddNote(), setTags = useSetTags();
+  const cancelShip = useCancelShipment(), addNote = useAddNote();
   if (isLoading) return <div className="space-y-3"><Skeleton className="h-8 w-64" /><Skeleton className="h-64" /></div>;
   if (error && !o) return error instanceof ApiError && error.status === 404 ? <EmptyState title="Pedido no encontrado" /> : <EmptyState title="No se pudo cargar el pedido" text={errorMessage(error)} action={<Button onClick={() => void refetch()}>Reintentar</Button>} />;
   if (!o) return <EmptyState title="Pedido no encontrado" />;
@@ -66,8 +73,8 @@ export default function OrderDetail() {
           <Card title="Pagos y reembolsos">
             {o.payments.length + o.refunds.length === 0 && <p className="text-sm text-muted">Sin pagos registrados.</p>}
             <ul className="space-y-2 text-sm">
-              {o.payments.map((p) => <li key={p.id} className="flex justify-between"><span className="flex items-center gap-2"><CreditCard className="size-4 text-muted" />{p.method} · {p.ref} · {p.status} · <DateTime value={p.at} /></span><Money value={p.amount} /></li>)}
-              {o.refunds.map((r) => <li key={r.id} className="flex justify-between text-accent-text"><span className="flex items-center gap-2"><Undo2 className="size-4" />Reembolso · {r.reason || "sin motivo"}{r.restock ? " · stock repuesto" : ""}{r.providerStatus === "manual" ? " · devolución manual" : ""}</span><span>-<Money value={r.amount} /></span></li>)}
+              {o.payments.map((p) => <li key={p.id} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1"><span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 break-all"><CreditCard className="size-4 shrink-0 text-muted" aria-hidden />{p.method} · {p.ref} · {p.status} · <DateTime value={p.at} /></span><Money value={p.amount} /></li>)}
+              {o.refunds.map((r) => <li key={r.id} className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 text-accent-text"><span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1"><Undo2 className="size-4 shrink-0" aria-hidden />Reembolso · {r.reason || "sin motivo"}{r.restock ? " · stock repuesto" : ""}{r.providerStatus === "manual" ? " · devolución manual" : ""}</span><span>-<Money value={r.amount} /></span></li>)}
             </ul>
           </Card>
           <Card title="Línea de tiempo">
@@ -81,9 +88,9 @@ export default function OrderDetail() {
           </Card>
           <Card title={o.shippingRateName ? `Dirección de envío · ${o.shippingRateName}` : "Dirección de envío"}><address className="text-sm not-italic leading-relaxed">{o.shippingAddress.name}<br />{o.shippingAddress.line1}{o.shippingAddress.line2 ? `, ${o.shippingAddress.line2}` : ""}<br />{o.shippingAddress.city}, {o.shippingAddress.department}{o.shippingAddress.postalCode ? ` · ${o.shippingAddress.postalCode}` : ""}<br />{o.shippingAddress.phone}{o.shippingAddress.documentNumber && <><br />{o.shippingAddress.documentType} {o.shippingAddress.documentNumber}</>}</address></Card>
           {o.customerNote && <Card title="Nota del cliente"><p className="whitespace-pre-wrap text-sm">{o.customerNote}</p></Card>}
-          <Card title="Etiquetas">{can ? <TagInput value={visibleTags} onChange={(tags) => setTags.mutate({ order: o, tags })} /> : <div className="flex gap-1">{visibleTags.map((t) => <Badge key={t}>{t}</Badge>)}</div>}</Card>
+          <Card title="Etiquetas">{can ? <OrderTags order={o} /> : <div className="flex flex-wrap gap-1">{visibleTags.map((t) => <Badge key={t}>{t}</Badge>)}</div>}</Card>
           <Card title="Notas internas">
-            {can && <NoteForm busy={addNote.isPending} onAdd={(text) => addNote.mutate({ id: o.id, text })} />}
+            {can && <NoteForm busy={addNote.isPending} onAdd={(text) => addNote.mutateAsync({ id: o.id, text }).then(() => true, () => false)} />}
             <ul className="mt-3 space-y-2">{o.notes.map((n) => <li key={n.id} className="rounded-sm bg-surface2 p-2.5 text-sm"><p>{n.text}</p><p className="mt-1 text-xs text-muted">{n.author} · <DateTime value={n.at} /></p></li>)}</ul>
           </Card>
         </div>

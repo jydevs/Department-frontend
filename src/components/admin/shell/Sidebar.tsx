@@ -46,7 +46,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
         </div>
         <nav className="flex-1 overflow-y-auto p-2">
           {NAV.map((g, gi) => {
-            const items = g.items.filter((i) => permissions.includes(i.perm));
+            const items = g.items.filter((i) => !i.perm || permissions.includes(i.perm));
             if (!items.length) return null;
             return (
               <div key={gi} className="mb-3">

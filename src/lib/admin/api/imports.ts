@@ -1,8 +1,8 @@
 "use client";
 /** Importador CSV contra /admin/import/jobs (multipart: `file`, `type`, `dryRun`). El trabajo corre en segundo plano: se sondea el progreso. */
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { api } from "../api-client";
-import { useAction, useApi } from "../query";
+import { useAction } from "../query";
 import type { Page } from "../types";
 
 export const MAX_IMPORT = 10 * 1024 * 1024;
@@ -16,10 +16,13 @@ export interface ImportJob {
 export interface ImportJobDetail extends ImportJob { errors: ImportRowError[]; errorsTruncated: boolean }
 export const isActive = (j: Pick<ImportJob, "status">) => j.status === "queued" || j.status === "running";
 
-export const useImports = (page: number) => {
-  const q = useApi<Page<ImportJob>>(["imports"], "/admin/import/jobs", { query: { page, pageSize: 10 }, refetchInterval: 2000 });
-  return q;
-};
+/** Sondea cada 2 s SOLO mientras haya trabajos en cola o en ejecución (en la página mostrada); si no, no hace peticiones periódicas. */
+export const useImports = (page: number) =>
+  useQuery({
+    queryKey: ["imports", { page }], placeholderData: keepPreviousData,
+    queryFn: () => api.get<Page<ImportJob>>("/admin/import/jobs", { query: { page, pageSize: 10 } }),
+    refetchInterval: (q) => (q.state.data?.items.some(isActive) ? 2000 : false),
+  });
 export const useImportDetail = (id: string | null, active: boolean) =>
   useQuery({ queryKey: ["import", id], enabled: !!id, queryFn: () => api.get<ImportJobDetail>(`/admin/import/jobs/${id}`), refetchInterval: active ? 2000 : false });
 export const useStartImport = (onDone?: (j: ImportJob) => void) =>

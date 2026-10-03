@@ -1,10 +1,8 @@
 /** Datos globales de la tienda (cabecera, pie, buscador, carrito, newsletter), leídos una vez por petición. */
 import { cache } from "react";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/site";
-import { getCollection } from "@/lib/api/catalog";
-import { sfGet } from "@/lib/api/server";
-import type { ApiProductSummary, Cursor } from "@/lib/api/types";
-import { getMenu, getSettings, getTemplate, menuHref } from "./content";
+import { countAllProducts, getCollectionCount } from "@/lib/api/catalog";
+import { getBundle, getMenu, getSettings, getTemplate, menuHref, previewToken } from "./content";
 import { blocksOf, sectionOf, str, type CmsSection, type MenuItem, type Settings, type SiteSettings } from "./types";
 
 export interface NavLink { label: string; href: string; /** colección "todo": muestra el contador de piezas */ isCatalog: boolean; children: { label: string; href: string }[] }
@@ -39,28 +37,31 @@ const toNav = (items: MenuItem[] | undefined): NavLink[] =>
     children: (i.children ?? []).map((c) => ({ label: c.label, href: menuHref(c.link) })),
   }));
 
+/** Piezas del catálogo para el contador del menú: la colección "all" (misma petición cacheada que su página) o, si no existe, el listado. */
 async function countProducts(): Promise<number> {
-  try {
-    const all = await getCollection("all");
-    if (all) return all.products.length;
-    const page = await sfGet<Cursor<ApiProductSummary>>("/storefront/products", { query: { limit: 100 }, revalidate: 60 });
-    return page?.items.length ?? 0;
-  } catch {
-    return 0;
-  }
+  return (await getCollectionCount("all")) ?? (await countAllProducts());
 }
 
+/**
+ * Los fallos de la API se propagan (no hay "chrome vacío" cacheado por un fallo transitorio); solo un documento
+ * inexistente (404) se sustituye por los valores por defecto.
+ */
 export const getSite = cache(async (): Promise<SiteServerData> => {
+  // ajustes + menús + plantilla `layout` en una sola petición; en modo vista previa se lee cada documento (el token es de uno)
+  const bundle = (await previewToken()) ? null : await getBundle("layout");
   const [settings, layout, search, cartTpl, count] = await Promise.all([
-    getSettings().catch(() => null),
-    getTemplate("layout").catch(() => null),
-    getTemplate("search").catch(() => null),
-    getTemplate("cart").catch(() => null),
+    bundle ? bundle.settings : getSettings(),
+    bundle ? bundle.template : getTemplate("layout"),
+    getTemplate("search"),
+    getTemplate("cart"),
     countProducts(),
   ]);
   const header = sectionOf(layout?.sections, "site-header");
   const menuKey = str(header?.settings ?? {}, "menuKey", "main");
-  const [main, footer] = await Promise.all([getMenu(menuKey).catch(() => null), getMenu("footer").catch(() => null)]);
+  const [main, footer] = await Promise.all([
+    bundle && menuKey === "main" ? bundle.menus.main : getMenu(menuKey),
+    bundle ? bundle.menus.footer : getMenu("footer"),
+  ]);
   const searchSection = sectionOf(search?.sections, "search-panel");
   const ann = settings?.announcement;
   const items = ann?.items?.length ? ann.items : ann?.text ? [ann.text] : [];

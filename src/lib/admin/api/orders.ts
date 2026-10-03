@@ -1,7 +1,11 @@
 "use client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api-client";
-import { ApiError } from "../errors";
+import { ApiError, errorMessage } from "../errors";
+import { LOW_STOCK_THRESHOLD } from "../format";
+import { checkText, optionalPhone, requiredPhone } from "../validate";
+import { useToast } from "@/components/admin/ui/Toast";
 import { useCan } from "../permissions";
 import { useAction, useApi } from "../query";
 import type { FinancialStatus, FulfillmentStatus, Order, OrderAddress, OrderEvent, OrderStatus, OrderSummary, Page } from "../types";
@@ -125,10 +129,8 @@ function useGuard() {
         if (e.status === 409 || e.status === 412) {
           void qc.invalidateQueries({ queryKey: ["order"] }); void qc.invalidateQueries({ queryKey: ["orders"] });
           if (e.code === "CONCURRENT_UPDATE") throw new Error("Otra persona modificó el pedido. Se recargaron los datos; revisa y vuelve a intentarlo.");
-          throw new Error(`${e.message}. Se recargó el pedido.`);
+          throw new Error(`${errorMessage(e)} Se recargó el pedido.`);
         }
-        const fe = Object.values(e.fieldErrors());
-        if (e.code === "VALIDATION_ERROR" && fe.length) throw new Error(`Datos inválidos: ${fe.join("; ")}`);
       }
       throw e;
     }
@@ -158,13 +160,77 @@ export const useRefund = () => {
   }, { invalidate: [...inv, ...stockInv], success: "Reembolso registrado" });
 };
 export const useAddNote = () => { const g = useGuard(); return useAction(({ id, text }: { id: string; text: string }) => g(() => api.post(`${base(id)}/notes`, { note: text })), { invalidate: inv, success: "Nota agregada" }); };
-/** Las etiquetas del sistema (reembolso pendiente) no son editables: se conservan. */
-export const useSetTags = () => { const g = useGuard(); return useAction(({ order, tags }: { order: Order; tags: string[] }) => g(() => api.patch(base(order.id), { version: order.version, tags: [...tags.filter((t) => t !== REFUND_PENDING_TAG), ...(order.tags.includes(REFUND_PENDING_TAG) ? [REFUND_PENDING_TAG] : [])] })), { invalidate: inv, success: "Etiquetas actualizadas" }); };
+/**
+ * Etiquetas del pedido con guardado SERIALIZADO. Cada PATCH necesita la `version` vigente y devuelve la nueva: si se lanzaran
+ * 3 cambios seguidos en paralelo, el 2.º y el 3.º usarían una versión vieja (falso conflicto o etiquetas perdidas).
+ * Aquí los cambios se aplican de inmediato en pantalla y se envían de uno en uno, siempre el último estado deseado.
+ * Las etiquetas del sistema (reembolso pendiente) no son editables: se conservan.
+ */
+export function useOrderTags(order: Order) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [pending, setPending] = useState<string[] | null>(null);
+  const [saving, setSaving] = useState(false);
+  const latest = useRef(order);
+  useEffect(() => { latest.current = order; });
+  const want = useRef<string[] | null>(null);
+  const running = useRef(false);
+  const version = useRef<number | null>(null);
+
+  const drain = useCallback(async () => {
+    if (running.current) return;
+    running.current = true;
+    setSaving(true);
+    try {
+      do {
+        try {
+          while (want.current) {
+            const tags = want.current;
+            want.current = null;
+            const o = latest.current;
+            const body = (v: number) => ({ version: v, tags: [...tags.filter((t) => t !== REFUND_PENDING_TAG), ...(o.tags.includes(REFUND_PENDING_TAG) ? [REFUND_PENDING_TAG] : [])] });
+            try {
+              const r = await api.patch<{ version: number }>(base(o.id), body(version.current ?? o.version));
+              version.current = r.version;
+            } catch (e) {
+              if (!(e instanceof ApiError && (e.status === 409 || e.status === 412))) throw e;
+              // la versión cambió por otra acción (otra persona, otra pestaña): se lee la vigente y se reintenta una vez
+              const fresh = await api.get<{ version: number }>(base(o.id));
+              const r = await api.patch<{ version: number }>(base(o.id), body(fresh.version));
+              version.current = r.version;
+            }
+          }
+          toast.success("Etiquetas actualizadas");
+        } catch (e) {
+          want.current = null;
+          toast.error(errorMessage(e));
+        }
+        version.current = null;
+        // espera a que el pedido se recargue para no mostrar un instante las etiquetas anteriores
+        await Promise.all([qc.invalidateQueries({ queryKey: ["order"] }), qc.invalidateQueries({ queryKey: ["orders"] })]).catch(() => undefined);
+      } while (want.current);
+    } finally {
+      running.current = false;
+      setSaving(false);
+      setPending(null);
+    }
+  }, [qc, toast]);
+
+  const visible = order.tags.filter((t) => t !== REFUND_PENDING_TAG);
+  const setTags = useCallback((tags: string[]) => { want.current = tags; setPending(tags); void drain(); }, [drain]);
+  return { tags: pending ?? visible, setTags, saving };
+}
 export const useEditContact = () => {
   const g = useGuard();
   return useAction(({ order, email, phone, address }: { order: Order; email: string; phone: string; address: OrderAddress }) => {
-    if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Correo inválido");
-    return g(() => api.patch(base(order.id), { version: order.version, email: email.trim(), phone: phone.trim() || null, shippingAddress: addressToApi(address) }));
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) throw new Error("Correo inválido");
+    const orderPhone = optionalPhone(phone, "El teléfono del pedido");
+    const a: OrderAddress = {
+      ...address, name: checkText(address.name, "El nombre", 2, 120), phone: requiredPhone(address.phone, "El teléfono de entrega"),
+      line1: checkText(address.line1, "La dirección", 5, 200), line2: checkText(address.line2 ?? "", "El complemento", 0, 200), city: checkText(address.city, "La ciudad", 2, 80),
+      department: checkText(address.department, "El departamento", 2, 60), postalCode: checkText(address.postalCode ?? "", "El código postal", 0, 12),
+    };
+    return g(() => api.patch(base(order.id), { version: order.version, email: email.trim(), phone: orderPhone, shippingAddress: addressToApi(a) }));
   }, { invalidate: inv, success: "Datos actualizados" });
 };
 
@@ -191,15 +257,15 @@ export interface Analytics {
   change: ApiOverview["change"]; paidRate: number; createdOrders: number;
   top: { id: string; title: string; units: number; revenue: number }[];
 }
-export function useAnalytics(days: number) {
+export function useAnalytics(days: number, enabled = true) {
   // el rango se fija por montaje+periodo: una pestaña abierta pasada la medianoche se actualiza al refrescar
   const r = rangeFor(days);
   const q = { from: r.from, to: r.to };
-  const overview = useApi<ApiOverview>(["analytics", "overview"], "/admin/analytics/overview", { query: q });
-  const sales = useApi<ApiSales>(["analytics", "sales"], "/admin/analytics/sales", { query: { ...q, groupBy: "day" } });
-  const prevSales = useApi<ApiSales>(["analytics", "sales-prev"], "/admin/analytics/sales", { query: { from: r.prevFrom, to: r.prevTo, groupBy: "day" } });
-  const top = useApi<ApiTop>(["analytics", "top"], "/admin/analytics/top-products", { query: { ...q, limit: 5, sortBy: "revenue" } });
-  const customers = useApi<ApiCustomers>(["analytics", "customers"], "/admin/analytics/customers", { query: q });
+  const overview = useApi<ApiOverview>(["analytics", "overview"], "/admin/analytics/overview", { query: q, enabled });
+  const sales = useApi<ApiSales>(["analytics", "sales"], "/admin/analytics/sales", { query: { ...q, groupBy: "day" }, enabled });
+  const prevSales = useApi<ApiSales>(["analytics", "sales-prev"], "/admin/analytics/sales", { query: { from: r.prevFrom, to: r.prevTo, groupBy: "day" }, enabled });
+  const top = useApi<ApiTop>(["analytics", "top"], "/admin/analytics/top-products", { query: { ...q, limit: 5, sortBy: "revenue" }, enabled });
+  const customers = useApi<ApiCustomers>(["analytics", "customers"], "/admin/analytics/customers", { query: q, enabled });
   const all = [overview, sales, prevSales, top, customers];
   const error = all.find((x) => x.error)?.error ?? null;
   const ready = overview.data && sales.data && prevSales.data && top.data && customers.data;
@@ -210,7 +276,7 @@ export function useAnalytics(days: number) {
     change: overview.data!.change, paidRate: overview.data!.current.paidRate, createdOrders: overview.data!.current.createdOrders,
     top: top.data!.items.map((t) => ({ id: t.productId, title: t.title, units: t.units, revenue: t.revenue })),
   } : undefined;
-  return { data, error, isLoading: !data && !error, refetch: () => Promise.all(all.map((x) => x.refetch())) };
+  return { data, error, isLoading: enabled && !data && !error, refetch: () => Promise.all(all.map((x) => x.refetch())) };
 }
 
 interface ApiLevel { id: string; variantId: string; variantTitle: string; variantSku: string | null; locationName: string; onHand: number; reserved: number }
@@ -218,7 +284,7 @@ export function useAlerts() {
   const canOrders = useCan("orders:read"), canStock = useCan("inventory:read");
   const refund = useApi<Page<ApiSummary>>(["alerts", "refund"], "/admin/orders", { query: { tag: REFUND_PENDING_TAG, pageSize: 5 }, enabled: canOrders });
   const unfulfilled = useApi<Page<ApiSummary>>(["alerts", "unfulfilled"], "/admin/orders", { query: { status: "open", fulfillmentStatus: "unfulfilled", pageSize: 1 }, enabled: canOrders });
-  const stock = useApi<Page<ApiLevel>>(["alerts", "stock"], "/admin/inventory", { query: { lowStock: true, lowStockThreshold: 3, pageSize: 5 }, enabled: canStock });
+  const stock = useApi<Page<ApiLevel>>(["alerts", "stock"], "/admin/inventory", { query: { lowStock: true, lowStockThreshold: LOW_STOCK_THRESHOLD, pageSize: 5 }, enabled: canStock });
   const pending = (canOrders && (refund.isLoading || unfulfilled.isLoading)) || (canStock && stock.isLoading);
   const error = refund.error ?? unfulfilled.error ?? stock.error ?? null;
   const data = pending ? undefined : {

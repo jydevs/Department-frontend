@@ -1,6 +1,6 @@
 import { Boxes, FileText, Globe, Home, Image as ImageIcon, LayoutTemplate, Mail, Menu, MessageSquare, Package, Palette, Percent, ShieldCheck, ShoppingCart, Tags, Truck, Upload, User, UserCog, Users, Wrench, ArrowRightLeft, Newspaper, type LucideIcon } from "lucide-react";
 
-export interface NavItem { label: string; href: string; icon: LucideIcon; perm: string }
+export interface NavItem { label: string; href: string; icon: LucideIcon; /** Permiso de lectura de la ruta; sin él, cualquier persona del equipo puede entrar. */ perm?: string }
 export interface NavGroup { label?: string; items: NavItem[] }
 
 export const NAV: NavGroup[] = [
@@ -34,5 +34,21 @@ export const NAV: NavGroup[] = [
     { label: "Importador", href: "/admin/imports", icon: Upload, perm: "import:read" },
     { label: "Mantenimiento", href: "/admin/settings", icon: Wrench, perm: "settings:read" },
   ] },
-  { items: [{ label: "Mi cuenta", href: "/admin/account", icon: User, perm: "analytics:read" }] },
+  { items: [{ label: "Mi cuenta", href: "/admin/account", icon: User }] },
 ];
+
+const ITEMS: NavItem[] = NAV.flatMap((g) => g.items);
+/** Ruta del menú que corresponde a `pathname` (la más específica; `/admin` solo coincide exacto). */
+export function navItemFor(pathname: string): NavItem | undefined {
+  const p = pathname.split(/[?#]/)[0].replace(/\/+$/, "") || "/admin";
+  return ITEMS.filter((i) => (i.href === "/admin" ? p === "/admin" : p === i.href || p.startsWith(`${i.href}/`))).sort((a, b) => b.href.length - a.href.length)[0];
+}
+/** ¿Puede esta persona abrir la ruta? Las rutas sin permiso requerido (Mi cuenta) están abiertas. */
+export function canAccess(pathname: string, permissions: string[]): boolean {
+  const it = navItemFor(pathname);
+  return !it?.perm || permissions.includes(it.perm);
+}
+/** Primera ruta del menú que la persona puede abrir (aterrizaje cuando no tiene Inicio). */
+export function firstAllowedRoute(permissions: string[]): string {
+  return ITEMS.find((i) => !i.perm || permissions.includes(i.perm))?.href ?? "/admin/account";
+}

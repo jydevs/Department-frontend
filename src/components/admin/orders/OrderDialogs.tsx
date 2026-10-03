@@ -6,9 +6,12 @@ import { Dialog } from "@/components/admin/ui/Overlay";
 import { DEPARTMENTS } from "@/lib/geo";
 import { formatMoney } from "@/lib/admin/format";
 import { refundableAmount, shippableQty, useCancelOrder, useCreateShipment, useEditContact, useMarkPaid, useRefund } from "@/lib/admin/api/orders";
+import { optionalPhone, requiredPhone } from "@/lib/admin/validate";
 import type { Order } from "@/lib/admin/types";
 
 interface DP { order: Order; open: boolean; onClose: () => void }
+/** Mensaje de error de una validación que lanza `Error`, o `undefined` si el valor es válido. */
+const problem = (fn: () => unknown): string | undefined => { try { fn(); return undefined; } catch (e) { return e instanceof Error ? e.message : "Valor no válido"; } };
 const isHttps = (v: string) => { try { return new URL(v).protocol === "https:"; } catch { return false; } };
 
 export function MarkPaidDialog({ order, open, onClose }: DP) {
@@ -112,16 +115,18 @@ export function ContactDialog({ order, open, onClose }: DP) {
   const [phone, setPhone] = useState(order.customer.phone);
   const [a, setA] = useState(order.shippingAddress);
   const up = (p: Partial<typeof a>) => setA({ ...a, ...p });
+  const phoneErr = problem(() => optionalPhone(phone, "El teléfono del pedido"));
+  const shipPhoneErr = problem(() => requiredPhone(a.phone, "El teléfono de entrega"));
   const depts: string[] = [...DEPARTMENTS];
   if (a.department && !depts.includes(a.department)) depts.unshift(a.department);
   return (
     <Dialog open={open} onClose={onClose} title="Editar contacto y dirección"
-      footer={<><Button onClick={onClose}>Cancelar</Button><Button variant="primary" loading={m.isPending} onClick={() => m.mutate({ order, email, phone, address: a }, { onSuccess: onClose })}>Guardar</Button></>}>
+      footer={<><Button onClick={onClose}>Cancelar</Button><Button variant="primary" loading={m.isPending} disabled={!!phoneErr || !!shipPhoneErr} onClick={() => m.mutate({ order, email, phone, address: a }, { onSuccess: onClose })}>Guardar</Button></>}>
       <div className="grid gap-3 sm:grid-cols-2">
         <Input label="Correo" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Input label="Teléfono del pedido" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <Input label="Teléfono del pedido" type="tel" autoComplete="off" value={phone} error={phoneErr} hint="Solo números; puedes usar espacios o guiones." onChange={(e) => setPhone(e.target.value)} />
         <Input label="Nombre" value={a.name} onChange={(e) => up({ name: e.target.value })} className="sm:col-span-2" />
-        <Input label="Teléfono de entrega" value={a.phone} onChange={(e) => up({ phone: e.target.value })} />
+        <Input label="Teléfono de entrega" type="tel" autoComplete="off" value={a.phone} error={shipPhoneErr} onChange={(e) => up({ phone: e.target.value })} />
         <Input label="Dirección" value={a.line1} onChange={(e) => up({ line1: e.target.value })} />
         <Input label="Complemento" value={a.line2 ?? ""} onChange={(e) => up({ line2: e.target.value })} />
         <Input label="Ciudad" value={a.city} onChange={(e) => up({ city: e.target.value })} />
@@ -132,12 +137,13 @@ export function ContactDialog({ order, open, onClose }: DP) {
   );
 }
 
-export function NoteForm({ onAdd, busy }: { onAdd: (t: string) => void; busy: boolean }) {
+/** `onAdd` devuelve `true` si se guardó: solo entonces se vacía el campo (si falla, la nota no se pierde). */
+export function NoteForm({ onAdd, busy }: { onAdd: (t: string) => Promise<boolean>; busy: boolean }) {
   const [t, setT] = useState("");
   return (
     <div className="space-y-2">
       <Textarea aria-label="Nueva nota interna" rows={2} maxLength={2000} placeholder="Nota interna (no visible para el cliente)" value={t} onChange={(e) => setT(e.target.value)} />
-      <Button size="sm" loading={busy} disabled={!t.trim()} onClick={() => { onAdd(t.trim()); setT(""); }}>Agregar nota</Button>
+      <Button size="sm" loading={busy} disabled={!t.trim()} onClick={() => { void onAdd(t.trim()).then((ok) => { if (ok) setT(""); }); }}>Agregar nota</Button>
     </div>
   );
 }

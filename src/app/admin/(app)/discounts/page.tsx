@@ -17,6 +17,7 @@ function Redemptions({ id }: { id: string }) {
   const { data, isLoading, error } = useRedemptions(id);
   return (
     <div><h3 className="mb-2 text-sm font-semibold">Redenciones{data ? ` (${data.total})` : ""}</h3>
+      {data && data.total > data.items.length && <p className="mb-2 text-xs text-muted">Mostrando {data.items.length} de {data.total} redenciones.</p>}
       {isLoading ? <Skeleton className="h-10" /> : error ? <p role="alert" className="text-xs text-accent-text">{errorMessage(error)}</p> : !data?.items.length ? <p className="text-xs text-muted">Aún no se ha usado.</p>
         : <ul className="space-y-1 text-sm">{data.items.map((r) => <li key={r.id} className="flex justify-between gap-2"><span>{r.orderNumber ? `#${r.orderNumber}` : "—"} · {r.email} · <DateTime value={r.at} /></span><Money value={r.amount} /></li>)}</ul>}
     </div>
@@ -56,10 +57,10 @@ export default function DiscountsPage() {
             <Input label="Código" value={edit.code} disabled={!!edit.id} hint={edit.id ? "El código y el tipo no se pueden cambiar." : undefined} onChange={(e) => set({ code: e.target.value.toUpperCase() })} />
             <Input label="Título (interno)" value={edit.title} onChange={(e) => set({ title: e.target.value })} />
             <Select label="Tipo" value={edit.kind} disabled={!!edit.id} onChange={(e) => set({ kind: e.target.value as Discount["kind"], value: e.target.value === "free_shipping" ? 0 : edit.value || 10 })}><option value="percent">Porcentaje</option><option value="fixed">Monto fijo</option><option value="free_shipping">Envío gratis</option></Select>
-            {edit.kind === "percent" && <Input label="Porcentaje (1–100)" type="number" min={1} max={100} value={edit.value === 0 ? "" : edit.value} onChange={(e) => set({ value: Number(e.target.value) })} />}
+            {edit.kind === "percent" && <Input label="Porcentaje (1–100)" type="number" min={1} max={100} step={1} value={edit.value === 0 ? "" : edit.value} onChange={(e) => set({ value: Number(e.target.value) })} />}
             {edit.kind === "fixed" && <MoneyInput label="Monto de descuento" value={edit.value} onChange={(v) => set({ value: v ?? 0 })} />}
             <MoneyInput label="Subtotal mínimo" value={edit.minSubtotal ?? undefined} onChange={(v) => set({ minSubtotal: v ?? null })} />
-            <Input label="Límite total de usos" type="number" min={1} placeholder="Sin límite" value={edit.usageLimit ?? ""} onChange={(e) => set({ usageLimit: e.target.value ? Number(e.target.value) : null })} />
+            <Input label="Límite total de usos" type="number" min={1} step={1} placeholder="Sin límite" value={edit.usageLimit ?? ""} onChange={(e) => set({ usageLimit: e.target.value ? Number(e.target.value) : null })} />
             <DateTimeInput label="Inicio" value={edit.startsAt} onChange={(v) => v && set({ startsAt: v })} /><DateTimeInput label="Fin (opcional)" value={edit.endsAt} onChange={(v) => set({ endsAt: v })} />
           </div>
           <label className="flex items-center justify-between text-sm">Un uso por correo<Switch label="Un uso por correo" checked={edit.oncePerEmail} onChange={(v) => set({ oncePerEmail: v })} /></label>

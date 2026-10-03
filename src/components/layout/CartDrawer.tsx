@@ -1,21 +1,23 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useCart } from "@/lib/cart";
+import { clearCartError, useCart } from "@/lib/cart";
 import { formatCOP } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { safeHref } from "@/lib/url";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 import { cfg, useSite } from "./SiteProvider";
 
 /**
  * Right-side cart drawer, wired to the client cart (`useCart`). Lines with
- * thumbnail / size / quantity stepper / remove, subtotal, checkout stub.
+ * thumbnail / size / quantity stepper / remove, subtotal and the checkout button
+ * (disabled while the cart has unavailable lines or not enough stock).
  * API: controlled via `open` / `onClose` (see OverlayProvider).
  *
  * - slide-in from the right (CSS keyframe on mount)
- * - focus moves to the close button on open; Escape and backdrop close
+ * - modal: focus trap, initial focus on the close button, focus restored on close; Escape and backdrop close
  */
 interface CartDrawerProps {
   open: boolean;
@@ -27,7 +29,9 @@ const stepBtn =
 
 function CartPanel({ onClose }: { onClose: () => void }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const { items, count, subtotal, setQty, remove, busy, error, warnings } = useCart();
+  const panelRef = useFocusTrap<HTMLElement>({ onEscape: onClose, initialFocus: closeButtonRef });
+  const titleId = useId();
+  const { items, count, subtotal, savings, setQty, remove, busy, error, issues, invalid, ready, loadFailed, retry, refresh } = useCart();
   const c = cfg(useSite().cart);
   const L = {
     title: c.str("title", "Carrito"), close: c.str("closeLabel", "Cerrar"), emptyTitle: c.str("emptyTitle", "Tu carrito está vacío"),
@@ -38,14 +42,16 @@ function CartPanel({ onClose }: { onClose: () => void }) {
   const checkoutHref = safeHref(c.str("checkoutHref", "/checkout")) ?? "/checkout";
   const [before, after] = L.highlight && L.emptyText.includes(L.highlight) ? L.emptyText.split(L.highlight) : [L.emptyText, ""];
 
+  // al abrir: sin errores de otra pantalla y con precios / stock al día
   useEffect(() => {
-    closeButtonRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    clearCartError();
+    void refresh();
+    return () => clearCartError();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const lineIssue = (variantId: string) => issues.find((i) => i.variantId === variantId);
+  const generalIssues = issues.filter((i) => !i.variantId);
 
   return (
     <div
@@ -53,7 +59,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
       className="fixed inset-0 z-[60]"
       role="dialog"
       aria-modal="true"
-      aria-label={L.title}
+      aria-labelledby={titleId}
     >
       <style>{`@keyframes cart-drawer-in{from{transform:translateX(100%)}to{transform:translateX(0)}}@keyframes cart-fade-in{from{opacity:0}to{opacity:1}}`}</style>
 
@@ -68,11 +74,13 @@ function CartPanel({ onClose }: { onClose: () => void }) {
 
       {/* Panel */}
       <aside
+        ref={panelRef}
+        tabIndex={-1}
         style={{ animation: "cart-drawer-in 0.5s cubic-bezier(0.16,1,0.3,1)" }}
-        className="absolute right-0 top-0 flex h-full w-full max-w-[28rem] flex-col border-l border-white/10 bg-dept-black text-dept-white"
+        className="absolute right-0 top-0 flex h-full w-full max-w-[28rem] flex-col border-l border-white/10 bg-dept-black text-dept-white outline-none"
       >
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
-          <h2 className="font-display text-display-md">
+          <h2 id={titleId} className="font-display text-display-md">
             {L.title}{" "}
             <span className="font-condensed align-top text-[11px] tracking-[0.2em] text-dept-gray-500">
               {String(count).padStart(2, "0")}
@@ -93,22 +101,35 @@ function CartPanel({ onClose }: { onClose: () => void }) {
 
         {items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-5 px-8 text-center">
-            <p className="font-display text-display-md">{L.emptyTitle}</p>
-            <p className="max-w-[28ch] text-sm text-dept-white/60">
-              {before}
-              {after !== "" || L.emptyText.includes(L.highlight) ? <span className="text-dept-white underline underline-offset-4">{L.highlight}</span> : null}
-              {after}
-            </p>
-            <Button
-              variant="red"
-              size="lg"
-              arrow
-              onClick={onClose}
-              data-testid="continue-shopping-btn"
-              className="mt-2"
-            >
-              {L.cont}
-            </Button>
+            {loadFailed ? (
+              <>
+                <p className="font-display text-display-md">No pudimos cargar tu carrito</p>
+                <p role="alert" className="max-w-[30ch] text-sm text-dept-white/60">{error ?? "Revisa tu conexión. Tus productos siguen guardados."}</p>
+                <Button variant="red" size="lg" onClick={() => void retry()} data-testid="cart-retry" className="mt-2">Reintentar</Button>
+              </>
+            ) : !ready ? (
+              <p role="status" className="font-condensed text-xs tracking-[0.2em] text-dept-gray-500">Cargando…</p>
+            ) : (
+              <>
+                <p className="font-display text-display-md">{L.emptyTitle}</p>
+                {error && <p role="alert" data-testid="cart-warning" className="max-w-[30ch] text-sm text-dept-red-light">{error}</p>}
+                <p className="max-w-[28ch] text-sm text-dept-white/60">
+                  {before}
+                  {after !== "" || L.emptyText.includes(L.highlight) ? <Link href="/account/login" onClick={onClose} className="text-dept-white underline underline-offset-4">{L.highlight}</Link> : null}
+                  {after}
+                </p>
+                <Button
+                  variant="red"
+                  size="lg"
+                  arrow
+                  onClick={onClose}
+                  data-testid="continue-shopping-btn"
+                  className="mt-2"
+                >
+                  {L.cont}
+                </Button>
+              </>
+            )}
           </div>
         ) : (
           <>
@@ -139,8 +160,10 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                         <p className="font-condensed mt-1 text-[11px] tracking-[0.2em] text-dept-gray-500">
                           {L.size} {item.size}{!item.available ? " · no disponible" : ""}
                         </p>
+                        {lineIssue(item.variantId) && <p role="alert" data-testid="cart-line-issue" className="font-condensed mt-2 text-[11px] leading-relaxed tracking-[0.08em] text-dept-red-light">{lineIssue(item.variantId)?.text}</p>}
                       </div>
-                      <p className="font-condensed shrink-0 text-[13px] tracking-[0.06em] tabular-nums">
+                      <p className="font-condensed shrink-0 text-right text-[13px] tracking-[0.06em] tabular-nums">
+                        {item.savings > 0 && item.compareAtPrice && <span data-testid="cart-line-compare" className="block text-[11px] text-dept-gray-500 line-through">{formatCOP(item.compareAtPrice * item.qty)}</span>}
                         {formatCOP(item.total)}
                       </p>
                     </div>
@@ -168,6 +191,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                         >
                           +
                         </button>
+                        {item.qty >= item.maxQuantity && <span data-testid="cart-max-note" className="font-condensed ml-3 text-[11px] tracking-[0.1em] text-dept-gray-300">Máximo disponible: {item.maxQuantity}</span>}
                       </div>
                       <button
                         type="button"
@@ -185,25 +209,33 @@ function CartPanel({ onClose }: { onClose: () => void }) {
             </ul>
 
             <div className="border-t border-white/10 px-6 py-6">
-              {(error || warnings.length > 0) && (
+              {(error || generalIssues.length > 0) && (
                 <p role="alert" data-testid="cart-warning" className="font-condensed mb-4 text-[11px] leading-relaxed tracking-[0.12em] text-dept-red-light">
-                  {error ?? warnings.join(" · ")}
+                  {error ?? generalIssues.map((i) => i.text).join(" · ")}
                 </p>
               )}
               <div className="flex items-baseline justify-between">
                 <span className="font-condensed text-[11px] tracking-[0.24em] text-dept-gray-300">{L.subtotal}</span>
                 <span data-testid="cart-subtotal" className="font-display text-display-md tabular-nums">{formatCOP(subtotal)}</span>
               </div>
-              <Button
-                href={checkoutHref}
-                variant="red"
-                size="lg"
-                arrow
-                className="mt-5 w-full"
-                onClick={onClose}
-              >
-                {L.checkout}
-              </Button>
+              {savings > 0 && <p data-testid="cart-savings" className="font-condensed mt-1 text-right text-[11px] tracking-[0.12em] text-dept-gray-300">Ahorras {formatCOP(savings)}</p>}
+              {invalid ? (
+                <>
+                  <Button variant="red" size="lg" className="mt-5 w-full" disabled aria-disabled data-testid="cart-checkout-disabled">{L.checkout}</Button>
+                  <p data-testid="cart-invalid-note" className="font-condensed mt-3 text-[11px] leading-relaxed tracking-[0.1em] text-dept-gray-300">Corrige los productos marcados (reduce la cantidad o elimínalos) para poder finalizar tu compra.</p>
+                </>
+              ) : (
+                <Button
+                  href={checkoutHref}
+                  variant="red"
+                  size="lg"
+                  arrow
+                  className="mt-5 w-full"
+                  onClick={onClose}
+                >
+                  {L.checkout}
+                </Button>
+              )}
               <button
                 type="button"
                 data-testid="continue-shopping-btn"

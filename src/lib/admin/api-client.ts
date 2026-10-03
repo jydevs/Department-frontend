@@ -17,51 +17,69 @@ export const onSessionLost = (fn: (() => void) | null): void => {
   sessionLost = fn;
 };
 /** Intenta restaurar la sesión con la cookie de refresco (arranque del panel). */
-export const restoreSession = (): Promise<boolean> => refresh();
+export const restoreSession = async (): Promise<boolean> => (await refresh()) === "ok";
 
 type Query = Record<string, string | number | boolean | undefined | null>;
 interface Opts {
   query?: Query;
   headers?: Record<string, string>;
 }
-let refreshing: Promise<boolean> | null = null;
+/** `ok`: token renovado; `denied`: la API rechazó la cookie (401/403, sesión perdida); `network`: no se pudo llegar a la API. */
+type RefreshResult = "ok" | "denied" | "network";
+let refreshing: Promise<RefreshResult> | null = null;
 
-async function refresh(): Promise<boolean> {
+const networkError = (): ApiError =>
+  new ApiError({ statusCode: 0, error: "Network Error", code: "NETWORK_ERROR", message: "No se pudo conectar con el servidor" });
+
+function refresh(): Promise<RefreshResult> {
   refreshing ??= fetch(`${BASE}/auth/refresh`, { method: "POST", credentials: "include" })
-    .then(async (r) => {
-      if (!r.ok) return false;
-      accessToken = ((await r.json()) as { accessToken: string }).accessToken;
-      return true;
+    .then(async (r): Promise<RefreshResult> => {
+      if (r.ok) {
+        accessToken = ((await r.json()) as { accessToken: string }).accessToken;
+        return "ok";
+      }
+      // solo 401/403 significan "sesión perdida"; un 5xx/429 es un fallo transitorio del servidor
+      return r.status === 401 || r.status === 403 ? "denied" : "network";
     })
-    .catch(() => false)
+    .catch((): RefreshResult => "network")
     .finally(() => {
       refreshing = null;
     });
   return refreshing;
 }
 
+/** Solo el inicio de sesión y la renovación no se reintentan tras un 401 (el resto, incluido /auth/logout, sí). */
+const noRetry = (path: string) => path === "/auth/login" || path === "/auth/refresh";
+
 async function raw(method: string, path: string, body: unknown, opts: Opts = {}, retry = true): Promise<Response> {
   const url = new URL(`${BASE}${path}`);
   for (const [k, v] of Object.entries(opts.query ?? {})) if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
   const isForm = body instanceof FormData;
-  const res = await fetch(url, {
-    method,
-    credentials: "include",
-    headers: {
-      ...(isForm || body === undefined ? {} : { "Content-Type": "application/json" }),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...opts.headers,
-    },
-    body: isForm ? body : body === undefined ? undefined : JSON.stringify(body),
-  });
-  if (res.status === 401 && retry && !path.startsWith("/auth/")) {
-    if (await refresh()) return raw(method, path, body, opts, false);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      credentials: "include",
+      headers: {
+        ...(isForm || body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...opts.headers,
+      },
+      body: isForm ? body : body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw networkError();
+  }
+  if (res.status === 401 && retry && !noRetry(path)) {
+    const r = await refresh();
+    if (r === "ok") return raw(method, path, body, opts, false);
+    if (r === "network") throw networkError();
     accessToken = null;
     sessionLost?.();
   }
   if (!res.ok) {
     const b = (await res.json().catch(() => null)) as ApiErrorBody | null;
-    throw new ApiError(b ?? { statusCode: res.status, error: res.statusText, code: "UNKNOWN", message: "Error de red o servidor" });
+    throw new ApiError(b ?? { statusCode: res.status, error: res.statusText, code: "UNKNOWN", message: "Error del servidor" });
   }
   return res;
 }

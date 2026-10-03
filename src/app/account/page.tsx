@@ -1,15 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Field, FormError, Loading, PASSWORD_HINT, ghostClass, useRequireSession } from "@/components/account/ui";
+import { Field, FormError, Loading, PASSWORD_HINT, SessionPending, ghostClass, inputClass, useRequireSession } from "@/components/account/ui";
 import {
-  changePassword, createAddress, deleteAddress, listAddresses, logout, updateAddress, updateProfile,
+  changePassword, createAddress, deleteAddress, deleteMyAccount, exportMyData, listAddresses, logout, updateAddress, updateProfile,
   type AddressInput, type Customer, type CustomerAddress,
 } from "@/lib/account";
 import { ApiError, friendlyError } from "@/lib/api/errors";
+import { isValidPhone, normalizePhone } from "@/lib/format";
+import { DEPARTMENTS } from "@/lib/geo";
 
 function Section({ title, testId, children }: { title: string; testId: string; children: React.ReactNode }) {
   return (
@@ -29,8 +31,8 @@ function Profile({ customer }: { customer: Customer }) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!f.firstName.trim() || !f.lastName.trim()) return setMsg({ ok: false, text: "Nombre y apellido son obligatorios." });
-    const phone = f.phone.trim();
-    if (phone && !/^\+?[0-9]{7,20}$/.test(phone)) return setMsg({ ok: false, text: "Teléfono no válido (solo dígitos, 7 a 20, puede empezar por +)." });
+    const phone = normalizePhone(f.phone);
+    if (phone && !isValidPhone(phone)) return setMsg({ ok: false, text: "Teléfono no válido (7 a 20 dígitos; puedes usar espacios o guiones)." });
     setBusy(true);
     try {
       await updateProfile({ firstName: f.firstName.trim(), lastName: f.lastName.trim(), phone: phone || null, acceptsMarketing: f.acceptsMarketing });
@@ -62,6 +64,24 @@ function Profile({ customer }: { customer: Customer }) {
   );
 }
 
+/** Departamento como lista (los mismos valores que usa el checkout para calcular el envío). */
+function DepartmentSelect({ value, error, onChange }: { value: string; error?: string; onChange: (v: string) => void }) {
+  const id = useId();
+  // una dirección guardada antes con otro texto se conserva como opción para no perderla al editar
+  const extra = value && !DEPARTMENTS.includes(value as (typeof DEPARTMENTS)[number]) ? value : null;
+  return (
+    <div>
+      <label htmlFor={id} className="font-condensed block text-xs tracking-[0.12em] text-dept-gray-300 mb-2">Departamento</label>
+      <select id={id} data-testid="address-department" value={value} required onChange={(e) => onChange(e.target.value)} aria-invalid={!!error} aria-describedby={error ? `${id}-e` : undefined} className={`${inputClass} bg-dept-black`}>
+        <option value="">Elegir…</option>
+        {extra && <option value={extra}>{extra}</option>}
+        {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+      </select>
+      {error && <p id={`${id}-e`} role="alert" className="font-condensed mt-1.5 text-[11px] tracking-[0.1em] text-dept-red-light">{error}</p>}
+    </div>
+  );
+}
+
 const EMPTY: AddressInput = { label: "", fullName: "", phone: "", department: "", city: "", address1: "", address2: "", postalCode: "", isDefault: false };
 
 function AddressForm({ initial, onSaved, onCancel, id }: { initial: AddressInput; id?: string; onSaved: () => void; onCancel: () => void }) {
@@ -75,14 +95,14 @@ function AddressForm({ initial, onSaved, onCancel, id }: { initial: AddressInput
     e.preventDefault();
     const errs: Record<string, string> = {};
     if (f.fullName.trim().length < 2) errs.fullName = "Introduce el nombre completo";
-    if (!/^\+?[0-9]{7,20}$/.test(f.phone.trim())) errs.phone = "Teléfono no válido (7 a 20 dígitos)";
-    if (f.department.trim().length < 2) errs.department = "Introduce el departamento";
+    if (!isValidPhone(normalizePhone(f.phone))) errs.phone = "Teléfono no válido (7 a 20 dígitos)";
+    if (f.department.trim().length < 2) errs.department = "Elige el departamento";
     if (f.city.trim().length < 2) errs.city = "Introduce la ciudad";
     if (f.address1.trim().length < 5) errs.address1 = "Introduce la dirección (mínimo 5 caracteres)";
     setErrors(errs);
     if (Object.keys(errs).length) return;
     const body: AddressInput = {
-      fullName: f.fullName.trim(), phone: f.phone.trim(), department: f.department.trim(), city: f.city.trim(), address1: f.address1.trim(),
+      fullName: f.fullName.trim(), phone: normalizePhone(f.phone), department: f.department.trim(), city: f.city.trim(), address1: f.address1.trim(),
       address2: f.address2?.trim() || undefined, postalCode: f.postalCode?.trim() || undefined, isDefault: !!f.isDefault,
       label: f.label?.trim() || (id ? null : undefined),
     };
@@ -106,7 +126,7 @@ function AddressForm({ initial, onSaved, onCancel, id }: { initial: AddressInput
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Nombre completo" data-testid="address-full-name" autoComplete="name" value={f.fullName} error={errors.fullName} onChange={(e) => set("fullName", e.target.value)} required />
         <Field label="Teléfono" type="tel" data-testid="address-phone" autoComplete="tel" value={f.phone} error={errors.phone} onChange={(e) => set("phone", e.target.value)} required />
-        <Field label="Departamento" data-testid="address-department" value={f.department} error={errors.department} onChange={(e) => set("department", e.target.value)} required />
+        <DepartmentSelect value={f.department} error={errors.department} onChange={(v) => set("department", v)} />
         <Field label="Ciudad" data-testid="address-city" value={f.city} error={errors.city} onChange={(e) => set("city", e.target.value)} required />
       </div>
       <Field label="Dirección" data-testid="address-address1" autoComplete="address-line1" value={f.address1} error={errors.address1} onChange={(e) => set("address1", e.target.value)} required />
@@ -130,6 +150,8 @@ function Addresses() {
   const [list, setList] = useState<CustomerAddress[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | "new" | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   const load = useCallback(() => {
     listAddresses().then((l) => { setList(l); setError(null); }).catch((e) => setError(friendlyError(e, "No se pudieron cargar tus direcciones.")));
@@ -137,7 +159,8 @@ function Addresses() {
   useEffect(() => { load(); }, [load]);
 
   const remove = async (id: string) => {
-    try { await deleteAddress(id); load(); } catch (e) { setError(friendlyError(e)); }
+    setRemoving(true);
+    try { await deleteAddress(id); setConfirming(null); load(); } catch (e) { setError(friendlyError(e)); } finally { setRemoving(false); }
   };
   const done = () => { setEditing(null); load(); };
 
@@ -155,10 +178,20 @@ function Addresses() {
               <p>{a.address1}{a.address2 ? `, ${a.address2}` : ""}</p>
               <p>{a.city}, {a.department}{a.postalCode ? ` ${a.postalCode}` : ""}</p>
               <p>{a.phone}</p>
-              <div className="mt-3 flex gap-4 font-condensed text-[11px] tracking-[0.16em]">
-                <button type="button" onClick={() => setEditing(a.id)} className="underline underline-offset-4 hover:text-dept-white">Editar</button>
-                <button type="button" onClick={() => remove(a.id)} aria-label={`Eliminar dirección ${a.address1}`} className="underline underline-offset-4 hover:text-dept-red-light">Eliminar</button>
-              </div>
+              {confirming === a.id ? (
+                <div role="alertdialog" aria-label="Confirmar eliminación" data-testid="address-confirm" className="mt-3 border border-dept-red/60 p-3 font-condensed text-[11px] tracking-[0.12em]">
+                  <p className="text-dept-white">¿Eliminar esta dirección?</p>
+                  <div className="mt-2 flex gap-4">
+                    <button type="button" autoFocus disabled={removing} onClick={() => void remove(a.id)} data-testid="address-confirm-yes" className="underline underline-offset-4 text-dept-red-light hover:text-dept-white">{removing ? "Eliminando…" : "Sí, eliminar"}</button>
+                    <button type="button" disabled={removing} onClick={() => setConfirming(null)} className="underline underline-offset-4 hover:text-dept-white">Cancelar</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-3 flex gap-4 font-condensed text-[11px] tracking-[0.16em]">
+                  <button type="button" onClick={() => setEditing(a.id)} className="underline underline-offset-4 hover:text-dept-white">Editar</button>
+                  <button type="button" onClick={() => setConfirming(a.id)} aria-label={`Eliminar dirección ${a.address1}`} data-testid="address-delete" className="underline underline-offset-4 hover:text-dept-red-light">Eliminar</button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -210,6 +243,80 @@ function Password() {
   );
 }
 
+/** Habeas Data: descargar mis datos y eliminar (anonimizar) mi cuenta. */
+function Privacy() {
+  const router = useRouter();
+  const [exporting, setExporting] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [password, setPassword] = useState("");
+  const [delError, setDelError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const download = async () => {
+    setExporting(true);
+    setMsg(null);
+    try {
+      const data = await exportMyData();
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mis-datos-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setMsg({ ok: true, text: "Descarga lista: guardamos tus datos en un archivo JSON." });
+    } catch (e) {
+      setMsg({ ok: false, text: friendlyError(e, "No se pudieron descargar tus datos. Inténtalo de nuevo.") });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const remove = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password) return setDelError("Introduce tu contraseña para confirmar.");
+    setBusy(true);
+    setDelError(null);
+    try {
+      await deleteMyAccount(password);
+      router.push("/account/login?deleted=1");
+    } catch (err) {
+      setDelError(friendlyError(err, "No se pudo eliminar la cuenta. Inténtalo de nuevo."));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Section title="Tus datos" testId="privacy-section">
+      <div className="space-y-6">
+        <div>
+          <p className="font-condensed text-xs tracking-[0.08em] text-dept-gray-400">Descarga una copia de toda la información personal que guardamos de ti (perfil, direcciones, pedidos y sesiones).</p>
+          <button type="button" data-testid="data-export" onClick={() => void download()} disabled={exporting} className={`${ghostClass} mt-4`}>{exporting ? "Preparando…" : "Descargar mis datos"}</button>
+          {msg && <p role={msg.ok ? "status" : "alert"} data-testid="data-export-msg" className={`font-condensed mt-3 text-xs tracking-[0.1em] ${msg.ok ? "text-dept-white" : "text-dept-red-light"}`}>{msg.text}</p>}
+        </div>
+        <div className="border-t border-white/10 pt-6">
+          <p className="font-condensed text-xs tracking-[0.08em] text-dept-gray-400">Eliminar tu cuenta anonimiza tus datos personales de forma permanente y cierra todas tus sesiones. Los pedidos ya terminados pierden tus datos de contacto y entrega; los que sigan abiertos los conservan hasta cerrarse. No se puede deshacer.</p>
+          {!deleting ? (
+            <button type="button" data-testid="delete-account" onClick={() => setDeleting(true)} className={`${ghostClass} mt-4 hover:border-dept-red hover:bg-dept-red`}>Eliminar mi cuenta</button>
+          ) : (
+            <form onSubmit={remove} noValidate data-testid="delete-account-form" className="mt-4 space-y-4 border border-dept-red/60 p-5">
+              <p className="font-condensed text-xs tracking-[0.1em] text-dept-white">Para confirmar, escribe tu contraseña.</p>
+              <FormError id="delete-account-error">{delError}</FormError>
+              <Field label="Contraseña" type="password" autoComplete="current-password" data-testid="delete-account-password" value={password} onChange={(e) => { setPassword(e.target.value); setDelError(null); }} required />
+              <div className="flex gap-3">
+                <Button type="submit" variant="red" size="md" data-testid="delete-account-confirm" disabled={busy}>{busy ? "Eliminando…" : "Eliminar definitivamente"}</Button>
+                <button type="button" onClick={() => { setDeleting(false); setPassword(""); setDelError(null); }} className={ghostClass} disabled={busy}>Cancelar</button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </Section>
+  );
+}
+
 export default function AccountPage() {
   const router = useRouter();
   const { status, customer } = useRequireSession();
@@ -224,14 +331,15 @@ export default function AccountPage() {
           </div>
           <div className="flex gap-3">
             <Link href="/account/orders" className={ghostClass}>Mis pedidos</Link>
-            {customer && <button type="button" data-testid="logout-btn" onClick={() => logout().finally(() => router.push("/account/login"))} className={ghostClass}>Cerrar sesión</button>}
+            {customer && <button type="button" data-testid="logout-btn" onClick={() => void logout().then(() => router.push("/account/login"))} className={ghostClass}>Cerrar sesión</button>}
           </div>
         </div>
-        {status !== "authenticated" || !customer ? <Loading /> : (
+        {status !== "authenticated" || !customer ? <SessionPending status={status} /> : (
           <div className="space-y-8">
             <Profile customer={customer} />
             <Addresses />
             <Password />
+            <Privacy />
           </div>
         )}
       </div>

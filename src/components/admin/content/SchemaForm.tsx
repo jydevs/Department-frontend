@@ -1,12 +1,13 @@
 "use client";
 import { ImagePlus, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { Button, IconButton } from "@/components/admin/ui/Button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/admin/ui/Form";
 import { Markdown } from "@/components/admin/ui/Markdown";
-import { useAllProducts, useCollections } from "@/lib/admin/api/catalog";
-import { isSafeUrl, useDocs, validateField, type CmsField as SchemaField, type JsonValue } from "@/lib/admin/api/content";
+import { isApiMediaUrl, isSafeUrl, normalizeMediaUrls, useDocs, validateField, type CmsField as SchemaField, type JsonValue } from "@/lib/admin/api/content";
+import { mediaUrl } from "@/lib/admin/api/media";
+import { HandlePicker } from "./HandlePicker";
 import { MediaPicker } from "./MediaPicker";
 
 type Values = Record<string, JsonValue>;
@@ -43,7 +44,7 @@ function FieldInput({ f, value, onChange, error }: { f: SchemaField; value: Json
       <Field label={f.label} error={error} hint={f.hint}><div className="flex items-center gap-2"><input type="color" aria-label={`${f.label} (selector)`} value={/^#[0-9a-f]{6}$/i.test(str) ? str : "#000000"} onChange={(e) => onChange(e.target.value)} className="size-9 cursor-pointer rounded border border-line bg-transparent p-0.5" /><Input aria-label={f.label} value={str} placeholder="#000000" onChange={(e) => onChange(e.target.value)} /></div></Field>
     );
     case "image": return <ImageField f={f} value={str} error={error} onChange={onChange} />;
-    case "collection": case "product": return <HandleField f={f} value={str} error={error} onChange={onChange} />;
+    case "collection": case "product": return <HandlePicker kind={f.type} label={f.label} required={f.required} value={str} error={error} onChange={onChange} />;
     case "links": return <LinksField f={f} value={Array.isArray(value) ? (value as { label: string; url: string }[]) : []} error={error} onChange={onChange} />;
   }
 }
@@ -62,39 +63,12 @@ function ImageField({ f, value, error, onChange }: { f: SchemaField; value: stri
   return (
     <Field label={f.label + (f.required && f.default === undefined ? " *" : "")} error={error}>
       <div className="flex items-center gap-2">
-        {value && isSafeUrl(value, false) && <Image src={value} alt="" width={44} height={44} unoptimized className="size-11 rounded object-cover" />}
-        <Input aria-label={f.label} value={value} placeholder="https://… o /ruta" onChange={(e) => onChange(e.target.value)} />
+        {value && (isSafeUrl(value, false) || isApiMediaUrl(value)) && <Image src={mediaUrl(value)} alt="" width={44} height={44} unoptimized className="size-11 rounded object-cover" />}
+        <Input aria-label={f.label} value={value} placeholder="https://… o /ruta" onChange={(e) => onChange(normalizeMediaUrls(e.target.value) as string)} />
         <Button icon={<ImagePlus className="size-4" />} onClick={() => setOpen(true)}>Elegir</Button>
         {value && <IconButton label="Quitar imagen" onClick={() => onChange("")}><Trash2 className="size-4" /></IconButton>}
       </div>
-      <MediaPicker open={open} onClose={() => setOpen(false)} onPick={([m]) => m && onChange(m.url)} />
-    </Field>
-  );
-}
-function HandleField({ f, value, error, onChange }: { f: SchemaField; value: string; error?: string; onChange: (v: JsonValue) => void }) {
-  const cols = useCollections().data ?? [], prods = useAllProducts().data ?? [];
-  const [q, setQ] = useState(""), [focus, setFocus] = useState(false), [active, setActive] = useState(0);
-  const listId = useId();
-  const all = f.type === "collection" ? cols.map((c) => ({ h: c.handle, t: c.title })) : prods.map((p) => ({ h: p.handle, t: p.title }));
-  const opts = all.filter((o) => !q || o.t.toLowerCase().includes(q.toLowerCase()) || o.h.includes(q.toLowerCase())).slice(0, 6);
-  const current = all.find((o) => o.h === value);
-  const open = focus && opts.length > 0;
-  const pick = (h: string) => { onChange(h); setFocus(false); };
-  return (
-    <Field label={f.label + (f.required ? " *" : "")} error={error} hint={current ? current.t : value ? "No coincide con ningún elemento existente" : undefined}>
-      <div className="relative">
-        <input role="combobox" aria-expanded={open} aria-controls={listId} aria-autocomplete="list" aria-activedescendant={open ? `${listId}-${active}` : undefined} aria-label={f.label}
-          className="h-9 w-full rounded-sm border border-line bg-surface px-3 text-sm focus:border-accent" value={focus ? q : value} placeholder={`Buscar ${f.type === "collection" ? "colección" : "producto"}…`}
-          onFocus={() => { setFocus(true); setQ(""); setActive(0); }} onBlur={() => setTimeout(() => setFocus(false), 150)}
-          onChange={(e) => { setQ(e.target.value); setActive(0); onChange(e.target.value); }}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown") { e.preventDefault(); setFocus(true); setActive((a) => Math.min(opts.length - 1, a + 1)); }
-            else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
-            else if (e.key === "Enter" && open) { e.preventDefault(); pick(opts[active]?.h ?? value); }
-            else if (e.key === "Escape" && open) { e.stopPropagation(); setFocus(false); }
-          }} />
-        {open && <ul id={listId} role="listbox" aria-label={f.label} className="absolute z-20 mt-1 w-full rounded-sm border border-line bg-surface p-1 shadow-xl">{opts.map((o, i) => <li key={o.h} id={`${listId}-${i}`} role="option" aria-selected={i === active} className={`flex cursor-pointer justify-between rounded-sm px-2 py-1.5 text-left text-sm ${i === active ? "bg-surface2" : ""}`} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setActive(i)} onClick={() => pick(o.h)}><span>{o.t}</span><span className="text-xs text-muted">{o.h}</span></li>)}</ul>}
-      </div>
+      <MediaPicker open={open} onClose={() => setOpen(false)} onPick={([m]) => m && onChange(normalizeMediaUrls(m.url) as string)} />
     </Field>
   );
 }

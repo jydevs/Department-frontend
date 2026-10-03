@@ -22,13 +22,14 @@ export default function AuditPage() {
   const staff = useStaff();
   const q = useAuditLog(f);
   const items = q.data?.pages.flatMap((p) => p.items) ?? [];
-  const who = (a: { actorId: string | null; actorType: string }) => (a.actorId ? (canStaff ? staff.data?.find((s) => s.id === a.actorId)?.name : undefined) ?? `${a.actorId.slice(0, 8)}…` : a.actorType === "anonymous" ? "Anónimo / sistema" : a.actorType);
+  const who = (a: { actorId: string | null; actorType: string }) => (a.actorId ? (canStaff ? staff.data?.items.find((s) => s.id === a.actorId)?.name : undefined) ?? `${a.actorId.slice(0, 8)}…` : a.actorType === "anonymous" ? "Anónimo / sistema" : a.actorType);
   return (
     <>
       <PageHeader title="Auditoría" />
       <div className="mb-3 grid gap-2 sm:grid-cols-2">
-        <Select aria-label="Usuario" value={f.actorId} onChange={(e) => setF({ ...f, actorId: e.target.value })}><option value="">Todos los usuarios</option>{canStaff && staff.data?.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>
+        <Select aria-label="Usuario" value={f.actorId} onChange={(e) => setF({ ...f, actorId: e.target.value })}><option value="">Todos los usuarios</option>{canStaff && staff.data?.items.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</Select>
         <Select aria-label="Entidad" value={f.entity} onChange={(e) => setF({ ...f, entity: e.target.value })}><option value="">Todas las entidades</option>{ENTITIES.map((x) => <option key={x}>{x}</option>)}</Select></div>
+      {canStaff && staff.data && staff.data.total > staff.data.items.length && <p className="mb-3 text-xs text-muted">El filtro de usuarios muestra {staff.data.items.length} de {staff.data.total} personas; el resto aparece con su identificador abreviado.</p>}
       <DataTable caption="Registro de auditoría" loading={q.isLoading} rows={items} rowKey={(a) => a.id} onRowClick={setSel} error={q.error ? errorMessage(q.error) : undefined}
         columns={[{ key: "d", header: "Fecha", cell: (a) => <DateTime value={a.at} /> }, { key: "u", header: "Usuario", cell: (a) => who(a) }, { key: "a", header: "Acción", cell: (a) => <Badge tone="info">{a.action}</Badge> }, { key: "e", header: "Entidad", cell: (a) => `${a.entity} · ${a.entityId.slice(0, 13)}` }, { key: "i", header: "IP", cell: (a) => <code className="text-xs">{a.ip}</code> }]} />
       {q.hasNextPage && <div className="mt-3 text-center"><Button loading={q.isFetchingNextPage} onClick={() => q.fetchNextPage()}>Cargar más</Button></div>}

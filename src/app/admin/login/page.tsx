@@ -1,16 +1,17 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/admin/ui/Button";
 import { Input } from "@/components/admin/ui/Form";
 import { useAuth } from "@/lib/admin/auth";
 import { ApiError } from "@/lib/admin/errors";
+import { canAccess, firstAllowedRoute } from "@/lib/admin/nav";
 
 /** Solo rutas internas del panel (evita redirecciones abiertas). */
 const safeNext = (n: string | null): string => (n && /^\/admin(\/[\w\-./?=&%]*)?$/.test(n) && !n.startsWith("/admin/login") ? n : "/admin");
 
 function LoginForm() {
-  const { status, login } = useAuth();
+  const { status, login, permissions } = useAuth();
   const router = useRouter();
   const next = safeNext(useSearchParams().get("next"));
   const [email, setEmail] = useState("");
@@ -20,22 +21,36 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const inFlight = useRef(false);
+  const [wait, setWait] = useState(0); // segundos de espera tras un 429
   useEffect(() => {
-    if (status === "authed") router.replace(next);
-  }, [status, next, router]);
+    if (status === "authed") router.replace(canAccess(next, permissions) ? next : firstAllowedRoute(permissions));
+  }, [status, next, permissions, router]);
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
+
+  const back = () => { setNeedTotp(false); setTotp(""); setPassword(""); setError(null); };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    // Enter repetido o doble clic: una sola petición a la vez (cada intento cuenta contra el límite de la API)
+    if (inFlight.current || busy || wait > 0 || !email || !password || (needTotp && !totp)) return;
+    inFlight.current = true;
     setBusy(true);
     setError(null);
     try {
       await login(email.trim(), password, needTotp ? totp.trim().toUpperCase() : undefined);
     } catch (err) {
       if (err instanceof ApiError && err.code === "TWO_FACTOR_REQUIRED") setNeedTotp(true);
-      else if (err instanceof ApiError && (err.status === 401 || err.status === 400)) setError(needTotp ? "Código incorrecto o credenciales inválidas." : "Correo o contraseña incorrectos.");
-      else if (err instanceof ApiError && err.status === 429) setError("Demasiados intentos. Espera un minuto e inténtalo de nuevo.");
-      else setError("No se pudo conectar con el servidor. Inténtalo de nuevo.");
+      else if (err instanceof ApiError && err.status === 429) { setWait(60); setError("Demasiados intentos de inicio de sesión. Espera un minuto antes de volver a intentarlo."); }
+      else if (err instanceof ApiError && (err.status === 401 || err.status === 400)) setError(needTotp ? "Código incorrecto o vencido. Revisa tu app de autenticación." : "Correo o contraseña incorrectos.");
+      else if (err instanceof ApiError && err.status >= 500) setError("El servidor tuvo un problema. Inténtalo de nuevo en unos minutos.");
+      else setError("No se pudo conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.");
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   };
@@ -53,9 +68,10 @@ function LoginForm() {
         {needTotp && (
           <Input label="Código de verificación" hint="6 dígitos de tu app de autenticación o un código de recuperación." inputMode="text" autoComplete="one-time-code" autoFocus required value={totp} onChange={(e) => setTotp(e.target.value)} data-testid="admin-login-totp" />
         )}
-        <Button type="submit" variant="primary" loading={busy} disabled={!email || !password || (needTotp && !totp)} className="w-full" data-testid="admin-login-submit">
-          {needTotp ? "Verificar" : "Entrar"}
+        <Button type="submit" variant="primary" loading={busy} disabled={!email || !password || (needTotp && !totp) || wait > 0} className="w-full" data-testid="admin-login-submit">
+          {wait > 0 ? `Espera ${wait} s` : needTotp ? "Verificar" : "Entrar"}
         </Button>
+        {needTotp && <Button variant="ghost" className="w-full" disabled={busy} onClick={back} data-testid="admin-login-back">Volver</Button>}
       </form>
     </main>
   );

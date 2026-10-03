@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { isSafePath } from "@/lib/url";
 import { Button } from "@/components/ui/Button";
-import { AuthCard, EMAIL_RE, Field, FormError } from "@/components/account/ui";
-import { login } from "@/lib/account";
+import { AuthCard, AuthSkeleton, EMAIL_RE, Field, FormError } from "@/components/account/ui";
+import { clearAccountNotice, login, useAccount } from "@/lib/account";
 import { friendlyError } from "@/lib/api/errors";
 
 function LoginForm() {
@@ -16,7 +16,8 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const notice = params.get("reset") ? "Contraseña actualizada. Inicia sesión con la nueva." : params.get("verified") ? "Correo verificado. Ya puedes iniciar sesión." : null;
+  const { notice: logoutNotice } = useAccount();
+  const notice = params.get("reset") ? "Contraseña actualizada. Inicia sesión con la nueva." : params.get("verified") ? "Correo verificado. Ya puedes iniciar sesión." : params.get("deleted") ? "Tu cuenta fue eliminada. Gracias por haber estado con nosotros." : null;
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -26,6 +27,7 @@ function LoginForm() {
     setBusy(true);
     try {
       await login(email, password);
+      clearAccountNotice();
       const next = params.get("next");
       router.push(next && isSafePath(next) ? next : "/account");
     } catch (err) {
@@ -38,6 +40,7 @@ function LoginForm() {
     <AuthCard eyebrow="Cuenta" title="Iniciar sesión">
       <form data-testid="login-form" onSubmit={handleSubmit} noValidate className="space-y-5">
         {notice && <p role="status" data-testid="login-notice" className="font-condensed text-xs tracking-[0.1em] text-dept-white">{notice}</p>}
+        {logoutNotice && <p role="alert" data-testid="logout-notice" className="font-condensed text-xs leading-relaxed tracking-[0.1em] text-dept-red-light">{logoutNotice}</p>}
         <FormError id="login-error">{error}</FormError>
         <Field label="Correo electrónico" type="email" autoComplete="email" data-testid="login-email" value={email} required
           onChange={(e) => { setEmail(e.target.value); if (error) setError(null); }} />
@@ -61,5 +64,5 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
-  return <Suspense fallback={null}><LoginForm /></Suspense>;
+  return <Suspense fallback={<AuthSkeleton rows={2} />}><LoginForm /></Suspense>;
 }
