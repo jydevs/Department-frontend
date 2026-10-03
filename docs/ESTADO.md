@@ -73,7 +73,7 @@ Backend en `Department-backend` (NestJS, `/api/v1`). Hallazgos relevantes para c
 - Listados de tienda devuelven `{ id, handle, title, price, image, available }` con cursor; la ficha incluye variantes (`optionValues`), `media`, `seo`. Imágenes con ruta relativa `/images/...` (carpeta `public/` del front) o URL absoluta `/media/:key`.
 - Carrito: `POST /storefront/carts` → `{ id, token }` (token una sola vez, cabecera `X-Cart-Token`); líneas por `variantId`; respuesta con `quote` (subtotal, impuestos, total, avisos). `GET /storefront/shipping-rates?cartId&department` requiere el token y **zonas/tarifas creadas** (la semilla no las incluye).
 - Checkout: `POST /storefront/checkouts` con `Idempotency-Key` y `X-Cart-Token` → `{ orderNumber, accessToken, total, payment }`. Con Wompi: redirigir con `publicKey`/`signatureIntegrity`/`redirectUrl` (`/checkout/result`). Con `PAYMENT_PROVIDER=mock`: `checkoutUrl` = `/mock-checkout/<reference>` y `POST /storefront/dev/mock-payment` simula el webhook.
-- Rutas que el backend espera en el front y **aún no existen**: `/api/revalidate`, `/api/preview`, `/checkout/result`, `/mock-checkout/[reference]`, `/orders/[n]`, `/account/forgot-password`, `/newsletter/{confirmar,baja}`.
+- Rutas que el backend espera en el front y **aún no existen**: `/api/revalidate`, `/api/preview`, `/checkout/result`, `/mock-checkout/[reference]`, `/orders/[n]`, `/account/forgot-password`, `/newsletter/{confirmar,baja}` (estas tres ya existen desde F5).
 
 **Panel**
 - Auth del personal: `POST /auth/login` → `accessToken` (memoria) + cookie `dept_rt` (httpOnly, `Path=/api/v1/auth`); `GET /auth/me` devuelve permisos. Front y API deben ser el mismo sitio (dominio registrable) para `SameSite=Lax`.
