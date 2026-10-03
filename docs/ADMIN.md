@@ -1,5 +1,7 @@
 # Panel de administración `/admin` (fase visual)
 
+> Estado general del proyecto y hoja de ruta de la integración: [`ESTADO.md`](ESTADO.md).
+
 Panel de administración integrado en esta misma app Next.js como vistas bajo `/admin` (sin proyecto aparte). **Esta fase es solo visual:**
 todas las pantallas funcionan contra una base de datos simulada en memoria (`src/lib/admin/mock`), sin llamar a ninguna API.
 Los datos se reinician al recargar la página.
@@ -13,13 +15,21 @@ yarn dev        # tienda: http://localhost:3000 · panel: http://localhost:3000/
 yarn typecheck && yarn lint && yarn build
 ```
 
+## Qué incluye (31 pantallas)
+
+Inicio (KPIs y gráficas SVG) · Pedidos (lista, detalle, envío, reembolso, cancelación, notas, etiquetas) · Productos (editor con variantes, galería, SEO, metafields, acciones masivas) · Inventario (niveles, ajustes, historial, ubicaciones) · Colecciones (manuales e inteligentes) · Clientes (CSV, anonimizar) · Descuentos · Contenido (resumen, ajustes y tema, menús, plantillas y páginas con editor de secciones, historial y diff, publicar/programar) · Biblioteca de medios y `MediaPicker` · Redirecciones · Newsletter · Mensajes · Plantillas de correo · Envíos e impuestos · Personal y roles · Auditoría · Importador · Mantenimiento · Mi cuenta (contraseña, 2FA).
+
+## Calidad verificada
+
+typecheck/lint/build en verde; axe (WCAG A/AA) sin violaciones en tema oscuro y claro; sin scroll horizontal en 390 px y 820 px; auditoría independiente (Opus) con todos los hallazgos altos corregidos, salvo los ligados a permisos/roles. Detalle en [`ESTADO.md`](ESTADO.md) §3.
+
 ## Cómo conectar la API real después
 
 - `src/lib/admin/api-client.ts` ya implementa el cliente (token en memoria, refresh por cookie, `ApiError`).
 - Cada módulo expone sus hooks en `src/lib/admin/api/*.ts`; hoy usan `useMock`/`useAction` (`src/lib/admin/query.ts`).
   Para conectar, reemplaza el cuerpo de cada hook por `api.get/post/...` manteniendo la firma.
 - `src/lib/admin/auth.tsx` entrega un usuario propietario fijo (no hay login en la fase visual); sustituir por `POST /auth/refresh` + `GET /auth/me` y reañadir la pantalla de login.
-- Variable futura: `NEXT_PUBLIC_API_URL` (por defecto `http://localhost:4000`).
+- Variable: `NEXT_PUBLIC_API_URL` (por defecto `http://localhost:4000`). Los tipos del mock no coinciden 1:1 con los DTO del backend: cada módulo necesita un adaptador (ver `ESTADO.md` §5).
 
 ## Pendiente / simulado
 
