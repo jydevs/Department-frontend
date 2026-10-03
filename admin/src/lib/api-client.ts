@@ -1,0 +1,65 @@
+/**
+ * Cliente HTTP de la API real. En esta fase visual NO se usa (los hooks de
+ * `lib/api/*` leen de `lib/mock`), pero queda listo para conectar después.
+ */
+import { ApiError, type ApiErrorBody } from "./errors";
+
+const BASE = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/api/v1`;
+let accessToken: string | null = null; // solo en memoria
+export const setAccessToken = (t: string | null): void => {
+  accessToken = t;
+};
+
+type Query = Record<string, string | number | boolean | undefined | null>;
+interface Opts {
+  query?: Query;
+  headers?: Record<string, string>;
+}
+let refreshing: Promise<boolean> | null = null;
+
+async function refresh(): Promise<boolean> {
+  refreshing ??= fetch(`${BASE}/auth/refresh`, { method: "POST", credentials: "include" })
+    .then(async (r) => {
+      if (!r.ok) return false;
+      accessToken = ((await r.json()) as { accessToken: string }).accessToken;
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => {
+      refreshing = null;
+    });
+  return refreshing;
+}
+
+async function raw(method: string, path: string, body: unknown, opts: Opts = {}, retry = true): Promise<Response> {
+  const url = new URL(`${BASE}${path}`);
+  for (const [k, v] of Object.entries(opts.query ?? {})) if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
+  const isForm = body instanceof FormData;
+  const res = await fetch(url, {
+    method,
+    credentials: "include",
+    headers: {
+      ...(isForm || body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...opts.headers,
+    },
+    body: isForm ? body : body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (res.status === 401 && retry && !path.startsWith("/auth/") && (await refresh())) return raw(method, path, body, opts, false);
+  if (!res.ok) {
+    const b = (await res.json().catch(() => null)) as ApiErrorBody | null;
+    throw new ApiError(b ?? { statusCode: res.status, error: res.statusText, code: "UNKNOWN", message: "Error de red o servidor" });
+  }
+  return res;
+}
+const json = async <T>(r: Response): Promise<T> => (r.status === 204 ? (undefined as T) : ((await r.json()) as T));
+
+export const api = {
+  get: async <T>(p: string, o?: Opts) => json<T>(await raw("GET", p, undefined, o)),
+  post: async <T>(p: string, b?: unknown, o?: Opts) => json<T>(await raw("POST", p, b, o)),
+  put: async <T>(p: string, b?: unknown, o?: Opts) => json<T>(await raw("PUT", p, b, o)),
+  patch: async <T>(p: string, b?: unknown, o?: Opts) => json<T>(await raw("PATCH", p, b, o)),
+  delete: async <T>(p: string, b?: unknown, o?: Opts) => json<T>(await raw("DELETE", p, b, o)),
+  upload: async <T>(p: string, f: FormData) => json<T>(await raw("POST", p, f)),
+  download: async (p: string, o?: Opts): Promise<Blob> => (await raw("GET", p, undefined, o)).blob(),
+};
