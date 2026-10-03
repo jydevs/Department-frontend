@@ -15,7 +15,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
     <>
       {mobileOpen && <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={onMobileClose} aria-hidden />}
       <aside aria-label="Navegación principal" className={clsx("fixed inset-y-0 left-0 z-40 flex flex-col border-r border-line bg-surface transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0", collapsed ? "lg:w-16" : "lg:w-60", "w-64", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
-        <div className="flex h-14 items-center justify-between border-b border-line px-4">
+        <div className="flex h-[84px] items-center justify-between border-b border-line px-4">
           <Link href="/admin" className="flex items-center gap-2" onClick={onMobileClose}>
             <Logo size="sm" />
             {!collapsed && <span className="font-condensed text-[11px] tracking-[0.2em] text-muted">Panel</span>}
@@ -35,7 +35,7 @@ export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { co
                     return (
                       <li key={it.href}>
                         <Link href={it.href} onClick={onMobileClose} aria-current={act ? "page" : undefined} title={collapsed ? it.label : undefined}
-                          className={clsx("flex h-9 items-center gap-3 rounded-sm px-2.5 text-sm", act ? "bg-accent/15 font-medium text-accent-text" : "text-muted hover:bg-surface2 hover:text-fg", collapsed && "lg:justify-center")}>
+                          className={clsx("font-condensed relative flex h-10 items-center gap-3 px-3 text-[13px] tracking-[0.12em]", act ? "bg-fg text-bg" : "text-muted hover:bg-surface2 hover:text-fg", collapsed && "lg:justify-center")}>
                           <Icon className="size-4 shrink-0" aria-hidden />
                           <span className={clsx(collapsed && "lg:sr-only")}>{it.label}</span>
                         </Link>

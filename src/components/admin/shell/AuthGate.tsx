@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/admin/auth";
 import { Spinner } from "@/components/admin/ui/Display";
+import { Marquee } from "@/components/ui/Marquee";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -18,8 +19,11 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-accent focus:px-3 focus:py-2 focus:text-white">Saltar al contenido</a>
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} mobileOpen={mobile} onMobileClose={() => setMobile(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
+        <div className="border-b border-line bg-surface py-1.5" aria-hidden>
+          <Marquee items={["Panel de administración", "Daregular Dept.", "Uniforms for the unnoticed", "Precios en COP"]} duration={60} itemClassName="font-condensed text-[10px] tracking-[0.28em] text-muted uppercase" />
+        </div>
         <Topbar onMenu={() => setMobile(true)} />
-        <main id="main" className="flex-1 p-4 lg:p-6">{children}</main>
+        <main id="main" className="flex-1 px-4 py-8 lg:px-8">{children}</main>
       </div>
     </div>
   );

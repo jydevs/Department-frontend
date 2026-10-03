@@ -34,14 +34,18 @@ export function SalesChart({ data }: { data: { day: string; value: number; prev:
 export function BarList({ items }: { items: { label: string; value: number; sub?: string }[] }) {
   const max = Math.max(1, ...items.map((i) => i.value));
   return (
-    <ul className="space-y-3">
-      {items.map((i) => (
-        <li key={i.label}>
-          <div className="mb-1 flex justify-between gap-2 text-sm"><span className="truncate">{i.label}</span><span className="tabular-nums text-muted">{i.sub ?? formatMoney(i.value)}</span></div>
-          <div className="h-2 rounded-full bg-surface2" role="presentation"><div className="h-2 rounded-full bg-accent" style={{ width: `${(i.value / max) * 100}%` }} /></div>
+    <ol className="divide-y divide-line">
+      {items.map((i, n) => (
+        <li key={i.label} className="py-3 first:pt-0 last:pb-0">
+          <div className="mb-2 flex items-baseline gap-3 text-sm">
+            <span className="font-display text-2xl text-outline" style={{ ["--stroke" as string]: "var(--adm-muted)" }} aria-hidden>{String(n + 1).padStart(2, "0")}</span>
+            <span className="min-w-0 flex-1 truncate">{i.label}</span>
+            <span className="tabular-nums text-muted">{i.sub ?? formatMoney(i.value)}</span>
+          </div>
+          <div className="h-px bg-line" role="presentation"><div className="h-px bg-accent" style={{ width: `${(i.value / max) * 100}%`, height: 2, marginTop: -0.5 }} /></div>
         </li>
       ))}
-    </ul>
+    </ol>
   );
 }
 

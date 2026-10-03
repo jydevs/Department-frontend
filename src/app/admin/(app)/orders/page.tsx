@@ -17,7 +17,7 @@ export default function OrdersPage() {
   return (
     <>
       <PageHeader title="Pedidos" />
-      <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
         <SearchInput onSearch={onSearch} placeholder="Número, cliente o correo" className="lg:col-span-2" />
         <Select aria-label="Estado de pago" value={f.financial} onChange={(e) => set({ financial: e.target.value })}>
           <option value="">Pago: todos</option><option value="pending">Pendiente</option><option value="paid">Pagado</option><option value="refund-pending">Reembolso pendiente</option><option value="partially-refunded">Reembolso parcial</option><option value="refunded">Reembolsado</option>
@@ -26,7 +26,7 @@ export default function OrdersPage() {
           <option value="">Envío: todos</option><option value="unfulfilled">Sin enviar</option><option value="partial">Parcial</option><option value="fulfilled">Enviado</option><option value="cancelled">Cancelado</option>
         </Select>
         <Select aria-label="Etiqueta" value={f.tag} onChange={(e) => set({ tag: e.target.value })}><option value="">Etiqueta: todas</option>{tags.map((t) => <option key={t}>{t}</option>)}</Select>
-        <div className="flex gap-2"><Input aria-label="Desde" type="date" value={f.from} onChange={(e) => set({ from: e.target.value })} /><Input aria-label="Hasta" type="date" value={f.to} onChange={(e) => set({ to: e.target.value })} /></div>
+        <div className="flex gap-2 lg:col-span-2"><Input aria-label="Desde" type="date" value={f.from} onChange={(e) => set({ from: e.target.value })} /><Input aria-label="Hasta" type="date" value={f.to} onChange={(e) => set({ to: e.target.value })} /></div>
       </div>
       <DataTable caption="Lista de pedidos" loading={isLoading} error={error ? errorMessage(error) : undefined} rows={data?.items} rowKey={(o) => o.id}
         onRowClick={(o) => router.push(`/admin/orders/${o.id}`)}

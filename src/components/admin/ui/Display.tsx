@@ -10,7 +10,7 @@ export function Card({ title, actions, children, className, pad = true }: { titl
     <section className={clsx("rounded-sm border border-line bg-surface", className)}>
       {(title || actions) && (
         <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
-          {title && <h2 className="font-condensed text-sm font-semibold tracking-[0.08em]">{title}</h2>}
+          {title && <h2 className="adm-label !text-fg">{title}</h2>}
           {actions}
         </header>
       )}
@@ -29,7 +29,7 @@ const TONES: Record<Tone, string> = {
   accent: "bg-accent/15 text-accent-text",
 };
 export function Badge({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {
-  return <span className={clsx("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap", TONES[tone])}>{children}</span>;
+  return <span className={clsx("font-condensed inline-flex items-center rounded-none px-2 py-0.5 text-[10px] font-medium tracking-[0.14em] whitespace-nowrap", TONES[tone])}>{children}</span>;
 }
 const STATUS: Record<string, [string, Tone]> = {
   paid: ["Pagado", "ok"], pending: ["Pendiente", "warn"], refunded: ["Reembolsado", "neutral"], "partially-refunded": ["Reembolso parcial", "info"], "refund-pending": ["Reembolso pendiente", "danger"],
@@ -61,7 +61,7 @@ export function PageHeader({ title, actions, breadcrumbs, description }: { title
   return (
     <div className="mb-5">
       {breadcrumbs && (
-        <nav aria-label="Migas de pan" className="mb-1 flex items-center gap-1 text-xs text-muted">
+        <nav aria-label="Migas de pan" className="adm-label mb-2 flex items-center gap-1">
           {breadcrumbs.map((b, i) => (
             <span key={b.label} className="flex items-center gap-1">
               {i > 0 && <ChevronRight className="size-3" aria-hidden />}
@@ -72,8 +72,8 @@ export function PageHeader({ title, actions, breadcrumbs, description }: { title
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-3xl tracking-wide">{title}</h1>
-          {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
+          <h1 className="font-display text-display-lg">{title}</h1>
+          {description && <p className="mt-2 max-w-[60ch] text-sm text-muted">{description}</p>}
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>

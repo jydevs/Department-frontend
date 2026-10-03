@@ -25,7 +25,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
     setDark(!dark);
   };
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line bg-surface/90 px-3 backdrop-blur lg:px-6">
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line bg-surface/80 px-3 backdrop-blur-xl lg:px-6">
       <IconButton label="Abrir menú" className="lg:hidden" onClick={onMenu}><Menu className="size-5" /></IconButton>
       <div className="flex-1" />
       <Link href="/" target="_blank" rel="noopener" className="flex h-9 items-center gap-1.5 rounded-sm px-3 text-sm text-muted hover:bg-surface2 hover:text-fg">

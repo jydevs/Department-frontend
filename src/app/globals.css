@@ -351,9 +351,9 @@
   --adm-accent: var(--dept-red);
   --adm-accent-text: var(--dept-red-light);
   --adm-bg: var(--dept-black);
-  --adm-surface: var(--dept-gray-900);
-  --adm-surface-2: #1d1d1d;
-  --adm-border: #2c2c2c;
+  --adm-surface: #0a0a0a;
+  --adm-surface-2: #171717;
+  --adm-border: rgb(255 255 255 / 0.13);
   --adm-fg: var(--dept-white);
   --adm-muted: #a0a0a0;
   --adm-ok: #4ade80;
@@ -367,7 +367,7 @@
   --adm-bg: var(--dept-gray-100);
   --adm-surface: #ffffff;
   --adm-surface-2: #ececec;
-  --adm-border: #d8d8d8;
+  --adm-border: rgb(0 0 0 / 0.16);
   --adm-fg: #111111;
   --adm-muted: #5c5c5c;
   --adm-ok: #15803d;
@@ -379,6 +379,12 @@
 .admin-root .grid > *, .admin-root main { min-width: 0; }
 .admin-root ::selection { background: var(--dept-red); color: #fff; }
 .admin-root h1, .admin-root h2 { font-weight: 600; }
+/* microetiqueta de la tienda: condensada, versalitas, muy espaciada */
+.admin-root .adm-label { font-family: var(--font-condensed); text-transform: uppercase; letter-spacing: 0.24em; font-size: 11px; color: var(--adm-muted); }
+/* celda que se invierte al pasar el cursor (como ValueProps) */
+.admin-root .adm-invert { transition: background-color .4s var(--ease-out-expo), color .4s var(--ease-out-expo); }
+.admin-root .adm-invert:hover { background: var(--adm-fg); color: var(--adm-bg); }
+.admin-root .adm-invert:hover .adm-label, .admin-root .adm-invert:hover .adm-sub { color: color-mix(in srgb, var(--adm-bg) 65%, transparent); }
 .skel { animation: adm-pulse 1.4s ease-in-out infinite; background: var(--adm-surface-2); }
 @keyframes adm-pulse { 50% { opacity: .45; } }
 .toast-in { animation: adm-toast .18s ease-out; }
