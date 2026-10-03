@@ -13,7 +13,7 @@ interface Props<R> {
 
 export function DataTable<R>({ columns, rows, rowKey, loading, error, caption, onRowClick, empty, selectable, pagination }: Props<R>) {
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null);
-  const col = columns.find((c) => c.key === sort?.key);
+  const col = pagination ? undefined : columns.find((c) => c.key === sort?.key); // con paginación de servidor, ordenar solo la página sería engañoso
   const data = rows && col?.sortValue && sort ? [...rows].sort((a, b) => (col.sortValue!(a) > col.sortValue!(b) ? 1 : -1) * sort.dir) : rows;
   const allIds = (data ?? []).map(rowKey);
   const sel = selectable?.selected ?? [];
@@ -32,7 +32,7 @@ export function DataTable<R>({ columns, rows, rowKey, loading, error, caption, o
               )}
               {columns.map((c) => (
                 <th key={c.key} scope="col" aria-sort={sort?.key === c.key ? (sort.dir === 1 ? "ascending" : "descending") : undefined} className={clsx("px-3 py-3 font-normal", c.align === "right" && "text-right", c.className)}>
-                  {c.sortValue ? (
+                  {c.sortValue && !pagination ? (
                     <button type="button" className="inline-flex min-h-10 items-center gap-1 uppercase tracking-[inherit] hover:text-fg" onClick={() => setSort(sort?.key === c.key ? { key: c.key, dir: sort.dir === 1 ? -1 : 1 } : { key: c.key, dir: 1 })}>
                       {c.header}{sort?.key === c.key && (sort.dir === 1 ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
                     </button>

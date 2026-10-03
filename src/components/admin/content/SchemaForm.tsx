@@ -1,7 +1,7 @@
 "use client";
 import { ImagePlus, Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button, IconButton } from "@/components/admin/ui/Button";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/admin/ui/Form";
 import { Markdown } from "@/components/admin/ui/Markdown";
@@ -70,14 +70,27 @@ function ImageField({ f, value, error, onChange }: { f: SchemaField; value: stri
 }
 function HandleField({ f, value, error, onChange }: { f: SchemaField; value: string; error?: string; onChange: (v: JsonValue) => void }) {
   const cols = useCollections().data ?? [], prods = useAllProducts().data ?? [];
-  const [q, setQ] = useState(""), [focus, setFocus] = useState(false);
-  const opts = (f.type === "collection" ? cols.map((c) => ({ h: c.handle, t: c.title })) : prods.map((p) => ({ h: p.handle, t: p.title }))).filter((o) => !q || o.t.toLowerCase().includes(q.toLowerCase()) || o.h.includes(q.toLowerCase())).slice(0, 6);
-  const current = [...cols.map((c) => ({ h: c.handle, t: c.title })), ...prods.map((p) => ({ h: p.handle, t: p.title }))].find((o) => o.h === value);
+  const [q, setQ] = useState(""), [focus, setFocus] = useState(false), [active, setActive] = useState(0);
+  const listId = useId();
+  const all = f.type === "collection" ? cols.map((c) => ({ h: c.handle, t: c.title })) : prods.map((p) => ({ h: p.handle, t: p.title }));
+  const opts = all.filter((o) => !q || o.t.toLowerCase().includes(q.toLowerCase()) || o.h.includes(q.toLowerCase())).slice(0, 6);
+  const current = all.find((o) => o.h === value);
+  const open = focus && opts.length > 0;
+  const pick = (h: string) => { onChange(h); setFocus(false); };
   return (
     <Field label={f.label + (f.required ? " *" : "")} error={error} hint={current ? current.t : value ? "No coincide con ningún elemento existente" : undefined}>
       <div className="relative">
-        <Input aria-label={f.label} value={focus ? q : value} placeholder={`Buscar ${f.type === "collection" ? "colección" : "producto"}…`} onFocus={() => { setFocus(true); setQ(""); }} onBlur={() => setTimeout(() => setFocus(false), 150)} onChange={(e) => { setQ(e.target.value); onChange(e.target.value); }} />
-        {focus && opts.length > 0 && <ul role="listbox" className="absolute z-20 mt-1 w-full rounded-sm border border-line bg-surface p-1 shadow-xl">{opts.map((o) => <li key={o.h}><button type="button" role="option" aria-selected={o.h === value} className="flex w-full justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-surface2" onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange(o.h); setFocus(false); }}><span>{o.t}</span><span className="text-xs text-muted">{o.h}</span></button></li>)}</ul>}
+        <input role="combobox" aria-expanded={open} aria-controls={listId} aria-autocomplete="list" aria-activedescendant={open ? `${listId}-${active}` : undefined} aria-label={f.label}
+          className="h-9 w-full rounded-sm border border-line bg-surface px-3 text-sm focus:border-accent" value={focus ? q : value} placeholder={`Buscar ${f.type === "collection" ? "colección" : "producto"}…`}
+          onFocus={() => { setFocus(true); setQ(""); setActive(0); }} onBlur={() => setTimeout(() => setFocus(false), 150)}
+          onChange={(e) => { setQ(e.target.value); setActive(0); onChange(e.target.value); }}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") { e.preventDefault(); setFocus(true); setActive((a) => Math.min(opts.length - 1, a + 1)); }
+            else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(0, a - 1)); }
+            else if (e.key === "Enter" && open) { e.preventDefault(); pick(opts[active]?.h ?? value); }
+            else if (e.key === "Escape" && open) { e.stopPropagation(); setFocus(false); }
+          }} />
+        {open && <ul id={listId} role="listbox" aria-label={f.label} className="absolute z-20 mt-1 w-full rounded-sm border border-line bg-surface p-1 shadow-xl">{opts.map((o, i) => <li key={o.h} id={`${listId}-${i}`} role="option" aria-selected={i === active} className={`flex cursor-pointer justify-between rounded-sm px-2 py-1.5 text-left text-sm ${i === active ? "bg-surface2" : ""}`} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setActive(i)} onClick={() => pick(o.h)}><span>{o.t}</span><span className="text-xs text-muted">{o.h}</span></li>)}</ul>}
       </div>
     </Field>
   );

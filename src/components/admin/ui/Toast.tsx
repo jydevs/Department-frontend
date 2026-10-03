@@ -20,7 +20,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="fixed bottom-4 right-4 z-[100] flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2" role="region" aria-label="Notificaciones" aria-live="polite">
         {items.map((t) => (
-          <div key={t.id} role={t.kind === "error" ? "alert" : "status"} className="toast-in flex items-start gap-2 rounded-sm border border-line bg-surface p-3 text-sm shadow-xl">
+          <div key={t.id} role={t.kind === "error" ? "alert" : "status"} className="adm-toast-in flex items-start gap-2 rounded-sm border border-line bg-surface p-3 text-sm shadow-xl">
             {t.kind === "success" ? <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-ok" /> : <AlertCircle className="mt-0.5 size-4 shrink-0 text-accent-text" />}
             <span className="flex-1">{t.text}</span>
             <button type="button" aria-label="Cerrar" onClick={() => setItems((l) => l.filter((i) => i.id !== t.id))} className="text-muted hover:text-fg"><X className="size-4" /></button>

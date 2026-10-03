@@ -16,7 +16,7 @@ import type { ContentDoc, JsonValue, MenuItem } from "@/lib/admin/types";
 const MAX_DEPTH = 3, MAX_ITEMS = 50;
 const count = (l: MenuItem[]): number => l.reduce((n, i) => n + 1 + count(i.children ?? []), 0);
 
-function Level({ items, depth, onChange, can }: { items: MenuItem[]; depth: number; onChange: (n: MenuItem[]) => void; can: boolean }) {
+function Level({ items, depth, onChange }: { items: MenuItem[]; depth: number; onChange: (n: MenuItem[]) => void }) {
   const cols = useCollections().data ?? [], prods = useAllProducts().data ?? [], pages = useDocs().data?.filter((d) => d.kind === "page") ?? [];
   const upd = (id: string, p: Partial<MenuItem>) => onChange(items.map((i) => (i.id === id ? { ...i, ...p } : i)));
   return (
@@ -43,7 +43,7 @@ function Level({ items, depth, onChange, can }: { items: MenuItem[]; depth: numb
               </div>
               {err && <p role="alert" className="mt-1 pl-9 text-xs text-accent-text">{err}</p>}
             </div>
-            {it.children && it.children.length > 0 && <div className="ml-6 mt-2 border-l border-line pl-3"><Level items={it.children} depth={depth + 1} can={can} onChange={(children) => upd(it.id, { children })} /></div>}
+            {it.children && it.children.length > 0 && <div className="ml-6 mt-2 border-l border-line pl-3"><Level items={it.children} depth={depth + 1} onChange={(children) => upd(it.id, { children })} /></div>}
           </div>
         );
       }}
@@ -60,9 +60,9 @@ function MenuEditor({ doc }: { doc: ContentDoc }) {
   const total = count(items), bad = invalid(items) + (total > MAX_ITEMS ? 1 : 0);
   return (
     <>
-      <PublishBar doc={doc} local={d.local} dirty={d.dirty} saving={d.saving} invalidCount={bad} onSave={d.flush} onReset={d.reset} />
+      <PublishBar doc={doc} local={d.local} dirty={d.dirty} saving={d.saving} invalidCount={bad} onSave={() => d.flush()} onReset={d.reset} />
       <Card title={`${doc.title} (${total}/${MAX_ITEMS} ítems · hasta ${MAX_DEPTH} niveles)`} actions={can ? <Button size="sm" icon={<Plus className="size-3.5" />} disabled={total >= MAX_ITEMS} onClick={() => set([...items, { id: `m_${uid()}`, label: "", link: { type: "url", url: "/" } }])}>Añadir ítem</Button> : undefined}>
-        <fieldset disabled={!can}>{items.length === 0 ? <p className="text-sm text-muted">Menú vacío.</p> : <Level items={items} depth={1} can={can} onChange={set} />}</fieldset>
+        <fieldset disabled={!can}>{items.length === 0 ? <p className="text-sm text-muted">Menú vacío.</p> : <Level items={items} depth={1} onChange={set} />}</fieldset>
       </Card>
     </>
   );

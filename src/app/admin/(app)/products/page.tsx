@@ -9,13 +9,12 @@ import { DataTable } from "@/components/admin/ui/DataTable";
 import { Badge, Money, PageHeader, StatusBadge } from "@/components/admin/ui/Display";
 import { Input, SearchInput, Select } from "@/components/admin/ui/Form";
 import { Dialog, useConfirm } from "@/components/admin/ui/Overlay";
-import { useToast } from "@/components/admin/ui/Toast";
 import { Can } from "@/lib/admin/permissions";
 import { errorMessage } from "@/lib/admin/errors";
 import { useBulkProducts, useProductFacets, useProducts, type ProductFilters } from "@/lib/admin/api/catalog";
 
 export default function ProductsPage() {
-  const router = useRouter(), confirm = useConfirm(), toast = useToast();
+  const router = useRouter(), confirm = useConfirm();
   const [f, setF] = useState<ProductFilters>({ q: "", status: "", tag: "", vendor: "", page: 1 });
   const [sel, setSel] = useState<string[]>([]);
   const set = (p: Partial<ProductFilters>) => { setF((x) => ({ ...x, page: 1, ...p })); setSel([]); };
@@ -28,11 +27,11 @@ export default function ProductsPage() {
   const applyTag = () => {
     const tag = tagValue.trim().toLowerCase();
     if (!tag) return;
-    bulk.mutate({ ids: sel, op: "tag", tag }, { onSuccess: () => { setSel([]); setTagOpen(false); setTagValue(""); }, onError: (e) => toast.error(errorMessage(e)) });
+    bulk.mutate({ ids: sel, op: "tag", tag }, { onSuccess: () => { setSel([]); setTagOpen(false); setTagValue(""); } });
   };
   const run = async (op: "publish" | "archive" | "delete") => {
     if (op === "delete" && !(await confirm({ title: "Eliminar productos", message: `Se eliminarán ${sel.length} productos de forma permanente.`, danger: true, confirmLabel: "Eliminar" }))) return;
-    bulk.mutate({ ids: sel, op }, { onSuccess: () => setSel([]), onError: (e) => toast.error(errorMessage(e)) });
+    bulk.mutate({ ids: sel, op }, { onSuccess: () => setSel([]) });
   };
   return (
     <>

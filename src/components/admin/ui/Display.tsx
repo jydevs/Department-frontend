@@ -2,7 +2,7 @@
 import clsx from "clsx";
 import { Check, ChevronLeft, ChevronRight, Copy, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { formatDateTime, formatMoney } from "@/lib/admin/format";
 
 export function Card({ title, actions, children, className, pad = true }: { title?: string; actions?: ReactNode; children: ReactNode; className?: string; pad?: boolean }) {
@@ -44,7 +44,7 @@ export function StatusBadge({ status }: { status: string }) {
 }
 
 export const Spinner = ({ className }: { className?: string }) => <Loader2 role="status" aria-label="Cargando" className={clsx("size-5 animate-spin text-muted", className)} />;
-export const Skeleton = ({ className }: { className?: string }) => <div aria-hidden className={clsx("skel h-4 w-full", className)} />;
+export const Skeleton = ({ className }: { className?: string }) => <div aria-hidden className={clsx("adm-skel h-4 w-full", className)} />;
 
 export function EmptyState({ title, text, action, icon }: { title: string; text?: string; action?: ReactNode; icon?: ReactNode }) {
   return (
@@ -57,7 +57,12 @@ export function EmptyState({ title, text, action, icon }: { title: string; text?
   );
 }
 
+function useDocumentTitle(title: string) {
+  useEffect(() => { document.title = `${title} · Panel Dept.`; }, [title]);
+}
+
 export function PageHeader({ title, actions, breadcrumbs, description }: { title: string; actions?: ReactNode; breadcrumbs?: { label: string; href?: string }[]; description?: string }) {
+  useDocumentTitle(title);
   return (
     <div className="mb-5">
       {breadcrumbs && (

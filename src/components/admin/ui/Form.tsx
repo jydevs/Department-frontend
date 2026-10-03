@@ -16,9 +16,6 @@ export function Field({ label, hint, error, htmlFor, children, className }: { la
   );
 }
 
-/** Campo con label integrado (el id se genera). */
-export function useFieldId(): string { return useId(); }
-
 type FP = { label?: string; hint?: string; error?: string };
 export function Input({ label, hint, error, className, id, ...rest }: InputHTMLAttributes<HTMLInputElement> & FP) {
   const gid = useId(); const i = id ?? gid;

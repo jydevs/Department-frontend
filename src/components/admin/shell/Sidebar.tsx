@@ -3,25 +3,40 @@ import clsx from "clsx";
 import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Logo } from "@/components/layout/Logo";
 import { NAV } from "@/lib/admin/nav";
 import { useAuth } from "@/lib/admin/auth";
 
 export function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: { collapsed: boolean; onToggle: () => void; mobileOpen: boolean; onMobileClose: () => void }) {
   const pathname = usePathname();
+  const asideRef = useRef<HTMLElement>(null);
+  const closeRef = useRef(onMobileClose);
+  useEffect(() => { closeRef.current = onMobileClose; });
+  // menú móvil: foco dentro, Tab atrapado, Escape cierra y el foco vuelve al botón que lo abrió
   useEffect(() => {
     if (!mobileOpen) return;
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape") onMobileClose(); };
+    const prev = document.activeElement as HTMLElement | null;
+    const el = asideRef.current;
+    el?.querySelector<HTMLElement>("a[href]")?.focus();
+    const k = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { closeRef.current(); return; }
+      if (e.key !== "Tab" || !el) return;
+      const f = [...el.querySelectorAll<HTMLElement>("a[href], button:not(:disabled)")].filter((n) => n.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
     document.addEventListener("keydown", k);
-    return () => document.removeEventListener("keydown", k);
-  }, [mobileOpen, onMobileClose]);
+    return () => { document.removeEventListener("keydown", k); prev?.focus(); };
+  }, [mobileOpen]);
   const { permissions } = useAuth();
   const isActive = (href: string) => (href === "/admin" ? pathname === "/admin" : pathname === href || (pathname.startsWith(`${href}/`) && !NAV.flatMap((g) => g.items).some((o) => o.href !== href && o.href.startsWith(`${href}/`) && pathname.startsWith(o.href))));
   return (
     <>
       {mobileOpen && <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={onMobileClose} aria-hidden />}
-      <aside aria-label="Navegación principal" className={clsx("fixed inset-y-0 left-0 z-40 flex flex-col border-r border-line bg-surface transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0", collapsed ? "lg:w-16" : "lg:w-60", "w-64", mobileOpen ? "translate-x-0" : "-translate-x-full max-lg:invisible")}>
+      <aside ref={asideRef} aria-label="Navegación principal" role={mobileOpen ? "dialog" : undefined} aria-modal={mobileOpen || undefined} className={clsx("fixed inset-y-0 left-0 z-40 flex flex-col border-r border-line bg-surface transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0", collapsed ? "lg:w-16" : "lg:w-60", "w-64", mobileOpen ? "translate-x-0" : "-translate-x-full max-lg:invisible")}>
         <div className="flex h-[84px] items-center justify-between border-b border-line px-4">
           <Link href="/admin" className="flex items-center gap-2" onClick={onMobileClose}>
             <Logo size="sm" />

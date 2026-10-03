@@ -9,6 +9,7 @@ import { usePreviewToken } from "@/lib/admin/api/content";
 import { safeHref } from "@/lib/admin/format";
 import type { JsonValue, Section } from "@/lib/admin/types";
 
+/** Origen de la tienda para la vista previa real; vacío mientras no haya API/token de preview. */
 const STORE = process.env.NEXT_PUBLIC_STOREFRONT_URL ?? "";
 const DEVICES = { mobile: { w: 375, icon: Smartphone, label: "Móvil" }, tablet: { w: 768, icon: Tablet, label: "Tablet" }, desktop: { w: 1100, icon: Monitor, label: "Escritorio" } } as const;
 const s = (v: JsonValue | undefined): string => (typeof v === "string" ? v : "");
@@ -28,7 +29,7 @@ export function PagePreview({ sections }: { sections: Section[] }) {
         <div className="flex gap-1" role="group" aria-label="Dispositivo">
           {(Object.keys(DEVICES) as (keyof typeof DEVICES)[]).map((k) => { const D = DEVICES[k]; return <button key={k} type="button" aria-label={D.label} aria-pressed={device === k} onClick={() => setDevice(k)} className={clsx("rounded-sm p-1.5", device === k ? "bg-accent/15 text-accent-text" : "text-muted hover:bg-surface2")}><D.icon className="size-4" /></button>; })}
         </div>
-        <Button size="sm" icon={<ExternalLink className="size-3.5" />} loading={token.isPending} onClick={open}>Abrir en la tienda</Button>
+        <Button size="sm" icon={<ExternalLink className="size-3.5" />} loading={token.isPending} disabled={!STORE} title={STORE ? undefined : "Disponible al conectar la API (token de vista previa)"} onClick={open}>Abrir en la tienda</Button>
       </div>
       <div className="overflow-auto rounded-sm border border-line bg-black p-2">
         <div className="mx-auto overflow-hidden rounded bg-black text-white" style={{ width: Math.min(DEVICES[device].w, 1100), maxWidth: "100%" }}>

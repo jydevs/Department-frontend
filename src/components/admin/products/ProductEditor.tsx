@@ -3,6 +3,7 @@ import { ImagePlus, Plus, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useUnsavedGuard } from "@/components/admin/shell/useUnsavedGuard";
 import { MediaPicker } from "@/components/admin/content/MediaPicker";
 import { Button, IconButton } from "@/components/admin/ui/Button";
 import { Card, PageHeader, StatusBadge, Tabs } from "@/components/admin/ui/Display";
@@ -10,7 +11,7 @@ import { Checkbox, Field, Input, MoneyInput, Select, TagInput, Textarea } from "
 import { Markdown } from "@/components/admin/ui/Markdown";
 import { useConfirm } from "@/components/admin/ui/Overlay";
 import { SortableList } from "@/components/admin/ui/Sortable";
-import { generateVariants, useDeleteProduct, useDuplicateProduct, useProductFacets, useSaveProduct } from "@/lib/admin/api/catalog";
+import { generateVariants, useDeleteProduct, useDuplicateProduct, useProductFacets, useSaveProduct, useSetProductStatus } from "@/lib/admin/api/catalog";
 import { useCan } from "@/lib/admin/permissions";
 import type { Product } from "@/lib/admin/types";
 import { SeoPreview } from "./SeoPreview";
@@ -26,7 +27,9 @@ export function ProductEditor({ initial }: { initial: Product }) {
   const facets = useProductFacets().data;
   const save = useSaveProduct((s) => { setDirty(false); if (!initial.id) router.replace(`/admin/products/${s.id}`); });
   const dup = useDuplicateProduct((c) => router.push(`/admin/products/${c.id}`));
+  const setStatus = useSetProductStatus();
   const del = useDeleteProduct(() => router.push("/admin/products"));
+  useUnsavedGuard(dirty);
   const set = (patch: Partial<Product>) => { setP((x) => ({ ...x, ...patch })); setDirty(true); };
   const titleErr = dirty && !p.title.trim() ? "El título es obligatorio" : undefined;
   const setVariant = (i: number, patch: Partial<Product["variants"][number]>) => set({ variants: p.variants.map((v, k) => (k === i ? { ...v, ...patch } : v)) });
@@ -39,7 +42,7 @@ export function ProductEditor({ initial }: { initial: Product }) {
           {dirty && <span className="text-xs text-warn" role="status">Cambios sin guardar</span>}
           {initial.id && can && <>
             <Button onClick={() => dup.mutate(initial.id)} loading={dup.isPending}>Duplicar</Button>
-            <Button onClick={() => save.mutate({ ...p, status: p.status === "archived" ? "draft" : "archived" })}>{p.status === "archived" ? "Restaurar" : "Archivar"}</Button>
+            <Button loading={setStatus.isPending} onClick={() => { const next = initial.status === "archived" ? "draft" : "archived"; setStatus.mutate({ id: initial.id, status: next }, { onSuccess: () => setP((x) => ({ ...x, status: next })) }); }}>{initial.status === "archived" ? "Restaurar" : "Archivar"}</Button>
             <Button variant="danger" onClick={async () => { if (await confirm({ title: "Eliminar producto", message: `Se eliminará “${p.title}” de forma permanente.`, danger: true, confirmLabel: "Eliminar" })) del.mutate(initial.id); }}>Eliminar</Button>
           </>}
           {can && <Button variant="primary" loading={save.isPending} disabled={!dirty} onClick={() => save.mutate(p)}>{initial.id ? "Guardar" : "Crear producto"}</Button>}

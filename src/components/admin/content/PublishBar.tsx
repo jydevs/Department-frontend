@@ -1,6 +1,7 @@
 "use client";
 import { CalendarClock, History, RotateCcw, Save, Send, Undo2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useUnsavedGuard } from "@/components/admin/shell/useUnsavedGuard";
 import { Button } from "@/components/admin/ui/Button";
 import { Badge, DateTime, JsonView, StatusBadge } from "@/components/admin/ui/Display";
 import { DateTimeInput } from "@/components/admin/ui/Form";
@@ -9,7 +10,7 @@ import { diffJson, docStatus, useCancelSchedule, useDiscard, usePublish, useRest
 import { useCan } from "@/lib/admin/permissions";
 import type { ContentDoc, JsonValue } from "@/lib/admin/types";
 
-interface Props { doc: ContentDoc; local: JsonValue; dirty: boolean; saving: boolean; invalidCount: number; onSave: () => void; onReset: (c: JsonValue) => void }
+interface Props { doc: ContentDoc; local: JsonValue; dirty: boolean; saving: boolean; invalidCount: number; onSave: () => Promise<void>; onReset: (c: JsonValue) => void }
 
 /** Barra de publicación: borrador (autosave), descartar, publicar, programar, historial y diff. */
 export function PublishBar({ doc, local, dirty, saving, invalidCount, onSave, onReset }: Props) {
@@ -19,16 +20,11 @@ export function PublishBar({ doc, local, dirty, saving, invalidCount, onSave, on
   const [hist, setHist] = useState(false), [sch, setSch] = useState(false), [when, setWhen] = useState<string | null>(null), [diff, setDiff] = useState(false);
   const [view, setView] = useState<string | null>(null);
   const status = docStatus(doc);
-  useEffect(() => {
-    if (!dirty) return;
-    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener("beforeunload", h);
-    return () => window.removeEventListener("beforeunload", h);
-  }, [dirty]);
+  useUnsavedGuard(dirty, "Los últimos cambios aún no se han guardado como borrador. Si sales ahora se perderán.");
   const changes = diffJson(doc.published, local);
   const doPublish = async () => {
     if (invalidCount > 0) return;
-    if (dirty) onSave();
+    if (dirty) { try { await onSave(); } catch { return; } } // publica solo tras guardar el borrador
     publish.mutate({ kind: doc.kind, key: doc.key });
   };
   return (
@@ -55,9 +51,9 @@ export function PublishBar({ doc, local, dirty, saving, invalidCount, onSave, on
         <DiffTable rows={changes} />
       </Dialog>
       <Dialog open={sch} onClose={() => setSch(false)} title="Programar publicación" size="sm"
-        footer={<><Button onClick={() => setSch(false)}>Cancelar</Button><Button variant="primary" loading={schedule.isPending} disabled={!when} onClick={() => when && schedule.mutate({ kind: doc.kind, key: doc.key, at: when }, { onSuccess: () => setSch(false) })}>Programar</Button></>}>
+        footer={<><Button onClick={() => setSch(false)}>Cancelar</Button><Button variant="primary" loading={schedule.isPending} disabled={!when} onClick={async () => { if (!when) return; if (dirty) { try { await onSave(); } catch { return; } } schedule.mutate({ kind: doc.kind, key: doc.key, at: when }, { onSuccess: () => setSch(false) }); }}>Programar</Button></>}>
         <DateTimeInput label="Fecha y hora (hora local)" value={when} onChange={setWhen} />
-        <p className="mt-2 text-xs text-muted">Se publicará el borrador guardado en ese momento.</p>
+        <p className="mt-2 text-xs text-muted">Se guardará tu borrador y se publicará automáticamente en ese momento.</p>
       </Dialog>
       <Drawer open={hist} onClose={() => { setHist(false); setView(null); }} title="Historial de versiones">
         {doc.versions.length === 0 && <p className="text-sm text-muted">Aún no hay versiones publicadas.</p>}

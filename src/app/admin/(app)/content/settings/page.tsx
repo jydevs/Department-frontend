@@ -19,6 +19,22 @@ interface Settings {
   seo: { titleTemplate: string; defaultDescription: string; ogImageUrl?: string }; social: Record<string, string>;
   announcement: { enabled: boolean; text: string; href?: string }; store: { currency: string; locale: string; contactEmail?: string; whatsapp?: string };
 }
+const DEFAULTS: Settings = {
+  brand: { name: "", tagline: "", logoMediaUrl: "" },
+  theme: { colors: { background: "#000000", foreground: "#ffffff", accent: "#d10000", muted: "#8a8a8a", border: "#2a2a2a" }, fonts: { heading: "Inter", body: "Inter" } },
+  seo: { titleTemplate: "%s", defaultDescription: "", ogImageUrl: "" }, social: {}, announcement: { enabled: false, text: "", href: "" },
+  store: { currency: "COP", locale: "es-CO", contactEmail: "", whatsapp: "" },
+};
+/** Mezcla profunda con los valores por defecto: un documento incompleto no rompe el editor. */
+function withDefaults<T>(base: T, v: unknown): T {
+  if (base && typeof base === "object" && !Array.isArray(base)) {
+    const src = v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+    const out: Record<string, unknown> = { ...(base as Record<string, unknown>), ...src };
+    for (const k of Object.keys(base as object)) out[k] = withDefaults((base as Record<string, unknown>)[k], src[k]);
+    return out as T;
+  }
+  return (v === undefined || v === null ? base : v) as T;
+}
 const FONTS = ["Inter", "Anton", "Oswald", "Pinyon Script", "Helvetica Neue", "Archivo", "Space Grotesk", "Roboto Mono"];
 const COLORS: [string, string][] = [["background", "Fondo"], ["foreground", "Texto"], ["accent", "Acento"], ["muted", "Texto secundario"], ["border", "Bordes"]];
 const SOCIAL = ["instagram", "tiktok", "facebook", "youtube", "pinterest", "x"];
@@ -26,7 +42,7 @@ const SOCIAL = ["instagram", "tiktok", "facebook", "youtube", "pinterest", "x"];
 function Editor({ doc }: { doc: ContentDoc }) {
   const d = useDraft(doc);
   const can = useCan("content:write");
-  const s = d.local as unknown as Settings;
+  const s = withDefaults(DEFAULTS, d.local);
   const [logo, setLogo] = useState(false);
   const up = (fn: (x: Settings) => Settings) => d.change(fn(structuredClone(s)) as unknown as JsonValue);
   const errs: Record<string, string> = {};
@@ -40,7 +56,7 @@ function Editor({ doc }: { doc: ContentDoc }) {
   const c = s.theme.colors;
   return (
     <>
-      <PublishBar doc={doc} local={d.local} dirty={d.dirty} saving={d.saving} invalidCount={Object.keys(errs).length} onSave={d.flush} onReset={d.reset} />
+      <PublishBar doc={doc} local={d.local} dirty={d.dirty} saving={d.saving} invalidCount={Object.keys(errs).length} onSave={() => d.flush()} onReset={d.reset} />
       <fieldset disabled={!can} className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
           <Card title="Marca"><div className="space-y-3">

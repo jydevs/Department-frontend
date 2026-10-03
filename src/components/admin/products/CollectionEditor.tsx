@@ -3,6 +3,7 @@ import { ImagePlus, Plus, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useUnsavedGuard } from "@/components/admin/shell/useUnsavedGuard";
 import { MediaPicker } from "@/components/admin/content/MediaPicker";
 import { Button, IconButton } from "@/components/admin/ui/Button";
 import { Badge, Card, PageHeader, Spinner } from "@/components/admin/ui/Display";
@@ -26,6 +27,7 @@ export function CollectionEditor({ initial }: { initial: Collection }) {
   const all = useAllProducts().data ?? [];
   const save = useSaveCollection((s) => { setDirty(false); if (!initial.id) router.replace(`/admin/collections/${s.id}`); });
   const del = useDeleteCollection(() => router.push("/admin/collections"));
+  useUnsavedGuard(dirty);
   const set = (p: Partial<Collection>) => { setC((x) => ({ ...x, ...p })); setDirty(true); };
   const preview = usePreviewRules(c);
   const manual = c.productIds.map((id) => all.find((p) => p.id === id)).filter((p): p is NonNullable<typeof p> => !!p);

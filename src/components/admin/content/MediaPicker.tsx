@@ -21,18 +21,24 @@ export function MediaPicker({ open, onClose, onPick, multiple }: { open: boolean
   const input = useRef<HTMLInputElement>(null);
   const toast = useToast(), qc = useQueryClient();
   const [up, setUp] = useState<number | null>(null);
+  const [uploaded, setUploaded] = useState<MediaItem[]>([]); // subidas en esta sesión (aún pueden no estar en la lista refrescada)
   const toggle = (id: string) => setSel((s) => (multiple ? (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]) : [id]));
   const upload = async (files: FileList | null) => {
     if (!files) return;
     for (const f of Array.from(files)) {
-      try { setUp(0); const m = await uploadFile(f, setUp); toggle(m.id); } catch (e) { toast.error(errorMessage(e)); }
+      try { setUp(0); const m = await uploadFile(f, setUp); setUploaded((u) => [m, ...u]); toggle(m.id); } catch (e) { toast.error(errorMessage(e)); }
     }
-    setUp(null); await qc.invalidateQueries({ queryKey: ["media"] });
+    setUp(null); if (input.current) input.current.value = ""; await qc.invalidateQueries({ queryKey: ["media"] });
   };
-  const done = () => { onPick((data ?? []).filter((m) => sel.includes(m.id))); setSel([]); onClose(); };
+  const close = () => { setSel([]); setUploaded([]); onClose(); };
+  const done = () => {
+    const pool = [...uploaded, ...(data ?? [])];
+    onPick(sel.map((id) => pool.find((m) => m.id === id)).filter((m): m is MediaItem => !!m));
+    close();
+  };
   return (
-    <Dialog open={open} onClose={onClose} title="Biblioteca de medios" size="xl"
-      footer={<><Button onClick={onClose}>Cancelar</Button><Button variant="primary" disabled={!sel.length} onClick={done}>Usar {sel.length > 1 ? `${sel.length} imágenes` : "imagen"}</Button></>}>
+    <Dialog open={open} onClose={close} title="Biblioteca de medios" size="xl"
+      footer={<><Button onClick={close}>Cancelar</Button><Button variant="primary" disabled={!sel.length} onClick={done}>Usar {sel.length > 1 ? `${sel.length} imágenes` : "imagen"}</Button></>}>
       <div className="mb-3 flex gap-2">
         <SearchInput onSearch={onSearch} placeholder="Buscar por nombre o alt" className="flex-1" />
         <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => void upload(e.target.files)} />

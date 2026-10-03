@@ -1,9 +1,11 @@
 "use client";
 import clsx from "clsx";
 import { ChevronDown, ChevronUp, Copy, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button, IconButton } from "@/components/admin/ui/Button";
+import { SeoPreview } from "@/components/admin/products/SeoPreview";
 import { Badge, Card } from "@/components/admin/ui/Display";
+import { Input, Textarea } from "@/components/admin/ui/Form";
 import { Dialog, useConfirm } from "@/components/admin/ui/Overlay";
 import { SortableList } from "@/components/admin/ui/Sortable";
 import { useSectionTypes, validateSections } from "@/lib/admin/api/content";
@@ -15,11 +17,29 @@ import { PublishBar } from "./PublishBar";
 import { SchemaForm } from "./SchemaForm";
 import { useDraft } from "./useDraft";
 
+/** Bloque colapsable: el encabezado es un <div> (no <summary>) para poder alojar botones accesibles. */
+function BlockItem({ handle, title, defaultOpen, first, last, onUp, onDown, onRemove, children }: { handle: React.ReactNode; title: string; defaultOpen: boolean; first: boolean; last: boolean; onUp: () => void; onDown: () => void; onRemove: () => void; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const id = useId();
+  return (
+    <div className="mb-2 rounded-sm border border-line">
+      <div className="flex items-center gap-1 p-2 text-sm">
+        {handle}
+        <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)} className="min-h-9 flex-1 text-left">{title}</button>
+        <IconButton label="Mover arriba" className="!size-9 xl:!size-7" disabled={first} onClick={onUp}><ChevronUp className="size-3.5" /></IconButton>
+        <IconButton label="Mover abajo" className="!size-9 xl:!size-7" disabled={last} onClick={onDown}><ChevronDown className="size-3.5" /></IconButton>
+        <IconButton label="Eliminar bloque" className="!size-9 xl:!size-7" onClick={onRemove}><Trash2 className="size-3.5" /></IconButton>
+      </div>
+      {open && <div id={id} className="border-t border-line p-3">{children}</div>}
+    </div>
+  );
+}
+
 const sectionsOf = (v: JsonValue): Section[] => ((v as { sections?: Section[] } | null)?.sections ?? []) as Section[];
 const wrap = (sections: Section[]): JsonValue => ({ sections } as unknown as JsonValue);
 
 /** Editor de secciones (plantillas y páginas): lista ordenable, formularios por esquema, vista previa y publicación. */
-export function TemplateEditor({ doc, extra }: { doc: ContentDoc; extra?: React.ReactNode }) {
+export function TemplateEditor({ doc }: { doc: ContentDoc }) {
   const isPage = doc.kind === "page";
   const d = useDraft(doc, isPage);
   const types = useSectionTypes().data ?? [];
@@ -43,8 +63,16 @@ export function TemplateEditor({ doc, extra }: { doc: ContentDoc; extra?: React.
   const remove = async (s: Section) => { if (await confirm({ title: "Eliminar sección", message: `Se eliminará “${labelOf(s.type)}”.`, danger: true, confirmLabel: "Eliminar" })) { const next = sections.filter((x) => x.id !== s.id); setSections(next); if (selId === s.id) setSelId(next[0]?.id ?? null); } };
   return (
     <>
-      <PublishBar doc={doc} local={d.local} dirty={d.dirty} saving={d.saving} invalidCount={Object.keys(errors).length} onSave={d.flush} onReset={d.reset} />
-      {extra}
+      <PublishBar doc={doc} local={d.local} dirty={d.dirty} saving={d.saving} invalidCount={Object.keys(errors).length} onSave={() => d.flush()} onReset={d.reset} />
+      {isPage && (
+        <Card title="SEO de la página" className="mb-4"><div className="grid gap-3 lg:grid-cols-2">
+          <fieldset disabled={!can} className="space-y-3">
+            <Input label="Título SEO" value={d.seo.seoTitle} onChange={(e) => d.changeSeo({ seoTitle: e.target.value })} />
+            <Textarea label="Descripción SEO" rows={2} value={d.seo.seoDescription} onChange={(e) => d.changeSeo({ seoDescription: e.target.value })} />
+          </fieldset>
+          <SeoPreview title={d.seo.seoTitle || doc.title} description={d.seo.seoDescription} handle={doc.key} base="daregulardept.com/pages" />
+        </div></Card>
+      )}
       <div className="grid gap-4 xl:grid-cols-[18rem_1fr_26rem]">
         <Card title="Secciones" pad={false} actions={can ? <Button size="sm" icon={<Plus className="size-3.5" />} onClick={() => setAdd(true)}>Añadir</Button> : undefined}>
           <div className="space-y-1 p-2">
@@ -75,14 +103,13 @@ export function TemplateEditor({ doc, extra }: { doc: ContentDoc; extra?: React.
                     <div className="flex gap-1">{selType.blockTypes.map((bt) => <Button key={bt.type} size="sm" icon={<Plus className="size-3.5" />} disabled={!!selType.maxBlocks && (sel.blocks?.length ?? 0) >= selType.maxBlocks} onClick={() => patch(sel.id, { blocks: [...(sel.blocks ?? []), { id: `b_${uid()}`, type: bt.type, settings: {} }] })}>{bt.label}</Button>)}</div></div>
                   {errors[`${sel.id}.blocks`] && <p role="alert" className="mb-2 text-xs text-accent-text">{errors[`${sel.id}.blocks`]}</p>}
                   <SortableList items={sel.blocks ?? []} getId={(b) => b.id} onChange={(blocks) => patch(sel.id, { blocks })}>
-                    {(b, handle, i) => { const bt = selType.blockTypes.find((x) => x.type === b.type); return (
-                      <details className="mb-2 rounded-sm border border-line" open={(sel.blocks?.length ?? 0) <= 3}>
-                        <summary className="flex cursor-pointer items-center gap-1 p-2 text-sm">{handle}<span className="flex-1">{bt?.label} {i + 1}</span>
-                          <IconButton label="Mover arriba" className="!size-9 xl:!size-7" disabled={i === 0} onClick={(e) => { e.preventDefault(); const l = [...(sel.blocks ?? [])]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; patch(sel.id, { blocks: l }); }}><ChevronUp className="size-3.5" /></IconButton>
-                          <IconButton label="Mover abajo" className="!size-9 xl:!size-7" disabled={i === (sel.blocks?.length ?? 0) - 1} onClick={(e) => { e.preventDefault(); const l = [...(sel.blocks ?? [])]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; patch(sel.id, { blocks: l }); }}><ChevronDown className="size-3.5" /></IconButton>
-                          <IconButton label="Eliminar bloque" className="!size-9 xl:!size-7" onClick={(e) => { e.preventDefault(); patch(sel.id, { blocks: (sel.blocks ?? []).filter((x) => x.id !== b.id) }); }}><Trash2 className="size-3.5" /></IconButton></summary>
-                        <div className="border-t border-line p-3">{bt && <SchemaForm fields={bt.fields} values={b.settings} onChange={(settings) => patch(sel.id, { blocks: (sel.blocks ?? []).map((x) => (x.id === b.id ? { ...x, settings } : x)) })} />}</div>
-                      </details>); }}
+                    {(b, handle, i) => { const bt = selType.blockTypes.find((x) => x.type === b.type); const list = sel.blocks ?? []; return (
+                      <BlockItem handle={handle} title={`${bt?.label ?? b.type} ${i + 1}`} defaultOpen={list.length <= 3} first={i === 0} last={i === list.length - 1}
+                        onUp={() => { const l = [...list]; [l[i - 1], l[i]] = [l[i], l[i - 1]]; patch(sel.id, { blocks: l }); }}
+                        onDown={() => { const l = [...list]; [l[i + 1], l[i]] = [l[i], l[i + 1]]; patch(sel.id, { blocks: l }); }}
+                        onRemove={() => patch(sel.id, { blocks: list.filter((x) => x.id !== b.id) })}>
+                        {bt && <SchemaForm fields={bt.fields} values={b.settings} onChange={(settings) => patch(sel.id, { blocks: list.map((x) => (x.id === b.id ? { ...x, settings } : x)) })} />}
+                      </BlockItem>); }}
                   </SortableList>
                 </div>
               )}

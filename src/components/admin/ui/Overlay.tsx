@@ -5,15 +5,23 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import { Button } from "./Button";
 import { Input } from "./Form";
 
+/** Pila de modales abiertos: solo el de arriba atiende Escape y gestiona el scroll del body. */
+const modalStack: symbol[] = [];
+
 function useModal(open: boolean, onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  useEffect(() => { closeRef.current = onClose; });
   useEffect(() => {
     if (!open) return;
+    const me = Symbol("modal");
+    modalStack.push(me);
     const prev = document.activeElement as HTMLElement | null;
     const el = ref.current;
     el?.querySelector<HTMLElement>("[data-autofocus], input, textarea, select, button:not([data-close])")?.focus();
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.stopPropagation(); onClose(); }
+      if (modalStack[modalStack.length - 1] !== me) return;
+      if (e.key === "Escape") { e.preventDefault(); closeRef.current(); return; }
       if (e.key === "Tab" && el) {
         const f = [...el.querySelectorAll<HTMLElement>("a[href], button:not(:disabled), input:not(:disabled), select, textarea, [tabindex]:not([tabindex='-1'])")];
         if (!f.length) return;
@@ -24,8 +32,14 @@ function useModal(open: boolean, onClose: () => void) {
     };
     document.addEventListener("keydown", key);
     document.body.style.overflow = "hidden";
-    return () => { document.removeEventListener("keydown", key); document.body.style.overflow = ""; prev?.focus(); };
-  }, [open, onClose]);
+    return () => {
+      document.removeEventListener("keydown", key);
+      const i = modalStack.indexOf(me);
+      if (i >= 0) modalStack.splice(i, 1);
+      if (!modalStack.length) document.body.style.overflow = "";
+      prev?.focus();
+    };
+  }, [open]);
   return ref;
 }
 
