@@ -92,7 +92,7 @@ export function CollectionEditor({ initial }: { initial: Collection }) {
               <div className="space-y-3">
                 {c.membersState === "error" && (
                   <div role="alert" className="flex flex-wrap items-center gap-2 rounded-sm border border-accent/50 bg-accent/10 p-3 text-sm">
-                    <p className="min-w-0 flex-1">No se pudo cargar la lista actual de productos{c.membersError ? `: ${c.membersError}` : ""}. Mientras no se cargue no se puede editar ni guardar la lista, para no reemplazar la colección con datos incompletos.</p>
+                    <p className="min-w-0 flex-1">No se pudo cargar la lista actual de productos{c.membersError ? `: ${c.membersError.replace(/[.\s]+$/, "")}` : ""}. Mientras no se cargue no se puede editar ni guardar la lista, para no reemplazar la colección con datos incompletos.</p>
                     <Button size="sm" variant="primary" icon={<RefreshCw className="size-3.5" />} loading={retrying} onClick={() => void retryMembers()}>Reintentar</Button>
                   </div>
                 )}

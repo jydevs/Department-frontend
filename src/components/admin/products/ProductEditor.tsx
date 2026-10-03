@@ -160,6 +160,7 @@ export function ProductEditor({ initial }: { initial: Product }) {
                 </SortableList>
               </div>
             )}
+            {errs.images && <p role="alert" className="mt-2 text-xs text-accent-text">{errs.images}</p>}
             <MediaPicker open={pick} onClose={() => setPick(false)} multiple onPick={(items) => set({ images: [...p.images, ...items.filter((m) => !p.images.some((i) => i.url === m.url)).map((m) => ({ id: m.id, url: m.url, alt: m.alt || m.name }))] })} />
           </Card>
           <Card title="Opciones y variantes">
@@ -173,7 +174,7 @@ export function ProductEditor({ initial }: { initial: Product }) {
               ))}
               {p.options.length < 3 && <Button size="sm" icon={<Plus className="size-4" />} onClick={() => setOptions([...p.options, { name: "", values: [] }])}>Añadir opción</Button>}
             </div>
-            <div className="mt-4 overflow-x-auto">
+            <div className="mt-4 overflow-x-auto" tabIndex={0}>
               <table className="w-full min-w-[720px] text-left text-sm">
                 <caption className="sr-only">Variantes del producto</caption>
                 <thead className="text-xs text-muted"><tr><th scope="col" className="py-2 pr-2">Variante</th><th scope="col" className="px-1">Precio</th><th scope="col" className="px-1">Comparado</th><th scope="col" className="px-1">SKU</th><th scope="col" className="px-1">Peso (g)</th><th scope="col" className="px-1">Código</th><th scope="col" className="px-1">Seg.</th><th scope="col" className="px-1">Back.</th></tr></thead>
@@ -229,6 +230,7 @@ export function ProductEditor({ initial }: { initial: Product }) {
               <Input label="Proveedor" value={p.vendor} error={errs.vendor} onChange={(e) => set({ vendor: e.target.value })} />
               <Input label="Tipo de producto" value={p.type} error={errs.type} onChange={(e) => set({ type: e.target.value })} />
               <TagInput label="Etiquetas" value={p.tags} onChange={(tags) => set({ tags })} />
+              {errs.tags && <p role="alert" className="text-xs text-accent-text">{errs.tags}</p>}
             </div>
           </Card>
         </div>

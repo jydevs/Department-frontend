@@ -9,18 +9,20 @@ import { SiteProvider } from "@/components/layout/SiteProvider";
 import { getSite } from "@/lib/cms/site";
 import { INDEXABLE, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
+// Fuentes de titulares/marquesinas: `optional` evita el salto de maquetación (CLS) cuando la fuente llega tarde y cambia
+// el ancho del texto; next/font las precarga, así que en visitas normales ya están disponibles en el primer pintado.
 const anton = Anton({
   weight: "400",
   variable: "--font-anton",
   subsets: ["latin"],
-  display: "swap",
+  display: "optional",
 });
 
 const oswald = Oswald({
   weight: ["400", "500", "600", "700"],
   variable: "--font-oswald",
   subsets: ["latin"],
-  display: "swap",
+  display: "optional",
 });
 
 const inter = Inter({

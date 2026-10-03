@@ -392,6 +392,8 @@
   .adm-skel { animation: adm-pulse 1.4s ease-in-out infinite; background: var(--adm-surface-2); }
   .adm-toast-in { animation: adm-toast 0.18s ease-out; }
 }
+/* En la celda invertida (hover) los colores semánticos del texto (muted/ok/error…) no tienen contraste sobre el fondo claro: sin capa para ganar a las utilidades */
+.admin-root .adm-invert:hover :is(.text-muted, .text-ok, .text-accent-text, .text-warn, .text-info) { color: color-mix(in srgb, var(--adm-bg) 80%, transparent); }
 @keyframes adm-pulse { 50% { opacity: 0.45; } }
 @keyframes adm-toast { from { transform: translateY(8px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .admin-root :is(a, button, input, select, textarea, label, tr), .adm-skel, .adm-toast-in { animation: none !important; transition: none !important; } }

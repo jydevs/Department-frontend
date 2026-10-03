@@ -146,7 +146,7 @@ export function PublishBar({ doc, draft: d, invalidCount }: Props) {
       </Dialog>
       <Dialog open={sch} onClose={() => setSch(false)} title="Programar publicación" size="sm"
         footer={<><Button onClick={() => setSch(false)}>Cancelar</Button><Button variant="primary" loading={schedule.isPending || busy} disabled={!when || working} onClick={() => void doSchedule()}>Programar</Button></>}>
-        <DateTimeInput label="Fecha y hora (hora local)" value={when} onChange={(v) => { setSchErr(undefined); setWhen(v); }} error={schErr} />
+        <DateTimeInput label="Fecha y hora" value={when} onChange={(v) => { setSchErr(undefined); setWhen(v); }} error={schErr} />
         <div className="mt-3"><Input label="Nota (opcional)" maxLength={255} value={note} onChange={(e) => setNote(e.target.value)} /></div>
         <p className="mt-2 text-xs text-muted">Se guardará tu borrador y esa copia se publicará automáticamente en ese momento.{neverPublished ? " Este documento nunca se ha publicado: será su primera publicación." : ""}</p>
       </Dialog>

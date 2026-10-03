@@ -13,7 +13,7 @@ export function StoreChrome({ header, footer, children }: { header: ReactNode; f
       </a>
       {header}
       {/* altura mínima: las páginas de cliente (login, checkout, 404…) pintan su contenido tras hidratar y sin ella el pie saltaba (CLS) */}
-      <main id="main" className="min-h-[70svh] flex-1">{children}</main>
+      <main id="main" className="min-h-[100svh] flex-1">{children}</main>
       {footer}
       <div className="grain" aria-hidden />
     </>

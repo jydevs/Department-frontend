@@ -25,7 +25,7 @@ export function LookbookGallery({ section }: { section: CmsSection }) {
           const product = optStr(t, "productHandle");
           const fig = (
             <figure className={`group relative overflow-hidden bg-dept-gray-900 ${ASPECT[str(t, "aspect", "2/3")] ?? "aspect-[2/3]"} ${layout === "carousel" ? "w-[70vw] shrink-0 snap-start md:w-[28vw]" : ""}`}>
-              <Image src={str(t, "imageUrl")} alt={str(t, "alt")} fill sizes="(min-width: 768px) 33vw, 50vw" className="object-cover transition-transform duration-700 ease-out-expo group-hover:scale-105" />
+              <Image src={str(t, "imageUrl")} alt={str(t, "alt")} fill {...(i === 0 ? { loading: "eager" as const } : {})} sizes="(min-width: 768px) 33vw, 50vw" className="object-cover transition-transform duration-700 ease-out-expo group-hover:scale-105" />
               {captions && optStr(t, "caption") && (
                 <figcaption aria-hidden className="font-condensed pointer-events-none absolute left-3 top-3 bg-dept-black/70 px-2 py-1 text-[11px] tracking-[0.2em] text-dept-white opacity-100 transition-opacity duration-500 ease-out-expo md:opacity-0 md:group-hover:opacity-100">
                   {str(t, "caption")}

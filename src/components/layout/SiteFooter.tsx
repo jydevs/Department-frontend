@@ -105,12 +105,14 @@ export function SiteFooter({ site }: { site: SiteServerData }) {
         )}
       </div>
 
-      {/* giant wordmark — decorative, bleeds off the bottom edge */}
+      {/* giant wordmark — decorative, bleeds off the bottom edge. El texto va en un pseudo-elemento (`data-text`) para que
+          no sea contenido de la página: es adorno de bajo contraste a propósito y no debe evaluarse ni leerse como texto. */}
       {bool(f, "showWordmark", true) && wordmark && (
         <div className="overflow-hidden border-t border-white/10 pt-6 md:pt-10" aria-hidden>
-          <p className="font-display translate-y-[12%] select-none whitespace-nowrap text-center text-[14.6vw] leading-[0.9] text-dept-gray-900 transition-colors duration-500 ease-out-expo hover:text-transparent hover:[-webkit-text-stroke:2px_var(--dept-red)]">
-            {wordmark}
-          </p>
+          <p
+            data-text={wordmark}
+            className="font-display translate-y-[12%] select-none whitespace-nowrap text-center text-[14.6vw] leading-[0.9] text-dept-gray-900 transition-colors duration-500 ease-out-expo before:content-[attr(data-text)] hover:text-transparent hover:[-webkit-text-stroke:2px_var(--dept-red)]"
+          />
         </div>
       )}
 

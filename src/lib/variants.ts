@@ -12,7 +12,8 @@ export const needsChoice = (p: Product, optionIndex: number): boolean => (p.opti
 /** Selección inicial: las opciones con un único valor ya vienen elegidas. */
 export const initialSelection = (p: Product): Selection => p.options.map((o) => (o.values.length === 1 ? o.values[0] : null));
 
-const matches = (v: ProductVariant, sel: Selection, skip = -1): boolean => sel.every((s, i) => i === skip || s === null || v.values[i] === s);
+/** La variante coincide con lo elegido en las opciones anteriores a `before` (las posteriores no la limitan). */
+const matches = (v: ProductVariant, sel: Selection, before = sel.length): boolean => sel.every((s, i) => i >= before || s === null || v.values[i] === s);
 
 /** Variante que corresponde a una selección COMPLETA (`undefined` si falta elegir algo o la combinación no existe). */
 export function selectedVariant(p: Product, sel: Selection): ProductVariant | undefined {
@@ -23,7 +24,11 @@ export function selectedVariant(p: Product, sel: Selection): ProductVariant | un
 /** Variante comprable cuando solo hay una (producto sin opciones reales). */
 export const onlyVariant = (p: Product): ProductVariant | undefined => (p.variants.length === 1 ? p.variants[0] : undefined);
 
-/** ¿Existe alguna variante DISPONIBLE con `value` en la opción `optionIndex` y compatible con el resto de lo elegido? (agotado por combinación) */
+/**
+ * ¿Existe alguna variante DISPONIBLE con `value` en la opción `optionIndex` y compatible con lo elegido en las opciones
+ * ANTERIORES? (agotado por combinación: elegido "Rojo", la talla "S" se deshabilita si Rojo/S está agotada). La primera
+ * opción siempre puede cambiarse libremente; al hacerlo se descartan las elecciones posteriores que dejen de ser posibles.
+ */
 export function valueAvailable(p: Product, sel: Selection, optionIndex: number, value: string): boolean {
   return p.variants.some((v) => v.available && v.values[optionIndex] === value && matches(v, sel, optionIndex));
 }
@@ -32,7 +37,7 @@ export function valueAvailable(p: Product, sel: Selection, optionIndex: number, 
 export function selectValue(p: Product, sel: Selection, optionIndex: number, value: string): Selection {
   const next = sel.map((s, i) => (i === optionIndex ? value : s));
   return next.map((s, i) => {
-    if (i === optionIndex || s === null || !needsChoice(p, i)) return s;
+    if (i <= optionIndex || s === null || !needsChoice(p, i)) return s;
     return valueAvailable(p, next, i, s) ? s : null;
   });
 }

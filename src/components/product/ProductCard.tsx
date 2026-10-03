@@ -56,6 +56,7 @@ export function ProductCard({
             label={`${product.imageLabel} — segunda vista`}
             src={second}
             fill
+            lowPriority
             sizes={sizes}
             imgClassName="scale-[1.04] opacity-0 transition-[transform,opacity] duration-700 ease-out-expo group-hover:scale-100 group-hover:opacity-100"
           />

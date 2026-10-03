@@ -17,7 +17,7 @@ export function CollectionHero({ section, collection, count, more = false }: { s
     <section className={clsx("relative isolate flex items-end overflow-hidden", str(s, "minHeight") === "large" ? "min-h-[75svh]" : "min-h-[58svh]")}>
       <div className="absolute inset-0 -z-10 overflow-hidden">
         <div className={clsx(bool(s, "parallax", true) ? "parallax-y absolute -inset-y-[10%]" : "absolute inset-y-0", "inset-x-0")}>
-          <PlaceholderImage label={collection.heroImageLabel} src={img} tone="dark" hideLabel fill priority className={bool(s, "grayscale", true) ? "grayscale" : undefined} />
+          <PlaceholderImage label={collection.heroImageLabel} src={img} tone="dark" hideLabel fill priority sizes="(min-width: 1200px) 1200px, 100vw" className={bool(s, "grayscale", true) ? "grayscale" : undefined} />
         </div>
       </div>
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10" style={{ background: `linear-gradient(to top, ${mix(1)}, ${mix(op)}, ${mix(op * 0.75)})` }} />

@@ -28,6 +28,8 @@ interface PlaceholderImageProps {
   sizes?: string;
   /** extra classes for the <img> itself (hover zoom, grayscale…) */
   imgClassName?: string;
+  /** imagen secundaria (p. ej. foto al pasar el cursor): se pide con prioridad baja para no competir con la LCP */
+  lowPriority?: boolean;
 }
 
 const toneStyles: Record<Tone, string> = {
@@ -52,6 +54,7 @@ export function PlaceholderImage({
   priority = false,
   sizes = "100vw",
   imgClassName,
+  lowPriority = false,
 }: PlaceholderImageProps) {
   if (src) {
     return (
@@ -68,7 +71,7 @@ export function PlaceholderImage({
           alt={label}
           fill
           // Next 16 deprecó `priority`: la imagen LCP va con `loading="eager"` + `fetchPriority="high"`
-          {...(priority ? { loading: "eager" as const, fetchPriority: "high" as const } : {})}
+          {...(priority ? { loading: "eager" as const, fetchPriority: "high" as const } : lowPriority ? { fetchPriority: "low" as const } : {})}
           sizes={sizes}
           className={clsx("object-cover", imgClassName)}
         />

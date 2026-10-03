@@ -23,7 +23,7 @@ export interface FocusTrapOptions {
 const visible = (el: HTMLElement) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden";
 
 /** Elementos enfocables y visibles de un contenedor, en orden de tabulación. */
-export function focusableIn(root: HTMLElement): HTMLElement[] {
+function focusableIn(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.tabIndex >= 0 && visible(el));
 }
 
@@ -75,7 +75,17 @@ export function useFocusTrap<T extends HTMLElement = HTMLElement>(options: Focus
       : typeof initial === "function" ? initial()
       : initial ? initial.current
       : focusableIn(root)[0];
-    (target ?? root).focus({ preventScroll: true });
+    const focusTarget = target ?? root;
+    focusTarget.focus({ preventScroll: true });
+    // si el panel aún está en transición (visibility: hidden → visible) el primer intento no enfoca: se reintenta en los próximos frames
+    let raf = 0;
+    let tries = 0;
+    const retry = () => {
+      if (document.activeElement === focusTarget || ++tries > 12) return;
+      focusTarget.focus({ preventScroll: true });
+      raf = requestAnimationFrame(retry);
+    };
+    if (document.activeElement !== focusTarget) raf = requestAnimationFrame(retry);
 
     // 3) Escape y bucle de Tab
     const onKey = (e: KeyboardEvent) => {
@@ -108,6 +118,7 @@ export function useFocusTrap<T extends HTMLElement = HTMLElement>(options: Focus
     document.addEventListener("keydown", onKey);
 
     return () => {
+      cancelAnimationFrame(raf);
       document.removeEventListener("keydown", onKey);
       for (const el of inerted) el.removeAttribute("inert");
       const restore = opts.current.restoreFocus;

@@ -190,7 +190,7 @@ export function useOrderTags(order: Order) {
             const o = latest.current;
             const body = (v: number) => ({ version: v, tags: [...tags.filter((t) => t !== REFUND_PENDING_TAG), ...(o.tags.includes(REFUND_PENDING_TAG) ? [REFUND_PENDING_TAG] : [])] });
             try {
-              const r = await api.patch<{ version: number }>(base(o.id), body(version.current ?? o.version));
+              const r = await api.patch<{ version: number }>(base(o.id), body(Math.max(version.current ?? 0, o.version)));
               version.current = r.version;
             } catch (e) {
               if (!(e instanceof ApiError && (e.status === 409 || e.status === 412))) throw e;
@@ -209,7 +209,6 @@ export function useOrderTags(order: Order) {
         await Promise.all([qc.invalidateQueries({ queryKey: ["order"] }), qc.invalidateQueries({ queryKey: ["orders"] })]).catch(() => undefined);
       } while (want.current);
     } finally {
-      version.current = null;
       running.current = false;
       setSaving(false);
       setPending(null);

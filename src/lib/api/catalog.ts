@@ -14,7 +14,7 @@ const DETAIL_CONCURRENCY = 6;
 /** Máximo de tarjetas de una página que se enriquecen con su detalle; el resto usa los datos del listado. */
 const ENRICH_LIMIT = 24;
 /** Tamaño de página del catálogo (máximo de la API). */
-export const PAGE_SIZE = 100;
+const PAGE_SIZE = 100;
 
 const ENTITIES: Record<string, string> = { "&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'" };
 const decode = (s: string) => s.replace(/&(nbsp|amp|lt|gt|quot|#39);/g, (m) => ENTITIES[m] ?? m);
@@ -26,7 +26,7 @@ export function plainText(html: string, max = 200): string {
 }
 
 /** HTML (ya saneado por el backend) → texto con párrafos separados por línea en blanco. No se inyecta HTML en la tienda. */
-export function htmlToParagraphs(html: string, max = 1500): string {
+function htmlToParagraphs(html: string, max = 1500): string {
   const t = decode(html.replace(/<\/(p|h[1-6]|li|ul|ol)>/gi, "\n\n").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, ""))
     .replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
@@ -54,7 +54,7 @@ function representative(variants: ProductVariant[]): ProductVariant | undefined 
   );
 }
 
-export function toProduct(d: ApiProductDetails, summary?: ApiProductSummary): Product {
+function toProduct(d: ApiProductDetails, summary?: ApiProductSummary): Product {
   const options = d.options.map((o) => ({ name: o.name, values: o.values }));
   const variants = d.variants.map((v) => toVariant(v, options.map((o) => o.name)));
   const available = variants.some((v) => v.available);
@@ -107,7 +107,7 @@ export async function getProducts(opts: { collection?: string; tag?: string; sor
   return enrich(page.items);
 }
 
-export function toCollection(c: ApiCollectionSummary & { descriptionHtml?: string; seo?: { title: string | null; description: string | null }; updatedAt?: string }): Collection {
+function toCollection(c: ApiCollectionSummary & { descriptionHtml?: string; seo?: { title: string | null; description: string | null }; updatedAt?: string }): Collection {
   return {
     handle: c.handle, title: c.title, heroImageLabel: c.image?.alt || c.title, heroImage: c.image?.url,
     description: c.descriptionHtml ? plainText(c.descriptionHtml) : undefined,

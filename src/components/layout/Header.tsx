@@ -278,6 +278,8 @@ export function Header() {
       {/* full-screen mobile menu */}
       <div
         id="mobile-menu"
+        role="region"
+        aria-label={L.mobile}
         aria-hidden={!menuOpen}
         className={clsx(
           "fixed inset-0 z-40 flex flex-col justify-between bg-dept-black px-gutter pb-8 pt-[calc(var(--chrome-h)+1.5rem)] transition-[opacity,visibility] duration-500 md:hidden",

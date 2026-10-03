@@ -573,7 +573,8 @@ export const useSaveProduct = (cb: { onSaved: (p: ProductForm, v: SaveVars) => v
       cb.onPartial?.(outcome, vars);
       throw Object.assign(new Error(message), { outcome });
     }
-  }, { invalidate: INV_PRODUCT, success: "Producto guardado" });
+    // la caché de ["product", id] ya se escribió con el resultado: no se vuelve a pedir el producto activo
+  }, { invalidate: INV_PRODUCT.filter((k) => k[0] !== "product"), success: "Producto guardado" });
 };
 
 export interface BulkResult { action: string; processed: string[]; skipped: { id: string; reason: string }[] }

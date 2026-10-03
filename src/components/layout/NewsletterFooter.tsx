@@ -21,7 +21,8 @@ export function NewsletterFooter({ settings = {} }: { settings?: Settings }) {
     eyebrow: str(settings, "eyebrow", "Newsletter"), heading: str(settings, "heading", "Únete a Regular Members Only."),
     placeholder: str(settings, "placeholder", "Dirección de correo electrónico"), inputLabel: str(settings, "inputLabel", "Dirección de correo electrónico"),
     button: str(settings, "buttonLabel", "Suscribirse"), loading: str(settings, "loadingMessage", "Enviando..."),
-    success: str(settings, "successMessage", "Revisa tu correo para confirmar tu suscripción."), error: str(settings, "errorMessage", "Introduce un correo válido."),
+    // la suscripción requiere confirmar por correo (doble opt-in): el mensaje no depende del CMS
+    success: "Revisa tu correo para confirmar tu suscripción.", error: str(settings, "errorMessage", "Introduce un correo válido."),
   };
   const [failMsg, setFailMsg] = useState("");
   const [state, setState] = useState<FormState>("idle");

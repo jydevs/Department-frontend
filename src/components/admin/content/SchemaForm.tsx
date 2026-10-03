@@ -63,7 +63,7 @@ function ImageField({ f, value, error, onChange }: { f: SchemaField; value: stri
   return (
     <Field label={f.label + (f.required && f.default === undefined ? " *" : "")} error={error}>
       <div className="flex items-center gap-2">
-        {value && (isSafeUrl(value, false) || isApiMediaUrl(value)) && <Image src={mediaUrl(value)} alt="" width={44} height={44} unoptimized className="size-11 rounded object-cover" />}
+        {value && (isSafeUrl(value, false) || isApiMediaUrl(value)) && <Image src={mediaUrl(value)} alt="" width={44} height={44} unoptimized className="size-11 shrink-0 rounded object-cover" />}
         <Input aria-label={f.label} value={value} placeholder="https://… o /ruta" onChange={(e) => onChange(normalizeMediaUrls(e.target.value) as string)} />
         <Button icon={<ImagePlus className="size-4" />} onClick={() => setOpen(true)}>Elegir</Button>
         {value && <IconButton label="Quitar imagen" onClick={() => onChange("")}><Trash2 className="size-4" /></IconButton>}

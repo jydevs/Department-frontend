@@ -19,7 +19,7 @@ export function DataTable<R>({ columns, rows, rowKey, loading, error, caption, o
   const sel = selectable?.selected ?? [];
   return (
     <div className="overflow-hidden rounded-sm border border-line bg-surface">
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">{caption}{onRowClick ? ". Pulsa Intro o Espacio sobre una fila para abrirla." : ""}</caption>
           <thead className="adm-label border-b border-line bg-surface2/50 !text-[10px]">
