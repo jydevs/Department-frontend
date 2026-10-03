@@ -59,7 +59,7 @@ export default async function ProductPage({ params }: PageProps) {
       <script
         type="application/ld+json"
         // solo la salida de JSON.stringify; `<` escapado para que el contenido no pueda cerrar la etiqueta
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "<") }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/[<>&\u2028\u2029]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`) }}
       />
       <SectionRenderer sections={template?.sections ?? FALLBACK_PRODUCT} ctx={{ product }} />
     </article>

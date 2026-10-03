@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { isSafePath } from "@/lib/url";
 import { Button } from "@/components/ui/Button";
 import { AuthCard, EMAIL_RE, Field, FormError } from "@/components/account/ui";
 import { login } from "@/lib/account";
@@ -26,7 +27,7 @@ function LoginForm() {
     try {
       await login(email, password);
       const next = params.get("next");
-      router.push(next && next.startsWith("/") && !next.startsWith("//") ? next : "/account");
+      router.push(next && isSafePath(next) ? next : "/account");
     } catch (err) {
       setError(friendlyError(err));
       setBusy(false);
