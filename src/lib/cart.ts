@@ -274,6 +274,19 @@ export async function rebuildCartFrom(lines: { variantId: string; qty: number }[
   return ok;
 }
 
+/**
+ * Tras cancelar el pedido pendiente: el carrito del servidor ya es un pedido (no admite cambios), así que se recrea con las
+ * MISMAS líneas que muestra el carrito local (que no se vacía hasta que el pago se confirma). Si el carrito local ya es otro
+ * (`cartId` distinto) no se toca. Devuelve `false` si alguna línea no se pudo volver a añadir (p. ej. sin stock).
+ */
+export async function restoreCartAfterCancel(cartId: string): Promise<boolean> {
+  await start();
+  if (!cartId || state.id !== cartId) return true;
+  const lines = (state.quote?.lines ?? []).map((l) => ({ variantId: l.variantId, qty: l.quantity }));
+  if (lines.length === 0) { resetCart(); return true; }
+  return rebuildCartFrom(lines);
+}
+
 /** Quita el mensaje de error actual (al abrir el carrito o el checkout no deben verse errores de otra pantalla). */
 export function clearCartError() {
   if (state.error) setError(null);

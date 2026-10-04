@@ -1,7 +1,9 @@
 "use client";
 import { useSyncExternalStore } from "react";
 import { WOMPI_PUBLIC_KEY } from "@/lib/api/config";
-import type { ApiPaymentInstructions } from "@/lib/api/types";
+import { apiFetch } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/errors";
+import type { ApiPaymentInstructions, ApiPublicOrder } from "@/lib/api/types";
 
 const KEY = "dept-last-order";
 /** El token de acceso del pedido solo se entrega una vez; se conserva este tiempo para poder reanudar o consultar el pago. */
@@ -140,3 +142,30 @@ export function totalsWithShipping(q: { subtotal: number; discountTotal: number;
 const noopSubscribe = () => () => undefined;
 /** `false` en el servidor y en el primer pintado del cliente; `true` ya hidratado (sin leer almacenamiento durante el render). */
 export const useHydrated = (): boolean => useSyncExternalStore(noopSubscribe, () => true, () => false);
+
+/**
+ * Resultado de cancelar un pedido pendiente:
+ *  - `cancelled`: cancelado (o ya lo estaba: el servidor es idempotente); trae el pedido actualizado;
+ *  - `paid`: el pago ya se había confirmado (409 `ORDER_NOT_CANCELLABLE` con `paymentStatus: "paid"`); `order` es el pedido pagado si se pudo leer;
+ *  - `closed`: ya no está pendiente por otro motivo (venció…) y no hay nada que cancelar.
+ * Cualquier otro fallo (red, 404 por token inválido, 429…) se lanza para que quien llama ofrezca reintentar.
+ */
+export type CancelResult = { kind: "cancelled"; order: ApiPublicOrder } | { kind: "paid"; order: ApiPublicOrder | null } | { kind: "closed" };
+
+/** `POST /storefront/orders/:n/cancel` (público, con el token del pedido en el cuerpo para que no viaje en la URL). Libera el stock reservado. */
+export async function cancelOrder(orderNumber: number | string, token: string): Promise<ApiPublicOrder> {
+  return apiFetch<ApiPublicOrder>(`/storefront/orders/${orderNumber}/cancel`, { method: "POST", body: { token } });
+}
+
+export async function cancelPendingOrder(orderNumber: number | string, token: string): Promise<CancelResult> {
+  try {
+    return { kind: "cancelled", order: await cancelOrder(orderNumber, token) };
+  } catch (e) {
+    if (!(e instanceof ApiError) || e.status !== 409 || e.code !== "ORDER_NOT_CANCELLABLE") throw e;
+    if (e.detailsObject()?.paymentStatus === "paid") {
+      const order = await apiFetch<ApiPublicOrder>(`/storefront/orders/${orderNumber}`, { query: { token } }).catch(() => null);
+      return { kind: "paid", order };
+    }
+    return { kind: "closed" };
+  }
+}

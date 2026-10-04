@@ -2,7 +2,19 @@
 
 export interface ApiImage { url: string; alt: string | null; width: number | null; height: number | null }
 
-export interface ApiProductSummary { id: string; handle: string; title: string; price: number; image: ApiImage | null; available: boolean }
+/** Variante de un item de listado (solo activas, máx. 50). */
+export interface ApiListingVariant {
+  id: string; title: string; sku: string | null; price: number; compareAtPrice: number | null; available: boolean;
+  values: { name: string; value: string }[];
+}
+/**
+ * Item de listado/búsqueda. Los campos tras `available` los añade el backend actual; son opcionales por compatibilidad
+ * con un backend antiguo (sin `variants` se pide el detalle).
+ */
+export interface ApiProductSummary {
+  id: string; handle: string; title: string; price: number; image: ApiImage | null; available: boolean;
+  compareAtPrice?: number | null; images?: ApiImage[]; options?: { name: string; values: string[] }[]; variants?: ApiListingVariant[];
+}
 
 export interface ApiVariant {
   id: string; title: string; sku: string | null; price: number; compareAtPrice: number | null; available: boolean;

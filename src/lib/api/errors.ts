@@ -113,6 +113,8 @@ const FRIENDLY: Record<string, string> = {
   IDEMPOTENCY_KEY_REUSED: "Los datos cambiaron mientras se procesaba tu pedido. Revisa el formulario e inténtalo de nuevo.",
   IDEMPOTENCY_KEY_REQUIRED: "No se pudo identificar la solicitud. Recarga la página e inténtalo de nuevo.",
   ORDER_NOT_PAYABLE: "Este pedido ya no se puede pagar.",
+  ORDER_NOT_CANCELLABLE: "Este pedido ya no se puede cancelar (ya está pagado, vencido o en preparación).",
+  TOKEN_REQUIRED: "Falta el enlace de acceso del pedido. Abre el enlace del correo de confirmación.",
   PAYMENT_FAILED: "El pago no se pudo procesar.",
   SERVICE_ERROR: "Error del servidor. Inténtalo de nuevo en unos minutos.",
 };

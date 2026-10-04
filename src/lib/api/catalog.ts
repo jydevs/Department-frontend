@@ -1,17 +1,17 @@
 /** Catálogo de la tienda desde la API (servidor). Convierte los DTO del backend al modelo de UI (`@/data/types`). */
 import { cache } from "react";
-import type { Collection, Product, ProductBadge, ProductVariant } from "@/data/types";
+import type { Collection, Product } from "@/data/types";
 import { CATALOG_REVALIDATE } from "./config";
 import { mapLimit } from "./limit";
-import { fromSummary } from "./map";
+import { fromSummary, isRich, pricing, toVariant } from "./map";
 import { sfGet } from "./server";
-import type { ApiCollectionPage, ApiCollectionSummary, ApiProductDetails, ApiProductSummary, ApiVariant, Cursor } from "./types";
+import type { ApiCollectionPage, ApiCollectionSummary, ApiProductDetails, ApiProductSummary, Cursor } from "./types";
 
 const TAGS = { products: "catalog:products", collections: "catalog:collections" };
 
-/** Peticiones de detalle simultáneas (el listado no trae tallas, oferta ni 2.ª foto). */
+/** Peticiones de detalle simultáneas (solo con un backend antiguo cuyo listado no trae variantes). */
 const DETAIL_CONCURRENCY = 6;
-/** Máximo de tarjetas de una página que se enriquecen con su detalle; el resto usa los datos del listado. */
+/** Máximo de tarjetas que se completan con su detalle (solo backend antiguo); el resto usa los datos del listado. */
 const ENRICH_LIMIT = 24;
 /** Tamaño de página del catálogo (máximo de la API). */
 const PAGE_SIZE = 100;
@@ -32,42 +32,18 @@ function htmlToParagraphs(html: string, max = 1500): string {
   return t.length > max ? `${t.slice(0, max - 1)}…` : t;
 }
 
-function toVariant(v: ApiVariant, optionNames: string[]): ProductVariant {
-  return {
-    id: v.id,
-    title: v.title,
-    // un valor por opción, en el orden de las opciones del producto (sin colapsar variantes distintas)
-    values: optionNames.map((name) => v.optionValues.find((o) => o.name === name)?.value ?? ""),
-    price: v.price,
-    compareAtPrice: v.compareAtPrice != null && v.compareAtPrice > v.price ? v.compareAtPrice : undefined,
-    available: v.available,
-    sku: v.sku ?? undefined,
-  };
-}
-
-/** Variante que representa al producto en tarjetas y "desde": la más barata (entre las disponibles si hay alguna); a igual precio, la que está en oferta. */
-function representative(variants: ProductVariant[]): ProductVariant | undefined {
-  const pool = variants.some((v) => v.available) ? variants.filter((v) => v.available) : variants;
-  return pool.reduce<ProductVariant | undefined>(
-    (best, v) => (!best || v.price < best.price || (v.price === best.price && v.compareAtPrice !== undefined && best.compareAtPrice === undefined) ? v : best),
-    undefined,
-  );
-}
-
 function toProduct(d: ApiProductDetails, summary?: ApiProductSummary): Product {
   const options = d.options.map((o) => ({ name: o.name, values: o.values }));
-  const variants = d.variants.map((v) => toVariant(v, options.map((o) => o.name)));
-  const available = variants.some((v) => v.available);
+  const names = options.map((o) => o.name);
+  const variants = d.variants.map((v) => toVariant(v, (name) => v.optionValues.find((o) => o.name === name)?.value ?? "", names));
   // precio y precio anterior SIEMPRE de la misma variante (no se mezcla el mínimo de una con el compareAt de otra)
-  const rep = representative(variants);
-  const compareAtPrice = rep?.compareAtPrice;
-  const badge: ProductBadge | undefined = !available ? "agotado" : compareAtPrice !== undefined ? "oferta" : undefined;
+  const { price, compareAtPrice, badge } = pricing(variants, summary?.price);
   const images = d.media.map((m) => m.url);
   return {
     id: d.id,
     handle: d.handle,
     name: d.title,
-    price: rep?.price ?? summary?.price ?? 0,
+    price,
     compareAtPrice,
     badge,
     tags: d.tags,
@@ -90,11 +66,17 @@ export const getProduct = cache(async (handle: string): Promise<Product | null> 
 });
 
 /**
- * Enriquece los resúmenes del listado con el detalle (tallas, oferta, 2.ª foto): una petición cacheada por producto,
- * con concurrencia limitada y solo para las primeras tarjetas; el resto se muestra con los datos del listado.
+ * Productos de UI a partir de un listado. El backend actual ya trae tallas, oferta, fotos y variantes en cada item, así que NO se
+ * pide el detalle. Solo si un item no las trae (backend antiguo) o su lista de variantes pudo truncarse, se completa con el
+ * detalle (cacheado, concurrencia limitada y solo las primeras tarjetas).
  */
 async function enrich(items: ApiProductSummary[]): Promise<Product[]> {
-  return mapLimit(items, DETAIL_CONCURRENCY, async (s, i) => (i < ENRICH_LIMIT ? ((await getProduct(s.handle)) ?? fromSummary(s)) : fromSummary(s)));
+  let detailed = 0;
+  return mapLimit(items, DETAIL_CONCURRENCY, async (s) => {
+    if (isRich(s) || s.variants?.length === 0 || detailed >= ENRICH_LIMIT) return fromSummary(s);
+    detailed++;
+    return (await getProduct(s.handle)) ?? fromSummary(s);
+  });
 }
 
 export type ProductSort = "newest" | "price_asc" | "price_desc" | "title";
@@ -162,14 +144,16 @@ export async function countAllProducts(): Promise<number> {
 }
 
 /**
- * Productos relacionados: mismas etiquetas primero; si faltan, los más nuevos. Dos listados como máximo (en paralelo)
- * y solo se piden los detalles de las piezas elegidas.
+ * Productos relacionados: mismas etiquetas primero; solo si faltan se pide el listado de los más nuevos (una petición
+ * normalmente, dos como máximo). Los items del listado ya traen todo lo necesario para la tarjeta.
  */
 export async function getRelatedProducts(product: Product, tags: string[], limit = 4): Promise<Product[]> {
-  const lists = await Promise.all([...(tags[0] ? [tags[0]] : []), undefined].map((tag) => listPage(undefined, tag, undefined, limit + 2)));
   const seen = new Set([product.handle]);
   const picked: ApiProductSummary[] = [];
-  for (const list of lists) for (const p of list.items) if (!seen.has(p.handle) && picked.length < limit) { seen.add(p.handle); picked.push(p); }
+  for (const tag of [...(tags[0] ? [tags[0]] : []), undefined]) {
+    if (picked.length >= limit) break;
+    for (const p of (await listPage(undefined, tag, undefined, limit + 2)).items) if (!seen.has(p.handle) && picked.length < limit) { seen.add(p.handle); picked.push(p); }
+  }
   return enrich(picked);
 }
 
