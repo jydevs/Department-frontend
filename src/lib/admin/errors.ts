@@ -60,6 +60,7 @@ const CODES: Record<string, string> = {
   INVALID_TEMPLATE: "La plantilla de correo no es válida.", IMPORT_NOT_CANCELLABLE: "La importación ya no se puede cancelar.", IDEMPOTENCY_IN_PROGRESS: "La operación ya está en curso. Espera unos segundos.",
   NO_CHANGE: "No hay cambios para guardar.", MEDIA_IN_USE: "El archivo está en uso y no se puede eliminar.", LAST_ACTIVE_VARIANT: "No puedes eliminar la última variante activa.",
   INSUFFICIENT_STOCK: "No hay stock suficiente.", INVALID_CURSOR: "La paginación venció. Recarga la lista.", PAYLOAD_TOO_LARGE: "El archivo o los datos enviados son demasiado grandes.", UNSUPPORTED_MEDIA_TYPE: "Formato de archivo no admitido.",
+  COLLECTION_NOT_MANUAL: "Esta colección es inteligente: sus productos se calculan con reglas y no se pueden editar a mano.", PRODUCTS_NOT_FOUND: "Alguno de los productos ya no existe. Recarga la lista.",
   NOTHING_TO_PUBLISH: "No hay cambios por publicar.", NOT_PUBLISHED: "Aún no se ha publicado.",
 };
 

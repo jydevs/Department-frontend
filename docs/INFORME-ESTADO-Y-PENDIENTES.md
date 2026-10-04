@@ -1,6 +1,6 @@
 # Informe: qué está hecho y qué falta
 
-Fecha: 3 de octubre de 2026 · Rama (ambos repos): `claude/tender-heisenberg-w6jnxy`
+Fecha: 4 de octubre de 2026 · Rama (ambos repos): `claude/tender-heisenberg-w6jnxy`
 
 ## 1. Hecho y subido (frontend)
 
@@ -27,8 +27,8 @@ Corregidos los hallazgos de las cinco auditorías (seguridad, calidad, rendimien
 ## 3. Pendiente técnico
 
 1. **Abrir los PR** (frontend y backend) cuando quieras mezclar.
-2. **Peticiones por página:** bajaron (/ 22→15, producto 19→13) pero no a ≤8, porque el listado de la API no trae segunda foto, oferta ni tallas. Se resolvería ampliando el listado en el backend.
-3. **Backend sin endpoint:** listar miembros de colección manual (y añadir/quitar de forma incremental), `If-Match`/`version` en `/publish` y `/schedule`, cancelar un pedido pendiente, `redirectUrl` de Wompi con número de pedido, medio por id.
+2. **Peticiones por página (resuelto):** con los listados enriquecidos del backend (`compareAtPrice`, `images`, `options`, `variants`) ya no se pide el detalle por producto. En frío (modo dev, caché limpia): home 15 → 9, `/collections/all` 17 → 8, `/products/x` 14 → 9 (incluyen la plantilla `404`, que el modo dev pide siempre, y 5 peticiones del chrome común). Con un backend antiguo el front cae al detalle como antes.
+3. **Resuelto con los contratos nuevos del backend:** miembros de colección manual incrementales, `version` en publicar/programar, cancelar pedido pendiente, `redirectUrl` con número de pedido y enlace firmado en el correo. **Sigue sin endpoint:** medio por id.
 4. **Textos del CMS en inglés** (editar en `/admin`): hero ("Scroll", "Lookbook", "Uniforms for the unnoticed"), "New Arrivals", menú del footer ("Home", "Clothes"…), `priceLabel`/`availabilityLabel`, títulos de colección repetidos ("Clothes").
 5. **Footer y legales:** añadir el enlace a `/pages/contact` y crear las páginas Términos, Privacidad, Envíos y devoluciones, Cambios y garantías.
 6. **Sin probar:** `docker build` (no hay Docker en el entorno), 2FA con una cuenta real (solo simulado), Wompi real.
@@ -37,13 +37,19 @@ Corregidos los hallazgos de las cinco auditorías (seguridad, calidad, rendimien
 ## 4. Pendiente por decisión o por datos tuyos
 
 - **Zonas y tarifas de envío en tu BD:** créalas en `/admin/shipping` (el checkout las necesita).
+- **Aprobación tardía de Wompi (decisión tomada):** la API no puede anular una transacción abierta en Wompi. Si alguien cancela y luego paga, el pedido no revive: queda `cancelled` con pago `approved` y la etiqueta `refund-pending`; el personal reembolsa desde `/admin/orders`. El front pide confirmación y avisa "Si ya abriste la pasarela, no completes el pago", y muestra "Pedido cancelado: pago por reembolsar" si esa aprobación llega.
+- **Base de datos del dueño:** necesita el seed del CMS y el contenido completo: migraciones, `yarn content:seed`, `yarn catalog:seed` (opcional, demo) y `yarn content:complete --publish-legal`. Sin eso faltan las secciones nuevas y las páginas legales.
 - **Wompi real:** solo está probada la pasarela simulada. Faltan llaves de sandbox/producción, `PAYMENT_PROVIDER=wompi` y probar el webhook.
 - **Producción:** rellenar `.env.production`, dominio con HTTPS, `CORS_ORIGINS`, `STOREFRONT_URL`, secretos compartidos (`STOREFRONT_REVALIDATE_SECRET`, `STOREFRONT_SERVER_KEY`), correo transaccional real y la BD de producción (`DATABASE_URL`, `DATABASE_SSL`). Tienda y API deben compartir dominio registrable para la cookie de sesión.
 - **Contenido en el CMS:** páginas legales (términos, privacidad, envíos, cambios; relevante por la Ley 1581), enlaces del footer a contacto y legales, y traducir textos sembrados en inglés ("New arrivals", "Lookbook", "Intentional design"…). Títulos de colección repetidos ("Clothes").
-- **Backend (hallazgos menores sin asignar):** `audit.diff` con formatos distintos, endpoint admin para listar miembros de colección, `alt` en medios ya existentes, handles de colecciones eliminadas, URLs de medios absolutas atadas al host de la API, límite de login de 5 intentos por minuto (el `AUTH_THROTTLE_LIMIT` de QA no se aplica).
+- **Backend (hallazgos menores sin asignar):** `audit.diff` con formatos distintos, `alt` en medios ya existentes, handles de colecciones eliminadas, URLs de medios absolutas atadas al host de la API, límite de login de 5 intentos por minuto (el `AUTH_THROTTLE_LIMIT` de QA no se aplica).
 - **Pruebas automatizadas:** fuera de alcance por ahora. Faltan: instalar vitest y Playwright, tests de carrito, cliente HTTP, cuenta, checkout, firma HMAC del webhook y proxy de redirecciones, y un e2e de la compra. Los tests actuales no se ejecutan y no prueban código real.
 - **Tus cambios locales del IDE (1000+):** revisa si hay integración sin subir antes de mezclar.
 
-## 5. Datos de prueba que quedan en mi copia de QA (no en tu BD)
+## 5. Datos de prueba (no en tu BD)
+
+Verificación del 4 de octubre sobre `dept_agent2` (BD local desechable): pedidos de prueba (cancelados y pagados con pasarela simulada); las colecciones `qa-manual`/`qa-smart` y los productos `qa-prod-*` creados para probar miembros de colección ya se eliminaron.
+
+Anterior:
 
 Pedidos 1005 a 1015, clientes `qa-*`, usuarios de staff de prueba desactivados y 8 unidades reservadas de Samo Hoodie XL. Es una base local desechable, aparte de la tuya.

@@ -19,7 +19,8 @@ type Review = { fresh: CmsDoc } | null;
 /**
  * Barra de publicación: borrador (autosave serializado), descartar, publicar, programar, historial y diff.
  * Publicar/Programar: 1) esperan al guardado pendiente, 2) releen el documento del servidor y comparan `version` con la del editor
- * (si difiere → conflicto con diff y NO se publica), 3) piden revisión (diff contra lo publicado, con el borrador DEL SERVIDOR), 4) publican.
+ * (si difiere → conflicto con diff y NO se publica), 3) piden revisión (diff contra lo publicado, con el borrador DEL SERVIDOR), 4) publican
+ * enviando `version` en el cuerpo: la garantía final es del servidor (409 CONCURRENT_UPDATE → se relee y se abre el diálogo de conflicto).
  */
 export function PublishBar({ doc, draft: d, invalidCount }: Props) {
   const canPub = useCan("content:publish"), canWrite = useCan("content:write");

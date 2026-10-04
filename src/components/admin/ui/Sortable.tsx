@@ -5,12 +5,13 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import type { ReactNode } from "react";
 
-export function SortableList<I>({ items, getId, onChange, children, grid }: { items: I[]; getId: (i: I) => string; onChange: (next: I[]) => void; children: (item: I, handle: ReactNode, index: number) => ReactNode; grid?: boolean }) {
+export function SortableList<I>({ items, getId, onChange, children, grid }: { items: I[]; getId: (i: I) => string; /** `moved` indica qué elemento se movió y a qué índice (para llamar a un endpoint de reordenado incremental). */ onChange: (next: I[], moved: { id: string; from: number; to: number }) => void; children: (item: I, handle: ReactNode, index: number) => ReactNode; grid?: boolean }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
   const ids = items.map(getId);
   const end = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
-    onChange(arrayMove(items, ids.indexOf(String(e.active.id)), ids.indexOf(String(e.over.id))));
+    const from = ids.indexOf(String(e.active.id)), to = ids.indexOf(String(e.over.id));
+    onChange(arrayMove(items, from, to), { id: String(e.active.id), from, to });
   };
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={end}>

@@ -6,6 +6,7 @@
  */
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { API_URL_PUBLIC } from "@/lib/api/config";
+import { ApiError } from "../errors";
 import { api } from "../api-client";
 import { useAction, useApi } from "../query";
 import { storedMediaUrl } from "./media";
@@ -272,13 +273,24 @@ export class DocChanged extends Error {
 export async function fetchDocFresh(kind: DocKind, key: string): Promise<CmsDoc> {
   return fromDetail(await api.get<DocDetailDto>(docPath(kind, key)));
 }
-/** Publicar publica el borrador DEL SERVIDOR (el endpoint no acepta `version`/If-Match): por eso se relee y se compara la versión con la que ve el editor. REQUIERE BACKEND: aceptar `version` en `/publish` y `/schedule` para cerrar la ventana entre la comprobación y la publicación. */
+const isStale = (e: unknown) => e instanceof ApiError && e.status === 409 && e.code === "CONCURRENT_UPDATE";
+/**
+ * Publicar/programar envían `version` (la del borrador que el usuario revisó): el SERVIDOR garantiza que solo se publica ese borrador
+ * (409 CONCURRENT_UPDATE si otra persona guardó entre medias, y no se publica nada). La relectura previa se conserva como mejora
+ * (da el diff sin esperar al 409); ante cualquier 409 se relee el servidor y se lanza `DocChanged` para abrir el diálogo de conflicto.
+ */
+async function guarded<T>(kind: DocKind, key: string, expectedVersion: number, run: () => Promise<T>): Promise<T> {
+  const fresh = await fetchDocFresh(kind, key);
+  if (fresh.version !== expectedVersion) throw new DocChanged(fresh);
+  try { return await run(); } catch (e) {
+    if (isStale(e)) throw new DocChanged(await fetchDocFresh(kind, key));
+    throw e;
+  }
+}
 export function usePublish() {
   const qc = useQueryClient();
   return useAction(async ({ kind, key, note, expectedVersion }: Ref & { note?: string; expectedVersion: number }) => {
-    const fresh = await fetchDocFresh(kind, key);
-    if (fresh.version !== expectedVersion) throw new DocChanged(fresh);
-    const d = await api.post<DocDetailDto>(`${docPath(kind, key)}/publish`, note?.trim() ? { note: note.trim() } : {});
+    const d = await guarded(kind, key, expectedVersion, () => api.post<DocDetailDto>(`${docPath(kind, key)}/publish`, { version: expectedVersion, ...(note?.trim() ? { note: note.trim() } : {}) }));
     void qc.invalidateQueries({ queryKey: ["doc-versions"] });
     return putDoc(qc, d);
   }, { success: "Publicado. La tienda se actualizará en segundos.", inline: true });
@@ -286,9 +298,7 @@ export function usePublish() {
 export function useSchedule() {
   const qc = useQueryClient();
   return useAction(async ({ kind, key, at, note, expectedVersion }: Ref & { at: string; note?: string; expectedVersion: number }) => {
-    const fresh = await fetchDocFresh(kind, key);
-    if (fresh.version !== expectedVersion) throw new DocChanged(fresh);
-    await api.post(`${docPath(kind, key)}/schedule`, { publishAt: new Date(at).toISOString(), ...(note?.trim() ? { note: note.trim() } : {}) });
+    await guarded(kind, key, expectedVersion, () => api.post(`${docPath(kind, key)}/schedule`, { publishAt: new Date(at).toISOString(), version: expectedVersion, ...(note?.trim() ? { note: note.trim() } : {}) }));
     await qc.invalidateQueries({ queryKey: docKey(kind, key) }); void qc.invalidateQueries({ queryKey: ["doc-versions"] }); void qc.invalidateQueries({ queryKey: ["docs"] });
   }, { success: "Publicación programada", inline: true });
 }

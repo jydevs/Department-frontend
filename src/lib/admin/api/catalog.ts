@@ -18,7 +18,7 @@ import { mediaUrl, storedMediaUrl } from "./media";
 interface ApiMedia { id: string; url: string; alt: string | null }
 interface ApiOptionValue { id: string; value: string; position: number }
 interface ApiOption { id: string; name: string; position: number; values: ApiOptionValue[] }
-/** `version` solo llega en las respuestas de POST/PATCH de variantes: el detalle del producto NO la incluye. */
+/** `version` (concurrencia optimista de la variante) llega en el detalle y en POST/PATCH; falta solo con un backend antiguo. */
 interface ApiVariant { id: string; sku: string | null; title: string; price: number; compareAtPrice: number | null; weightGrams: number | null; barcode: string | null; position: number; trackInventory: boolean; allowBackorder: boolean; optionValueIds: string[]; isActive: boolean; version?: number }
 interface ApiProduct { id: string; handle: string; title: string; descriptionHtml: string; status: ProductStatus; vendor: string | null; productType: string | null; tags: string[]; seoTitle: string | null; seoDescription: string | null; publishedAt: string | null; options: ApiOption[]; variants: ApiVariant[]; media: ApiMedia[]; updatedAt: string; version: number }
 interface ApiProductItem { id: string; handle: string; title: string; status: ProductStatus; variantCount: number; inventoryTotal: number | null; minPrice: number | null; maxPrice: number | null; primaryImage: ApiMedia | null }
@@ -310,10 +310,11 @@ class StepFailure extends Error {
 class RealConflict extends Error {}
 
 /**
- * VERSIÓN DE VARIANTE. El detalle del producto NO la incluye (solo POST/PATCH de variantes la devuelven) y el 409 tampoco indica la actual.
- * La versión solo crece, así que lo último que conocemos es una cota inferior segura: se parte de ahí. Si el PATCH da 409 se sondea al alza con
- * PATCH vacíos (`{version}` sin campos: no modifican ni auditan nada y devuelven la variante completa, con su versión y valores ACTUALES), y con esa
- * respuesta se vuelve a comprobar el conflicto de campos antes del PATCH real. REQUIERE BACKEND: exponer `version` en `variants[]` del detalle.
+ * VERSIÓN DE VARIANTE. El detalle admin del producto trae `version` en cada variante: se usa tal cual (1 PATCH por variante, sin
+ * sondeo ni PATCH vacíos). Si el PATCH da 409 se relee el producto, se vuelve a comprobar el conflicto de CAMPOS contra los valores
+ * actuales (lo que el usuario no tocó se fusiona; lo que tocó y otra persona cambió es un conflicto real) y se reintenta con la
+ * versión fresca. FALLBACK (backend antiguo sin `version` en el detalle): se parte de la última versión conocida y se sondea al alza
+ * con PATCH vacíos (`{version}` sin campos: no modifican ni auditan nada y devuelven la variante completa).
  */
 const verCache = new Map<string, number>();
 const MAX_PROBES = 40;
@@ -340,13 +341,18 @@ function planVariant(srv: ApiVariant, want: VNorm, baseN: VNorm, ids: string[] |
 }
 const conflictError = (title: string, srv: ApiVariant, conflicts: VKey[]) => new RealConflict(`Variante “${title}”: ${listEs(conflicts.map((k) => VLABEL[k]))} cambió en el servidor mientras editabas (${conflicts.map((k) => `${VLABEL[k]}: ${String(normApi(srv)[k] ?? "—")}`).join(", ")}). No se sobrescribió.`);
 
+/** Variante fresca del servidor (relee el detalle del producto); `null` si ya no existe. */
+async function refetchVariant(pid: string, id: string): Promise<ApiVariant | null> {
+  return (await api.get<ApiProduct>(`/admin/products/${pid}`)).variants.find((x) => x.id === id) ?? null;
+}
+
 /** Devuelve `true` si escribió en el servidor. */
 async function patchVariantSafe(pid: string, cur: ApiVariant, want: VNorm, baseN: VNorm, ids: string[] | null, title: string): Promise<boolean> {
   const url = `/admin/products/${pid}/variants/${cur.id}`;
   let snap = cur, plan = planVariant(snap, want, baseN, ids);
   if (plan.conflicts.length) throw conflictError(title, snap, plan.conflicts);
   if (!Object.keys(plan.body).length) return false;
-  let v = verCache.get(cur.id) ?? 1;
+  let v = cur.version ?? verCache.get(cur.id) ?? 1;
   for (let round = 0; round < 4; round++) {
     try {
       const r = await api.patch<{ version: number }>(url, { ...plan.body, version: v });
@@ -355,10 +361,14 @@ async function patchVariantSafe(pid: string, cur: ApiVariant, want: VNorm, baseN
     } catch (e) {
       if (!isConflict(e)) throw e;
     }
-    // descubrir la versión actual (y los valores actuales) con PATCH vacíos, empezando justo por encima de la última conocida
-    let found: ApiVariant | null = null;
-    for (let p = v + 1, n = 0; n < MAX_PROBES && !found; p++, n++) {
-      try { found = await api.patch<ApiVariant>(url, { version: p }); } catch (e) { if (!isConflict(e)) throw e; }
+    // conflicto: valores y versión actuales (relectura del detalle; con backend antiguo, sondeo con PATCH vacíos)
+    let found = await refetchVariant(pid, cur.id);
+    if (!found || !found.isActive) throw new RealConflict(`Variante “${title}”: ya no existe en el servidor (otra persona la eliminó). No se sobrescribió.`);
+    if (found.version === undefined) {
+      found = null;
+      for (let p = v + 1, n = 0; n < MAX_PROBES && !found; p++, n++) {
+        try { found = await api.patch<ApiVariant>(url, { version: p }); } catch (e) { if (!isConflict(e)) throw e; }
+      }
     }
     if (!found || found.version === undefined) throw new Error(`No se pudo determinar la versión de la variante “${title}”. Recarga el producto e inténtalo de nuevo.`);
     verCache.set(cur.id, found.version);
@@ -598,17 +608,9 @@ export const useDeleteProduct = (onDone?: () => void) =>
  * ================================================================================================== */
 export interface Rule { field: "tag" | "type" | "vendor" | "price"; op: "eq" | "neq" | "contains" | "gt" | "lt"; value: string }
 export type CollectionSort = "manual" | "newest" | "price_asc" | "price_desc" | "title";
-/**
- * Estado de la lista de productos de una colección manual:
- * - `known`: leída completa de la tienda (solo productos ACTIVOS: los borradores/archivados que pertenezcan a la colección no se pueden leer);
- * - `hidden`: colección oculta, la API no permite leer sus productos;
- * - `error`: la lectura falló (429/5xx/red) o es demasiado grande: NO se permite guardar la lista para no reemplazar la membresía con datos parciales.
- */
-export type MembersState = "known" | "hidden" | "error";
-export const MAX_COLLECTION_PRODUCTS = 1000;
 export interface CollectionForm {
   id: string; handle: string; title: string; description: string; kind: "manual" | "smart"; published: boolean;
-  products: ProductLite[]; membersState: MembersState; membersError: string | null; rules: Rule[]; match: "all" | "any"; sort: CollectionSort;
+  rules: Rule[]; match: "all" | "any"; sort: CollectionSort;
   imageMediaId: string | null; seoTitle: string; seoDescription: string; metafields: MetafieldForm[];
 }
 export interface CollectionItem { id: string; handle: string; title: string; kind: "manual" | "smart"; published: boolean; imageMediaId: string | null }
@@ -618,36 +620,30 @@ export const useCollections = () =>
   useQuery({ queryKey: ["collections"], queryFn: async () => (await fetchAll<ApiCollection>("/admin/collections")).items.map((c): CollectionItem => ({ id: c.id, handle: c.handle, title: c.title, kind: c.type, published: c.isPublished, imageMediaId: c.imageMediaId })), staleTime: 30_000 });
 
 const SORTS: CollectionSort[] = ["manual", "newest", "price_asc", "price_desc", "title"];
-type StorefrontPage = { products: { items: { id: string; handle: string; title: string; image: { url: string } | null }[]; hasMore: boolean; nextCursor: string | null } };
-async function readMembers(handle: string): Promise<{ items: ProductLite[]; truncated: boolean }> {
-  const out: ProductLite[] = [];
-  let cursor: string | undefined;
-  const pages = Math.ceil(MAX_COLLECTION_PRODUCTS / 100) + 1;
-  for (let i = 0; i < pages; i++) {
-    const r = await api.get<StorefrontPage>(`/storefront/collections/${encodeURIComponent(handle)}`, { query: { limit: 100, cursor } });
-    out.push(...r.products.items.map(lite));
-    if (!r.products.hasMore || !r.products.nextCursor) return { items: out, truncated: false };
-    cursor = r.products.nextCursor;
-  }
-  return { items: out.slice(0, MAX_COLLECTION_PRODUCTS), truncated: true };
+
+/* ── Miembros de una colección MANUAL: endpoints incrementales (todos los estados, paginados) ── */
+export type MemberStatus = "draft" | "active" | "archived";
+export interface CollectionMember { id: string; handle: string; title: string; status: MemberStatus; image: string; position: number }
+interface ApiMember { id: string; handle: string; title: string; status: MemberStatus; image: { url: string } | null; position: number }
+export interface MembersPage { items: CollectionMember[]; total: number; page: number; totalPages: number }
+export const MEMBERS_PAGE_SIZE = 50;
+const membersPath = (id: string) => `/admin/collections/${id}/products`;
+export async function fetchCollectionMembers(id: string, page: number): Promise<MembersPage> {
+  const r = await api.get<Page<ApiMember>>(membersPath(id), { query: { page, pageSize: MEMBERS_PAGE_SIZE } });
+  return { items: r.items.map((m) => ({ id: m.id, handle: m.handle, title: m.title, status: m.status, image: m.image?.url ? mediaUrl(m.image.url) : "", position: m.position })), total: r.total, page: r.page, totalPages: r.totalPages };
 }
-/** Lee los productos de una colección manual publicada. Nunca lanza: un fallo deja `state: "error"` (no editable) con el motivo. */
-export async function loadCollectionMembers(handle: string): Promise<{ products: ProductLite[]; state: MembersState; error: string | null }> {
-  try {
-    const m = await readMembers(handle);
-    if (m.truncated) return { products: [], state: "error", error: `La colección tiene más de ${MAX_COLLECTION_PRODUCTS} productos: la API solo permite gestionar hasta ${MAX_COLLECTION_PRODUCTS} desde aquí.` };
-    return { products: m.items, state: "known", error: null };
-  } catch (e) {
-    return { products: [], state: "error", error: errorMessage(e) };
-  }
-}
+/** Añade productos (idempotente: los que ya eran miembros se informan y no se mueven). Sin `position` van al final. */
+export const addCollectionMembers = (id: string, productIds: string[], position?: number) =>
+  api.post<{ added: string[]; alreadyMembers: string[]; total: number }>(membersPath(id), { productIds, ...(position !== undefined ? { position } : {}) });
+/** Quita un miembro (idempotente). */
+export const removeCollectionMember = (id: string, productId: string) => voidOk(api.delete(`${membersPath(id)}/${productId}`));
+/** Mueve un miembro al índice `position` (0 = primero; se acota al último). */
+export const reorderCollectionMember = (id: string, productId: string, position: number) => voidOk(api.patch(`${membersPath(id)}/reorder`, { productId, position }));
+
 async function loadCollection(id: string): Promise<CollectionForm> {
   const [c, m] = await Promise.all([api.get<ApiCollection>(`/admin/collections/${id}`), api.get<{ metafields: ApiMetafield[] }>(`/admin/collections/${id}/metafields`)]);
-  // La API de administración no lista los miembros de una colección manual: solo es posible vía tienda (colecciones publicadas).
-  let products: ProductLite[] = [], membersState: MembersState = c.type === "smart" ? "known" : "hidden", membersError: string | null = null;
-  if (c.type === "manual" && c.isPublished) { const r = await loadCollectionMembers(c.handle); products = r.products; membersState = r.state; membersError = r.error; }
   return {
-    id: c.id, handle: c.handle, title: c.title, description: c.descriptionHtml, kind: c.type, published: c.isPublished, products, membersState, membersError,
+    id: c.id, handle: c.handle, title: c.title, description: c.descriptionHtml, kind: c.type, published: c.isPublished,
     rules: (c.rules?.conditions ?? []).map((x) => ({ field: x.field as Rule["field"], op: x.op as Rule["op"], value: String(x.value) })), match: c.rules?.match ?? "all",
     sort: SORTS.includes(c.sortOrder as CollectionSort) ? (c.sortOrder as CollectionSort) : "manual", imageMediaId: c.imageMediaId, seoTitle: c.seoTitle ?? "", seoDescription: c.seoDescription ?? "",
     metafields: m.metafields.map(mapMetafield),
@@ -655,15 +651,11 @@ async function loadCollection(id: string): Promise<CollectionForm> {
 }
 export const useCollection = (id: string) =>
   useQuery({ queryKey: ["collection", id], queryFn: async () => { try { return await loadCollection(id); } catch (e) { if (e instanceof ApiError && (e.status === 404 || e.code === "VALIDATION_ERROR")) return null; throw e; } } });
-export const blankCollection = (): CollectionForm => ({ id: "", handle: "", title: "", description: "", kind: "manual", published: false, products: [], membersState: "known", membersError: null, rules: [], match: "all", sort: "manual", imageMediaId: null, seoTitle: "", seoDescription: "", metafields: [] });
+export const blankCollection = (): CollectionForm => ({ id: "", handle: "", title: "", description: "", kind: "manual", published: false, rules: [], match: "all", sort: "manual", imageMediaId: null, seoTitle: "", seoDescription: "", metafields: [] });
 
 const rulesBody = (c: Pick<CollectionForm, "rules" | "match">) => ({ match: c.match, conditions: c.rules.map((r) => ({ field: r.field, op: r.op, value: r.field === "price" ? Number(r.value) : r.value.trim() })) });
 const rulesValid = (rules: Rule[]) => rules.length > 0 && rules.every((r) => (r.field === "price" ? r.value.trim() !== "" && Number.isSafeInteger(Number(r.value)) && Number(r.value) >= 0 : r.value.trim() !== ""));
 export const rulesReady = (c: Pick<CollectionForm, "kind" | "rules">) => c.kind === "smart" && rulesValid(c.rules);
-
-/** ¿Hay que reemplazar la lista de productos? (la API solo ofrece PUT total, sin altas/bajas incrementales). */
-export const membersChanged = (c: CollectionForm, base: CollectionForm | null): boolean =>
-  c.kind === "manual" && (!base || base.kind !== "manual" ? c.products.length > 0 : base.membersState === "known" ? !sameArr(base.products.map((p) => p.id), c.products.map((p) => p.id)) : c.products.length > 0);
 
 export function validateCollection(c: CollectionForm): FormIssue[] {
   const out: FormIssue[] = [];
@@ -673,7 +665,6 @@ export function validateCollection(c: CollectionForm): FormIssue[] {
   if (c.handle.trim() && (!HANDLE.test(handle) || handle.length > 120)) add("handle", "Handle inválido: minúsculas, números y guiones (máx. 120)");
   if (c.seoTitle.trim().length > 255) add("seoTitle", "Máximo 255 caracteres");
   if (c.kind === "smart" && !rulesValid(c.rules)) add("rules", "Una colección inteligente necesita al menos una regla completa (los precios son enteros)");
-  if (c.kind === "manual" && c.products.length > MAX_COLLECTION_PRODUCTS) add("products", `Máximo ${MAX_COLLECTION_PRODUCTS} productos por colección`);
   out.push(...metafieldIssues(c.metafields));
   return out;
 }
@@ -696,12 +687,9 @@ async function saveCollection(c: CollectionForm, base: CollectionForm | null): P
   const issues = validateCollection(c);
   if (issues.length) throw new Error(issues[0].message);
   const handle = c.handle.trim() || slugify(c.title);
-  const touched = membersChanged(c, base);
-  if (touched && base && base.membersState === "error") throw new Error("No se pudo cargar la lista de productos de la colección: reintenta la carga antes de guardar cambios en ella.");
   const body = { handle, title: c.title.trim(), descriptionHtml: c.description, type: c.kind, rules: c.kind === "smart" ? rulesBody(c) : null, sortOrder: c.sort, seoTitle: nullable(c.seoTitle), seoDescription: nullable(c.seoDescription), imageMediaId: c.imageMediaId, isPublished: c.published };
   const saved = base ? await api.patch<ApiCollection>(`/admin/collections/${base.id}`, body) : await api.post<ApiCollection>("/admin/collections", body);
   try {
-    if (touched) await voidOk(api.put(`/admin/collections/${saved.id}/products`, { products: c.products.map((p) => ({ productId: p.id })) }));
     const list = c.metafields.filter((m) => m.key.trim());
     const prev = new Map((base?.metafields ?? []).map((m) => [`${m.namespace}.${m.key}`, m]));
     const changed = list.filter((m) => { const p = prev.get(`${m.namespace}.${m.key}`); return !p || p.value !== m.value || p.type !== m.type; });
