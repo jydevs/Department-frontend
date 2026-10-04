@@ -3,11 +3,14 @@
 import { useParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useUrlToken } from "@/components/account/ui";
+import { CancelOrder } from "@/components/checkout/CancelOrder";
 import { OrderView } from "@/components/checkout/OrderView";
 import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api/client";
 import { ApiError, friendlyError } from "@/lib/api/errors";
 import type { ApiPublicOrder } from "@/lib/api/types";
+import { restoreCartAfterCancel } from "@/lib/cart";
+import { clearLastOrder, readLastOrder, type CancelResult } from "@/lib/checkout";
 
 type Fetched = { key: string; order?: ApiPublicOrder; error?: { transient: boolean; message: string } };
 
@@ -33,6 +36,21 @@ function Order() {
   }, [number, token, invalid, key]);
 
   const cur = fetched?.key === key ? fetched : null;
+  const shown = cur?.order;
+  /** Solo un pedido pendiente de pago (sin pago confirmado) se puede cancelar. */
+  const cancellable = !!shown && shown.status === "pending" && shown.paymentStatus !== "paid";
+  const onCancelled = async (r: CancelResult) => {
+    if (r.kind === "cancelled") setFetched({ key, order: r.order });
+    else if (r.kind === "paid" && r.order) setFetched({ key, order: r.order });
+    else setAttempt((n) => n + 1); // ya cerrado: se vuelve a leer el estado real
+    if (r.kind === "paid") return;
+    // si este navegador es el que creó el pedido: se olvida y el carrito local (intacto hasta pagar) se recrea con las mismas líneas
+    const last = readLastOrder();
+    if (last && last.orderNumber === Number(number)) {
+      clearLastOrder();
+      await restoreCartAfterCancel(last.cartId);
+    }
+  };
   const state = invalid ? "invalid" : !cur ? "loading" : cur.error ? (cur.error.transient ? "retry" : "invalid") : "ready";
 
   return (
@@ -47,7 +65,14 @@ function Order() {
         {state === "retry" && (
           <div role="alert"><p className="max-w-xl text-white/70">{cur?.error?.message} Revisa tu conexión e inténtalo de nuevo.</p><Button variant="red" size="lg" className="mt-8" onClick={() => setAttempt((n) => n + 1)} data-testid="order-retry">Reintentar</Button></div>
         )}
-        {cur?.order && <OrderView order={cur.order} />}
+        {shown && <OrderView order={shown} />}
+        {cancellable && shown && (
+          <div className="mt-10 max-w-xl" data-testid="order-cancel-box">
+            <p className="mb-3 text-sm text-white/60">Este pedido sigue pendiente de pago. Si ya no lo quieres, puedes cancelarlo y liberar tus productos.</p>
+            <CancelOrder orderNumber={shown.orderNumber} token={token} label="Cancelar pedido" gatewayMayBeOpen={shown.payment?.provider !== "mock"} onResult={onCancelled} testId="order-cancel" />
+          </div>
+        )}
+        {shown?.status === "cancelled" && <p role="status" data-testid="order-cancelled" className="mt-8 max-w-xl text-sm text-white/60">Este pedido está cancelado. No se hizo ningún cobro.</p>}
       </div>
     </div>
   );

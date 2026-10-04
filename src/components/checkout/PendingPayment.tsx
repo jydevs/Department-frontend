@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api/client";
 import { friendlyError } from "@/lib/api/errors";
 import type { ApiPublicOrder } from "@/lib/api/types";
-import { clearLastOrder, goToPayment, minutesLeft, paymentDestination, type LastOrder } from "@/lib/checkout";
+import { CancelOrder } from "@/components/checkout/CancelOrder";
+import { clearLastOrder, goToPayment, minutesLeft, paymentDestination, type CancelResult, type LastOrder } from "@/lib/checkout";
 import { formatCOP } from "@/lib/format";
 
 type View =
@@ -18,7 +19,8 @@ type View =
 /**
  * Aviso "Tienes un pago pendiente": el pedido ya se creó (el carrito de la API quedó convertido) pero el pago no se
  * confirmó, p. ej. porque se volvió atrás desde la pasarela. Permite reanudar el pago con la MISMA referencia mientras la
- * reserva siga vigente, o descartar el intento y empezar de nuevo.
+ * reserva siga vigente, o descartar el intento y empezar de nuevo: descartar CANCELA el pedido en el servidor (libera el stock
+ * reservado) tras confirmarlo; si el pedido resulta estar ya pagado se muestra como pagado y no se cancela nada.
  */
 export function PendingPayment({ last, blocking, onRestart }: { last: LastOrder; blocking: boolean; onRestart: () => Promise<void> | void }) {
   const router = useRouter();
@@ -52,6 +54,7 @@ export function PendingPayment({ last, blocking, onRestart }: { last: LastOrder;
     };
   }, [last.orderNumber, last.accessToken]);
 
+  /** Pedido ya cerrado (vencido/cancelado): no hay nada que cancelar en el servidor, solo limpiar y seguir. */
   const restart = async () => {
     setBusy(true);
     try {
@@ -61,6 +64,17 @@ export function PendingPayment({ last, blocking, onRestart }: { last: LastOrder;
       setBusy(false);
     }
   };
+  const onCancelled = async (r: CancelResult) => {
+    if (r.kind === "paid") {
+      setView({ kind: "gone", reason: "paid" }); // el pago se confirmó mientras tanto: no se descarta nada
+      return;
+    }
+    await restart(); // cancelado (o ya cerrado): se limpia el pedido guardado y se recrea el carrito
+  };
+  const discard = (
+    <CancelOrder orderNumber={last.orderNumber} token={last.accessToken} variant="outline" label={blocking ? "Descartar y empezar de nuevo" : "Descartar"}
+      question={`¿Descartar el pedido #${last.orderNumber}?`} gatewayMayBeOpen={last.payment.provider === "wompi"} disabled={busy} onResult={onCancelled} testId="pending-restart" />
+  );
 
   if (view.kind === "loading") return <p role="status" data-testid="pending-payment-loading" className="mb-8 font-condensed text-xs tracking-[0.1em] text-dept-gray-500">Comprobando tu pago…</p>;
 
@@ -90,7 +104,7 @@ export function PendingPayment({ last, blocking, onRestart }: { last: LastOrder;
         <p className="mt-2 text-sm text-dept-red-light">{view.message}</p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Button variant="red" size="md" onClick={() => goToPayment(paymentDestination(last.payment), router.push)} data-testid="pending-resume">Reanudar pago</Button>
-          <Button variant="outline" size="md" disabled={busy} onClick={() => void restart()}>{blocking ? "Descartar y empezar de nuevo" : "Descartar"}</Button>
+          {discard}
         </div>
       </div>
     );
@@ -110,7 +124,7 @@ export function PendingPayment({ last, blocking, onRestart }: { last: LastOrder;
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
         {!expired && <Button variant="red" size="md" onClick={() => goToPayment(paymentDestination(last.payment), router.push)} data-testid="pending-resume">Reanudar pago</Button>}
-        <Button variant="outline" size="md" disabled={busy} onClick={() => void restart()} data-testid="pending-restart">{blocking ? "Descartar y empezar de nuevo" : "Descartar"}</Button>
+        {discard}
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/errors";
+import { readLastOrder } from "@/lib/checkout";
 
 /**
  * Pasarela SIMULADA (solo QA con `PAYMENT_PROVIDER=mock` en la API). Reproduce lo que haría Wompi:
@@ -21,7 +22,9 @@ export function MockCheckout() {
     setError(null);
     try {
       await apiFetch("/storefront/dev/mock-payment", { method: "POST", body: { reference, status } });
-      router.push("/checkout/result");
+      // igual que el `redirectUrl` real: /checkout/result?order=<número> (el número se conoce si este navegador creó el pedido)
+      const last = readLastOrder();
+      router.push(last?.reference === reference ? `/checkout/result?order=${last.orderNumber}` : "/checkout/result");
     } catch (e) {
       setError(e instanceof ApiError && e.status === 404 ? "La API no tiene activado el pago simulado (PAYMENT_PROVIDER=mock y MOCK_PAYMENTS_ENABLED=true)." : "No se pudo simular el pago.");
       setBusy(null);
