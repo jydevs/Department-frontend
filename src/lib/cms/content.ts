@@ -60,7 +60,7 @@ export interface ContentBundle {
 export const getBundle = cache(async (template: string): Promise<ContentBundle> => {
   const b = await sfGet<{ settings: ApiContentDoc<SiteSettings> | null; menus: { main: ApiContentDoc<MenuData> | null; footer: ApiContentDoc<MenuData> | null }; template: ApiContentDoc<TemplateData> | null }>(
     "/storefront/content/bundle",
-    { query: { template }, tags: ["content", "content:settings:site", "content:menu:main", "content:menu:footer", `content:template:${template}`], revalidate: REVALIDATE },
+    { query: { template }, tags: ["content", "content:settings:site", "content:menu:main", "content:menu:footer", `content:template:${template}`], revalidate: REVALIDATE, allow404: true },
   );
   return { settings: b?.settings?.data ?? null, menus: { main: b?.menus.main?.data ?? null, footer: b?.menus.footer?.data ?? null }, template: b?.template?.data ?? null };
 });

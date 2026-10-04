@@ -16,6 +16,7 @@ createServer((req, res) => {
   const path = pathname.replace(/^\/api\/v1/, "");
   if (path === "/ready") return send(res, 200, { status: "ready" });
   if (path === "/storefront/products") return send(res, 200, { items: [], nextCursor: null, hasMore: false });
+  if (path === "/storefront/content/bundle") return send(res, 200, { settings: null, menus: { main: null, footer: null }, template: null });
   if (["/storefront/collections", "/storefront/content/pages", "/storefront/redirects"].includes(path)) return send(res, 200, []);
   return notFound(res, path);
 }).listen(port, "127.0.0.1", () => console.log(`Mock API de CI escuchando en :${port}`));
