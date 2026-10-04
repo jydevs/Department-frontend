@@ -72,6 +72,15 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
             <Link ref={firstButtonRef} href="/account" onClick={onClose} className="font-condensed mt-4 block text-center w-full bg-dept-blue py-3.5 text-sm tracking-[0.14em] text-dept-white transition-[filter] duration-300 hover:brightness-110">
               Mi cuenta
             </Link>
+            {customer?.isStaff && (
+              <Link
+                href="/admin"
+                onClick={onClose}
+                className="font-condensed mt-2 block text-center w-full bg-dept-red-dark py-3 text-[11px] tracking-[0.18em] text-dept-white transition-colors duration-300 hover:bg-dept-red"
+              >
+                PANEL DE ADMINISTRACIÓN
+              </Link>
+            )}
             <div className="mt-2 flex gap-2">
               <Link href="/account/orders" onClick={onClose} className={ghostBtn}>Pedidos</Link>
               <button type="button" data-testid="account-modal-logout" onClick={signOut} className={ghostBtn}>

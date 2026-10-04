@@ -18,7 +18,7 @@ import type { ApiPublicOrder } from "@/lib/api/types";
 
 export interface Customer {
   id: string; email: string; firstName: string; lastName: string; phone: string | null;
-  acceptsMarketing: boolean; emailVerified: boolean; createdAt: string;
+  acceptsMarketing: boolean; emailVerified: boolean; isStaff?: boolean; createdAt: string;
 }
 export interface CustomerAddress {
   id: string; label: string | null; isDefault: boolean; fullName: string; phone: string; department: string; city: string;
