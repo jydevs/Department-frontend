@@ -49,6 +49,20 @@
   --color-dept-gray-500: var(--dept-gray-500);
   --color-dept-gray-900: var(--dept-gray-900);
 
+
+  /* ---- panel /admin (tokens de color; valores en .admin-root) ---- */
+  --color-accent: var(--adm-accent);
+  --color-accent-text: var(--adm-accent-text);
+  --color-bg: var(--adm-bg);
+  --color-surface: var(--adm-surface);
+  --color-surface2: var(--adm-surface-2);
+  --color-line: var(--adm-border);
+  --color-fg: var(--adm-fg);
+  --color-muted: var(--adm-muted);
+  --color-ok: var(--adm-ok);
+  --color-warn: var(--adm-warn);
+  --color-info: var(--adm-info);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
@@ -327,3 +341,59 @@
     animation: none !important;
   }
 }
+
+/* ============================================================
+   Panel de administración (/admin) — mismo lenguaje visual que la tienda:
+   negro, rojo Dept., esquinas rectas, tipografías Anton/Oswald.
+   Todo está acotado a .admin-root para no afectar a la tienda.
+   ============================================================ */
+.admin-root {
+  --adm-accent: var(--dept-red);
+  --adm-accent-text: var(--dept-red-light);
+  --adm-bg: var(--dept-black);
+  --adm-surface: #0a0a0a;
+  --adm-surface-2: #171717;
+  --adm-border: rgb(255 255 255 / 0.13);
+  --adm-fg: var(--dept-white);
+  --adm-muted: #a0a0a0;
+  --adm-ok: #4ade80;
+  --adm-warn: #fbbf24;
+  --adm-info: #7aa2ff;
+  color-scheme: dark;
+  font-size: 14px;
+}
+.admin-root[data-theme="light"] {
+  --adm-accent-text: #b80000;
+  --adm-bg: var(--dept-gray-100);
+  --adm-surface: #ffffff;
+  --adm-surface-2: #ececec;
+  --adm-border: rgb(0 0 0 / 0.16);
+  --adm-fg: #111111;
+  --adm-muted: #5c5c5c;
+  --adm-ok: #166534;
+  --adm-warn: #854d0e;
+  --adm-info: #1e40af;
+  color-scheme: light;
+}
+@layer base {
+  /* transiciones solo en controles: no pisan `transition-*` de las utilidades (p. ej. el drawer móvil) */
+  .admin-root :is(a, button, input, select, textarea, label, tr) { transition-property: background-color, border-color, color, opacity; transition-duration: 0.12s; }
+  .admin-root .grid > *, .admin-root main { min-width: 0; }
+  .admin-root ::selection { background: var(--dept-red); color: #fff; }
+}
+
+@layer components {
+  /* microetiqueta de la tienda: condensada, versalitas, muy espaciada */
+  .admin-root .adm-label { font-family: var(--font-condensed); text-transform: uppercase; letter-spacing: 0.24em; font-size: 11px; color: var(--adm-muted); }
+  /* celda que se invierte al pasar el cursor (como ValueProps) */
+  .admin-root .adm-invert { transition: background-color 0.4s var(--ease-out-expo), color 0.4s var(--ease-out-expo); }
+  .admin-root .adm-invert:hover { background: var(--adm-fg); color: var(--adm-bg); }
+  .admin-root .adm-invert:hover .adm-label, .admin-root .adm-invert:hover .adm-sub { color: color-mix(in srgb, var(--adm-bg) 65%, transparent); }
+  .adm-skel { animation: adm-pulse 1.4s ease-in-out infinite; background: var(--adm-surface-2); }
+  .adm-toast-in { animation: adm-toast 0.18s ease-out; }
+}
+/* En la celda invertida (hover) los colores semánticos del texto (muted/ok/error…) no tienen contraste sobre el fondo claro: sin capa para ganar a las utilidades */
+.admin-root .adm-invert:hover :is(.text-muted, .text-ok, .text-accent-text, .text-warn, .text-info) { color: color-mix(in srgb, var(--adm-bg) 80%, transparent); }
+@keyframes adm-pulse { 50% { opacity: 0.45; } }
+@keyframes adm-toast { from { transform: translateY(8px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .admin-root :is(a, button, input, select, textarea, label, tr), .adm-skel, .adm-toast-in { animation: none !important; transition: none !important; } }

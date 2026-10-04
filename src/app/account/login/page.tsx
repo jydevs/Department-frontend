@@ -1,97 +1,68 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { isSafePath } from "@/lib/url";
 import { Button } from "@/components/ui/Button";
+import { AuthCard, AuthSkeleton, EMAIL_RE, Field, FormError } from "@/components/account/ui";
+import { clearAccountNotice, login, useAccount } from "@/lib/account";
+import { friendlyError } from "@/lib/api/errors";
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { notice: logoutNotice } = useAccount();
+  const notice = params.get("reset") ? "Contraseña actualizada. Inicia sesión con la nueva." : params.get("verified") ? "Correo verificado. Ya puedes iniciar sesión." : params.get("deleted") ? "Tu cuenta fue eliminada. Gracias por haber estado con nosotros." : null;
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!EMAIL_RE.test(email.trim())) {
-      setError("Introduce un correo electrónico válido");
-      return;
-    }
+    if (!EMAIL_RE.test(email.trim())) return setError("Introduce un correo electrónico válido");
+    if (!password) return setError("Introduce tu contraseña");
     setError(null);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("auth_token", "mock-jwt-token");
-      localStorage.setItem("auth_user", JSON.stringify({ email }));
+    setBusy(true);
+    try {
+      await login(email, password);
+      clearAccountNotice();
+      const next = params.get("next");
+      router.push(next && isSafePath(next) ? next : "/account");
+    } catch (err) {
+      setError(friendlyError(err));
+      setBusy(false);
     }
-    router.push("/account/orders");
   };
 
   return (
-    <div className="flex min-h-[70vh] flex-col justify-center px-gutter pt-[calc(var(--chrome-h)+2rem)] pb-16">
-      <div className="mx-auto w-full max-w-md border border-white/15 bg-dept-black p-8 sm:p-10">
-        <p className="font-condensed mb-2 text-[11px] uppercase tracking-[0.24em] text-dept-gray-500">
-          Cuenta
+    <AuthCard eyebrow="Cuenta" title="Iniciar sesión">
+      <form data-testid="login-form" onSubmit={handleSubmit} noValidate className="space-y-5">
+        {notice && <p role="status" data-testid="login-notice" className="font-condensed text-xs tracking-[0.1em] text-dept-white">{notice}</p>}
+        {logoutNotice && <p role="alert" data-testid="logout-notice" className="font-condensed text-xs leading-relaxed tracking-[0.1em] text-dept-red-light">{logoutNotice}</p>}
+        <FormError id="login-error">{error}</FormError>
+        <Field label="Correo electrónico" type="email" autoComplete="email" data-testid="login-email" value={email} required
+          onChange={(e) => { setEmail(e.target.value); if (error) setError(null); }} />
+        <div>
+          <Field label="Contraseña" type="password" autoComplete="current-password" data-testid="login-password" value={password} required
+            onChange={(e) => { setPassword(e.target.value); if (error) setError(null); }} />
+          <div className="mt-2 text-right">
+            <Link href="/account/forgot-password" className="font-condensed text-[11px] tracking-[0.1em] text-dept-gray-500 hover:text-dept-white">¿Olvidaste tu contraseña?</Link>
+          </div>
+        </div>
+        <Button type="submit" variant="red" size="lg" data-testid="login-submit" disabled={busy} className="w-full mt-4">
+          {busy ? "Entrando…" : "Entrar"}
+        </Button>
+        <p className="font-condensed mt-6 text-center text-xs tracking-[0.1em] text-dept-gray-400">
+          ¿No tienes cuenta?{" "}
+          <Link href="/account/register" className="text-dept-white underline underline-offset-4">Crear una</Link>
         </p>
-        <h1 className="font-display text-display-md text-dept-white mb-6">Iniciar sesión</h1>
-
-        <form data-testid="login-form" onSubmit={handleSubmit} noValidate className="space-y-5">
-          {error && (
-            <p data-testid="login-error" className="font-condensed text-xs tracking-[0.1em] text-dept-red-light">
-              {error}
-            </p>
-          )}
-
-          <div>
-            <label className="font-condensed block text-xs tracking-[0.12em] text-dept-gray-300 mb-2">
-              Correo electrónico
-            </label>
-            <input
-              type="email"
-              data-testid="login-email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (error) setError(null);
-              }}
-              required
-              className="w-full border border-white/20 bg-white/5 px-4 py-3 font-condensed text-sm text-dept-white outline-none focus:border-dept-white"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="font-condensed block text-xs tracking-[0.12em] text-dept-gray-300">
-                Contraseña
-              </label>
-              <Link
-                href="/account/reset-password"
-                className="font-condensed text-[11px] tracking-[0.1em] text-dept-gray-500 hover:text-dept-white"
-              >
-                ¿Olvidaste tu contraseña?
-              </Link>
-            </div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full border border-white/20 bg-white/5 px-4 py-3 font-condensed text-sm text-dept-white outline-none focus:border-dept-white"
-            />
-          </div>
-
-          <Button type="submit" variant="red" size="lg" data-testid="login-submit" className="w-full mt-4">
-            Entrar
-          </Button>
-
-          <p className="font-condensed mt-6 text-center text-xs tracking-[0.1em] text-dept-gray-400">
-            ¿No tienes cuenta?{" "}
-            <Link href="/account/register" className="text-dept-white underline underline-offset-4">
-              Crear una
-            </Link>
-          </p>
-        </form>
-      </div>
-    </div>
+      </form>
+    </AuthCard>
   );
+}
+
+export default function LoginPage() {
+  return <Suspense fallback={<AuthSkeleton rows={2} />}><LoginForm /></Suspense>;
 }

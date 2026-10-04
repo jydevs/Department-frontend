@@ -9,6 +9,8 @@ interface MarqueeProps {
   separator?: string;
   /** colour of the separator glyph (default red) */
   separatorClassName?: string;
+  /** color CSS del separador (anula la clase); lo usa el CMS */
+  separatorColor?: string;
   className?: string;
   /** item typography, e.g. "font-display text-6xl" */
   itemClassName?: string;
@@ -25,6 +27,7 @@ export function Marquee({
   reverse = false,
   separator = "✦",
   separatorClassName = "text-dept-red",
+  separatorColor,
   className,
   itemClassName,
   pauseOnHover = true,
@@ -37,7 +40,7 @@ export function Marquee({
       {items.map((item, i) => (
         <li key={`${item}-${i}`} className="flex shrink-0 items-center">
           <span className={clsx("whitespace-nowrap px-[0.6em]", itemClassName)}>{item}</span>
-          <span aria-hidden className={clsx("px-[0.4em] leading-none", separatorClassName)}>
+          <span aria-hidden className={clsx("px-[0.4em] leading-none", separatorClassName)} style={separatorColor ? { color: separatorColor } : undefined}>
             {separator}
           </span>
         </li>

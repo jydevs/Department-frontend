@@ -14,6 +14,15 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Variables EXPLÍCITAS de CI: URLs https dummy válidas (la validación de producción exige https y no-localhost).
+    # NO son secretos ni apuntan a ningún servicio real.
+    env:
+      NEXT_PUBLIC_APP_ENV: production
+      NEXT_PUBLIC_API_URL: https://api.ci.example.com
+      NEXT_PUBLIC_SITE_URL: https://ci.example.com
+      NEXT_PUBLIC_WOMPI_PUBLIC_KEY: ""
+      NEXT_PUBLIC_INDEXABLE: "false"
+      NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -26,4 +35,16 @@ jobs:
       - run: yarn install --frozen-lockfile
       - run: yarn lint
       - run: yarn typecheck
-      - run: yarn build
+
+      # En CI NO hay backend: `https://api.ci.example.com` no existe. `next build` prerenderiza la home, el layout y las
+      # colecciones leyendo la API, así que el build se hace contra una API simulada mínima (scripts/ci-mock-api.mjs:
+      # catálogo vacío / 404 en el CMS → la tienda usa sus valores por defecto). `API_URL` solo la ve el servidor de Next
+      # durante el build; las NEXT_PUBLIC_* siguen siendo las https dummy de arriba. No es una prueba: no se añaden tests.
+      - name: Build (API simulada)
+        run: |
+          node scripts/ci-mock-api.mjs 4010 &
+          sleep 1
+          API_URL=http://127.0.0.1:4010 yarn build
+
+      - name: Comprobar salida standalone (Docker)
+        run: test -f .next/standalone/server.js

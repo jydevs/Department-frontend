@@ -191,10 +191,10 @@ test.describe('4. Autenticación', () => {
     await expect(registerForm).toBeVisible();
   });
 
-  test('4.3 Página órdenes existe', async ({ page }) => {
+  test('4.3 Página órdenes exige sesión (redirige al login)', async ({ page }) => {
     await page.goto('/account/orders');
-    const ordersPage = page.locator('[data-testid="orders-page"]');
-    await expect(ordersPage).toBeVisible();
+    await expect(page.locator('[data-testid="login-form"]')).toBeVisible();
+    await expect(page).toHaveURL(/\/account\/login/);
   });
 
   test('4.4 Formulario login valida email', async ({ page }) => {
@@ -216,13 +216,13 @@ test.describe('4. Autenticación', () => {
   });
 
   test('4.6 Página verificación email existe', async ({ page }) => {
-    await page.goto('/account/verify-email');
+    await page.goto('/account/verify-email?token=' + 'a'.repeat(43));
     const verifyPage = page.locator('[data-testid="verify-email-page"]');
     await expect(verifyPage).toBeVisible();
   });
 
   test('4.7 Página reset password existe', async ({ page }) => {
-    await page.goto('/account/reset-password');
+    await page.goto('/account/reset-password?token=' + 'a'.repeat(43));
     const resetForm = page.locator('[data-testid="reset-password-form"]');
     await expect(resetForm).toBeVisible();
   });
