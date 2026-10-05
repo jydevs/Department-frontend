@@ -11,13 +11,13 @@
 # Las NEXT_PUBLIC_* se incrustan en el build (no son secretos). Los secretos se pasan SOLO al ejecutar (-e), nunca como ARG.
 # El build necesita la API accesible (prerenderiza la home/colecciones) o que el contenido caiga a sus valores por defecto.
 
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 RUN corepack enable
 COPY --from=deps /app/node_modules ./node_modules
@@ -38,7 +38,7 @@ ENV NEXT_PUBLIC_APP_ENV=$NEXT_PUBLIC_APP_ENV \
     NEXT_TELEMETRY_DISABLED=1
 RUN yarn build
 
-FROM node:22-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
