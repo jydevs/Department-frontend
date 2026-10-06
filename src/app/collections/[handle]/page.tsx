@@ -1,26 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { collections, getCollectionProducts } from "@/data/products";
-import type { CollectionHandle } from "@/data/types";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { CollectionView } from "@/components/product/CollectionView";
 import { clsx } from "@/lib/clsx";
 
-const HANDLES: CollectionHandle[] = ["all", "men", "women"];
-
-const TAB_LABEL: Record<CollectionHandle, string> = {
+const TAB_LABEL: Record<string, string> = {
   all: "Todo",
   men: "Men",
   women: "Women",
 };
 
 export function generateStaticParams() {
-  return HANDLES.map((handle) => ({ handle }));
-}
-
-function isHandle(value: string): value is CollectionHandle {
-  return (HANDLES as string[]).includes(value);
+  return [{ handle: "all" }, { handle: "men" }, { handle: "women" }];
 }
 
 export async function generateMetadata({
@@ -29,8 +21,18 @@ export async function generateMetadata({
   params: Promise<{ handle: string }>;
 }): Promise<Metadata> {
   const { handle } = await params;
-  if (!isHandle(handle)) return {};
-  return { title: `${collections[handle].title} — ${TAB_LABEL[handle]}` };
+  const title = TAB_LABEL[handle] || handle;
+  return { title: `Colección ${title} — Daregular Dept.` };
+}
+
+async function fetchCollection(handle: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const url = `${baseUrl}/api/v1/storefront/collections/${handle}`;
+  const response = await fetch(url, {
+    next: { revalidate: 300 },
+  });
+  if (!response.ok) return null;
+  return response.json();
 }
 
 /**
@@ -43,10 +45,11 @@ export default async function CollectionPage({
   params: Promise<{ handle: string }>;
 }) {
   const { handle } = await params;
-  if (!isHandle(handle)) notFound();
 
-  const collection = collections[handle];
-  const products = getCollectionProducts(handle);
+  const result = await fetchCollection(handle);
+  if (!result) notFound();
+
+  const { collection, products } = result;
 
   return (
     <div>
@@ -54,7 +57,7 @@ export default async function CollectionPage({
         <div className="absolute inset-0 -z-10 overflow-hidden">
           <div className="parallax-y absolute -inset-y-[10%] inset-x-0">
             <PlaceholderImage
-              label={collection.heroImageLabel}
+              label={collection.title}
               src={`/images/collection-${handle}.jpg`}
               tone="dark"
               hideLabel
@@ -79,7 +82,7 @@ export default async function CollectionPage({
           </div>
 
           <nav aria-label="Colecciones" className="flex gap-2 pb-2">
-            {HANDLES.map((h) => (
+            {["all", "men", "women"].map((h) => (
               <Link
                 key={h}
                 href={`/collections/${h}`}
