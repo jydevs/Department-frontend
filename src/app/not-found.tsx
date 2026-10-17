@@ -1,58 +1,56 @@
 import type { Metadata } from "next";
-import { Button } from "@/components/ui/Button";
-import { Marquee } from "@/components/ui/Marquee";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
+import { CtaBanner } from "@/components/sections/CtaBanner";
+import { ErrorHero } from "@/components/sections/ErrorHero";
+import { MarqueeBand } from "@/components/home/MarqueeBand";
+import { getSiteSettingsOrDefault, getTemplate } from "@/lib/api/content";
+import type { TemplateData } from "@/lib/api/types";
 
 export const metadata: Metadata = { title: "404" };
 
-const TICKER = [
-  "PÁGINA NO ENCONTRADA",
-  "UNIFORMS FOR THE UNNOTICED",
-  "404",
-  "DAREGULAR DEPT.",
-];
+/** Built-in 404 used only when `template/404` cannot be loaded (API down / document missing). */
+function FallbackNotFound() {
+  return (
+    <>
+      <ErrorHero eyebrow="Error" code="404" />
+      <MarqueeBand
+        items={["PÁGINA NO ENCONTRADA", "404"]}
+        duration={30}
+        variant="plain"
+        size="md"
+        bordered
+      />
+      <CtaBanner
+        text="Esta página no existe — o nunca la vieron."
+        layout="split"
+        ctaLabel="Volver al inicio"
+        ctaHref="/"
+        ctaVariant="solid"
+        secondaryCtaLabel="Ver clothes"
+        secondaryCtaHref="/collections/all"
+        secondaryCtaVariant="outline"
+      />
+    </>
+  );
+}
 
-/** On-brand 404 — the label literally sells a "404" print, so we lean into it. */
-export default function NotFound() {
+/** On-brand 404 — rendered from `template/404` (error hero + ticker + CTA). */
+export default async function NotFound() {
+  let template: TemplateData | null = null;
+  try {
+    template = await getTemplate("404");
+  } catch {
+    template = null;
+  }
+  const settings = await getSiteSettingsOrDefault();
+
   return (
     <div data-testid="not-found-page" className="flex min-h-screen flex-col pt-[var(--chrome-h)]">
-      <section className="flex flex-1 flex-col justify-center px-gutter py-12 md:py-16">
-        <p className="mb-6 text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">
-          <span aria-hidden className="mr-3 inline-block h-px w-8 bg-dept-red align-middle" />
-          Error
-        </p>
-
-        <h1 aria-label="404" className="font-display text-[clamp(8rem,32vw,34rem)] leading-[0.85] text-dept-white">
-          <span className="mask-line" aria-hidden>
-            <span className="mask-line-inner">
-              <span className="text-transparent [-webkit-text-stroke:3px_var(--dept-white)]">4</span>
-              <span className="text-dept-red">0</span>
-              <span className="text-transparent [-webkit-text-stroke:3px_var(--dept-white)]">4</span>
-            </span>
-          </span>
-        </h1>
-      </section>
-
-      <div className="border-y border-white/10 py-5 md:py-6">
-        <Marquee
-          items={TICKER}
-          duration={30}
-          itemClassName="font-display text-display-md text-white/80"
-        />
-      </div>
-
-      <section className="flex flex-col gap-8 px-gutter py-12 md:flex-row md:items-center md:justify-between md:py-16">
-        <p className="max-w-md text-lg leading-snug text-white/70 md:text-xl">
-          Esta página no existe — o nunca la vieron.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <Button href="/" variant="solid" size="lg" arrow>
-            Volver al inicio
-          </Button>
-          <Button href="/collections/all" variant="outline" size="lg">
-            Ver clothes
-          </Button>
-        </div>
-      </section>
+      {template && template.sections.length > 0 ? (
+        <SectionRenderer sections={template.sections} ctx={{ settings }} />
+      ) : (
+        <FallbackNotFound />
+      )}
     </div>
   );
 }

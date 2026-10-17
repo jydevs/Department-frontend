@@ -1,9 +1,10 @@
 import Link from "next/link";
-import type { Product } from "@/data/types";
+import type { Product } from "@/lib/catalog/types";
 import { formatCOP } from "@/lib/format";
 import { clsx } from "@/lib/clsx";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { QuickAdd } from "./QuickAdd";
+import { DEFAULT_GRID_LABELS, type GridLabels } from "./labels";
 
 interface ProductCardProps {
   product: Product;
@@ -11,6 +12,7 @@ interface ProductCardProps {
   sizes?: string;
   priority?: boolean;
   className?: string;
+  labels?: GridLabels;
 }
 
 /**
@@ -23,6 +25,7 @@ export function ProductCard({
   sizes = "(min-width: 1024px) 25vw, 50vw",
   priority = false,
   className,
+  labels = DEFAULT_GRID_LABELS,
 }: ProductCardProps) {
   const soldOut = product.badge === "agotado";
   const onSale = product.badge === "oferta" && product.compareAtPrice != null;
@@ -31,7 +34,7 @@ export function ProductCard({
   const displayPrice =
     product.price && product.price > 0
       ? formatCOP(product.price)
-      : "Precio no disponible";
+      : labels.noPriceLabel;
 
   return (
     <article data-testid="product-card" className={clsx("group relative", className)}>
@@ -66,11 +69,11 @@ export function ProductCard({
               soldOut ? "bg-dept-white text-dept-black" : "bg-dept-red text-dept-white",
             )}
           >
-            {soldOut ? "Agotado" : "Oferta"}
+            {soldOut ? labels.soldOutBadgeLabel : labels.saleBadgeLabel}
           </span>
         )}
 
-        {!soldOut && <QuickAdd product={product} />}
+        {!soldOut && product.variants.length > 0 && <QuickAdd product={product} label={labels.quickAddLabel} />}
       </div>
 
       <div className="mt-3 flex flex-col gap-1 pb-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">

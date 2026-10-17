@@ -5,45 +5,52 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { clsx } from "@/lib/clsx";
 import { useCart } from "@/lib/cart";
-import { products } from "@/data/products";
+import type { NavItem } from "@/lib/cms/links";
 import { Marquee } from "@/components/ui/Marquee";
 import { Logo } from "./Logo";
 import { useOverlay } from "./OverlayProvider";
 import { useChromeState } from "./useChromeState";
 
-interface NavItem {
-  label: string;
-  href: string;
-  /** small superscript, e.g. number of pieces */
-  sup?: string;
-  active: (pathname: string) => boolean;
+/** Everything the header needs, resolved on the server from settings/site, menu/main and the `site-header` section. */
+export interface HeaderConfig {
+  brandName: string;
+  logoUrl?: string;
+  logoVariant: "red" | "black";
+  /** first level of the main menu (children feed the mobile menu) */
+  nav: NavItem[];
+  /** menu flattened for the mobile overlay: parent followed by its children */
+  mobileLinks: { id: string; label: string; href: string }[];
+  /** products in the shop, shown as a superscript next to the link to the "all" collection */
+  productCount: number | null;
+  announcement: {
+    items: string[];
+    href?: string;
+    backgroundColor?: string;
+    textColor?: string;
+    separator: string;
+    duration: number;
+  } | null;
+  showSearch: boolean;
+  showAccount: boolean;
+  showCart: boolean;
+  transparentOnHero: boolean;
+  homeAriaLabel: string;
+  searchLabel: string;
+  accountLabel: string;
+  cartLabel: string;
+  menuOpenLabel: string;
+  menuCloseLabel: string;
+  navLabel: string;
+  mobileMenuLabel: string;
+  mobileMenuTagline: string;
 }
 
-const NAV: NavItem[] = [
-  { label: "Home", href: "/", active: (p) => p === "/" },
-  {
-    label: "Clothes",
-    href: "/collections/all",
-    sup: String(products.length).padStart(2, "0"),
-    active: (p) => p.startsWith("/collections") || p.startsWith("/products"),
-  },
-  { label: "Community", href: "/pages/contact", active: (p) => p.startsWith("/pages") },
-];
-
-const MENU_LINKS = [
-  { label: "Home", href: "/" },
-  { label: "Clothes", href: "/collections/all" },
-  { label: "Men", href: "/collections/men" },
-  { label: "Women", href: "/collections/women" },
-  { label: "Community", href: "/pages/contact" },
-];
-
-const ANNOUNCEMENT = [
-  "Rags to Riches — Extended Version",
-  "Uniforms for the unnoticed",
-  "Regular members only",
-  "Precios en COP",
-];
+function isActive(item: NavItem, pathname: string): boolean {
+  if (item.href === "/") return pathname === "/";
+  if (pathname === item.href || pathname.startsWith(`${item.href}/`)) return true;
+  if (item.matchPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return true;
+  return item.children.some((c) => isActive(c, pathname));
+}
 
 /** pages that open on a full-bleed photo: the header starts transparent there */
 function hasHero(pathname: string) {
@@ -76,18 +83,20 @@ const iconBtn =
  * - transparent over hero photography, frosted black once scrolled / on inner pages
  * - hides while scrolling down, returns on scroll up (or keyboard focus)
  * - cart counter, search shortcut ("/" or ⌘/Ctrl+K), full-screen mobile menu
+ * Navigation, labels and the ticker come from the CMS (see `HeaderConfig`).
  */
-export function Header() {
+export function Header({ config }: { config: HeaderConfig }) {
   const pathname = usePathname();
   const chrome = useChromeState();
   const { openAccount, openCart, openSearch } = useOverlay();
   const { count } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const overlayPage = hasHero(pathname);
+  const overlayPage = config.transparentOnHero && hasHero(pathname);
   const atTop = chrome === "top";
   const solid = !overlayPage || !atTop || menuOpen;
   const hidden = chrome === "hidden" && !menuOpen;
+  const { announcement } = config;
 
   // Escape closes the mobile menu; lock body scroll while it is open
   useEffect(() => {
@@ -106,6 +115,7 @@ export function Header() {
 
   // "/" or ⌘/Ctrl+K opens search (unless the user is typing somewhere)
   useEffect(() => {
+    if (!config.showSearch) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
@@ -116,7 +126,18 @@ export function Header() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openSearch]);
+  }, [openSearch, config.showSearch]);
+
+  const ticker = announcement && (
+    <Marquee
+      items={announcement.items}
+      duration={announcement.duration}
+      separator={announcement.separator}
+      separatorClassName="opacity-70"
+      itemClassName="font-condensed text-[11px] tracking-[0.24em]"
+      className="w-full"
+    />
+  );
 
   return (
     <>
@@ -143,32 +164,39 @@ export function Header() {
         />
 
         {/* announcement ticker — collapses once the page scrolls */}
-        <div
-          className={clsx(
-            "relative grid transition-[grid-template-rows] duration-500 ease-out-expo",
-            atTop ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-          )}
-        >
-          <div className="min-h-0 overflow-hidden">
-            <div className="flex h-[var(--announce-h)] items-center bg-dept-red text-dept-white">
-              <Marquee
-                items={ANNOUNCEMENT}
-                duration={38}
-                separator="✦"
-                separatorClassName="text-dept-white/70"
-                itemClassName="font-condensed text-[11px] tracking-[0.24em]"
-                className="w-full"
-              />
+        {announcement && (
+          <div
+            className={clsx(
+              "relative grid transition-[grid-template-rows] duration-500 ease-out-expo",
+              atTop ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            )}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div
+                className="flex h-[var(--announce-h)] items-center bg-dept-red text-dept-white"
+                style={{
+                  ...(announcement.backgroundColor ? { backgroundColor: announcement.backgroundColor } : null),
+                  ...(announcement.textColor ? { color: announcement.textColor } : null),
+                }}
+              >
+                {announcement.href ? (
+                  <Link href={announcement.href} className="block w-full">
+                    {ticker}
+                  </Link>
+                ) : (
+                  ticker
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* main bar */}
         <div className="relative grid h-[var(--header-h)] grid-cols-[1fr_auto_1fr] items-center px-gutter">
-          <nav aria-label="Principal" className="flex items-center">
+          <nav aria-label={config.navLabel} className="flex items-center">
             <button
               type="button"
-              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+              aria-label={menuOpen ? config.menuCloseLabel : config.menuOpenLabel}
               aria-expanded={menuOpen}
               aria-controls="mobile-menu"
               data-testid="mobile-menu"
@@ -190,10 +218,14 @@ export function Header() {
             </button>
 
             <ul className="hidden items-center gap-9 md:flex">
-              {NAV.map((item) => {
-                const active = item.active(pathname);
+              {config.nav.map((item) => {
+                const active = isActive(item, pathname);
+                const sup =
+                  item.collectionHandle === "all" && config.productCount !== null
+                    ? String(config.productCount).padStart(2, "0")
+                    : undefined;
                 return (
-                  <li key={item.href}>
+                  <li key={item.id}>
                     <Link
                       href={item.href}
                       aria-current={active ? "page" : undefined}
@@ -201,9 +233,9 @@ export function Header() {
                       className="link-underline font-condensed inline-flex items-start gap-1.5 py-1 text-[13px] tracking-[0.2em] text-dept-white"
                     >
                       {item.label}
-                      {item.sup && (
+                      {sup && (
                         <span aria-hidden className="mt-px text-[9px] leading-none tracking-normal text-dept-gray-300">
-                          {item.sup}
+                          {sup}
                         </span>
                       )}
                     </Link>
@@ -216,58 +248,70 @@ export function Header() {
           <Link
             href="/"
             data-testid="logo"
-            aria-label="Daregular Dept. — inicio"
+            aria-label={config.homeAriaLabel}
             className="justify-self-center px-2 transition-opacity duration-300 hover:opacity-80"
           >
-            <Logo variant="red" size="lg" className="h-8 w-auto md:h-10" />
+            <Logo
+              variant={config.logoVariant}
+              size="lg"
+              imageUrl={config.logoUrl}
+              title={config.brandName}
+              className="h-8 w-auto md:h-10"
+            />
           </Link>
 
           <div className="flex items-center justify-end gap-0.5">
-            <button
-              type="button"
-              aria-label="Buscar"
-              data-testid="search-button"
-              onClick={openSearch}
-              className={iconBtn}
-            >
-              <Icon>
-                <circle cx="11" cy="11" r="7" />
-                <path d="M20 20l-3.5-3.5" />
-              </Icon>
-            </button>
-            <button
-              type="button"
-              aria-label="Cuenta"
-              data-testid="account-button"
-              aria-haspopup="dialog"
-              onClick={openAccount}
-              className={clsx(iconBtn, "hidden sm:flex")}
-            >
-              <Icon>
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
-              </Icon>
-            </button>
-            <button
-              type="button"
-              aria-label={count ? `Carrito, ${count} artículos` : "Carrito"}
-              data-testid="cart-button"
-              aria-haspopup="dialog"
-              onClick={openCart}
-              className={clsx(iconBtn, "-mr-3")}
-            >
-              <Icon>
-                <path d="M5 8h14l-1.2 12H6.2L5 8z" />
-                <path d="M9 8V7a3 3 0 016 0v1" />
-              </Icon>
-              <span
-                key={count}
-                data-testid="cart-counter"
-                className="absolute right-0.5 top-1 flex h-[17px] min-w-[17px] animate-[pop_0.4s_var(--ease-out-expo)] items-center justify-center bg-dept-red px-1 font-condensed text-[10px] leading-none tracking-normal text-dept-white"
+            {config.showSearch && (
+              <button
+                type="button"
+                aria-label={config.searchLabel}
+                data-testid="search-button"
+                onClick={openSearch}
+                className={iconBtn}
               >
-                {count}
-              </span>
-            </button>
+                <Icon>
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="M20 20l-3.5-3.5" />
+                </Icon>
+              </button>
+            )}
+            {config.showAccount && (
+              <button
+                type="button"
+                aria-label={config.accountLabel}
+                data-testid="account-button"
+                aria-haspopup="dialog"
+                onClick={openAccount}
+                className={clsx(iconBtn, "hidden sm:flex")}
+              >
+                <Icon>
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
+                </Icon>
+              </button>
+            )}
+            {config.showCart && (
+              <button
+                type="button"
+                aria-label={count ? `${config.cartLabel}, ${count} artículos` : config.cartLabel}
+                data-testid="cart-button"
+                aria-haspopup="dialog"
+                onClick={openCart}
+                className={clsx(iconBtn, "-mr-3")}
+              >
+                <Icon>
+                  <path d="M5 8h14l-1.2 12H6.2L5 8z" />
+                  <path d="M9 8V7a3 3 0 016 0v1" />
+                </Icon>
+                <span
+                  key={count}
+                  data-testid="cart-counter"
+                  className="absolute right-0.5 top-1 flex h-[17px] min-w-[17px] animate-[pop_0.4s_var(--ease-out-expo)] items-center justify-center bg-dept-red px-1 font-condensed text-[10px] leading-none tracking-normal text-dept-white"
+                >
+                  {count}
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -281,10 +325,10 @@ export function Header() {
           menuOpen ? "visible opacity-100" : "invisible opacity-0",
         )}
       >
-        <nav aria-label="Menú">
+        <nav aria-label={config.mobileMenuLabel}>
           <ul>
-            {MENU_LINKS.map((link, i) => (
-              <li key={link.href} className="border-b border-white/10">
+            {config.mobileLinks.map((link, i) => (
+              <li key={link.id} className="border-b border-white/10">
                 <Link
                   href={link.href}
                   onClick={() => setMenuOpen(false)}
@@ -313,31 +357,36 @@ export function Header() {
 
         <div className="flex items-end justify-between gap-6">
           <p className="max-w-[16ch] font-condensed text-[11px] leading-relaxed tracking-[0.2em] text-dept-gray-500">
-            Uniforms for the unnoticed.
+            {config.mobileMenuTagline}
           </p>
           <div className="flex gap-3">
-            <button
-              type="button"
-              tabIndex={menuOpen ? 0 : -1}
-              onClick={() => {
-                setMenuOpen(false);
-                openAccount();
-              }}
-              className="font-condensed border border-white/25 px-4 py-2.5 text-[11px] tracking-[0.2em] text-dept-white"
-            >
-              Cuenta
-            </button>
-            <button
-              type="button"
-              tabIndex={menuOpen ? 0 : -1}
-              onClick={() => {
-                setMenuOpen(false);
-                openCart();
-              }}
-              className="font-condensed border border-white/25 px-4 py-2.5 text-[11px] tracking-[0.2em] text-dept-white"
-            >
-              Carrito{count ? ` (${count})` : ""}
-            </button>
+            {config.showAccount && (
+              <button
+                type="button"
+                tabIndex={menuOpen ? 0 : -1}
+                onClick={() => {
+                  setMenuOpen(false);
+                  openAccount();
+                }}
+                className="font-condensed border border-white/25 px-4 py-2.5 text-[11px] tracking-[0.2em] text-dept-white"
+              >
+                {config.accountLabel}
+              </button>
+            )}
+            {config.showCart && (
+              <button
+                type="button"
+                tabIndex={menuOpen ? 0 : -1}
+                onClick={() => {
+                  setMenuOpen(false);
+                  openCart();
+                }}
+                className="font-condensed border border-white/25 px-4 py-2.5 text-[11px] tracking-[0.2em] text-dept-white"
+              >
+                {config.cartLabel}
+                {count ? ` (${count})` : ""}
+              </button>
+            )}
           </div>
         </div>
       </div>

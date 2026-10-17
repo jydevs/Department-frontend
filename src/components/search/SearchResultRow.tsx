@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { Product } from "@/data/types";
+import type { Product } from "@/lib/catalog/types";
 import { formatCOP } from "@/lib/format";
 import { clsx } from "@/lib/clsx";
 
@@ -44,17 +44,19 @@ export function SearchResultRow({ product, id, active, onHover, onSelect }: Sear
         )}
       >
         <span className="relative block h-24 w-[72px] shrink-0 overflow-hidden bg-dept-gray-900">
-          <Image
-            src={product.images[0]}
-            alt=""
-            fill
-            sizes="72px"
-            className={clsx(
-              "object-cover transition-transform duration-500 ease-out-expo",
-              active && "scale-[1.05]",
-              soldOut && "opacity-60",
-            )}
-          />
+          {product.images[0] && (
+            <Image
+              src={product.images[0]}
+              alt=""
+              fill
+              sizes="72px"
+              className={clsx(
+                "object-cover transition-transform duration-500 ease-out-expo",
+                active && "scale-[1.05]",
+                soldOut && "opacity-60",
+              )}
+            />
+          )}
         </span>
 
         <span className="flex min-w-0 flex-1 flex-col gap-2">
@@ -71,7 +73,7 @@ export function SearchResultRow({ product, id, active, onHover, onSelect }: Sear
             <span className={soldOut ? "text-dept-gray-500" : "text-dept-white"}>
               {formatCOP(product.price)}
             </span>
-            {product.compareAtPrice !== undefined && (
+            {product.compareAtPrice != null && (
               <span className="text-dept-gray-500 line-through">
                 <span className="sr-only">Precio anterior </span>
                 {formatCOP(product.compareAtPrice)}

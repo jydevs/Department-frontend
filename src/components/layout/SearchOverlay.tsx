@@ -1,6 +1,8 @@
 "use client";
 
+import type { Product } from "@/lib/catalog/types";
 import { SearchPanel } from "@/components/search/SearchPanel";
+import type { SearchConfig } from "@/components/search/config";
 
 /**
  * Full-screen search opened from the header magnifier. API: `open` / `onClose`.
@@ -12,9 +14,11 @@ import { SearchPanel } from "@/components/search/SearchPanel";
 interface SearchOverlayProps {
   open: boolean;
   onClose: () => void;
+  config?: SearchConfig;
+  popular?: Product[];
 }
 
-export function SearchOverlay({ open, onClose }: SearchOverlayProps) {
+export function SearchOverlay({ open, onClose, config, popular }: SearchOverlayProps) {
   if (!open) return null;
-  return <SearchPanel onClose={onClose} />;
+  return <SearchPanel onClose={onClose} config={config} popular={popular} />;
 }

@@ -1,46 +1,96 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
-import { getProduct } from "@/data/products";
-import type { Product } from "@/data/types";
 
 /**
- * Client-side cart (no backend). A tiny external store persisted in
- * localStorage and read through `useSyncExternalStore`, so it is hydration-safe
- * (server / first paint = empty cart) and shared across every component.
+ * Client-side cart. A tiny external store persisted in localStorage and read
+ * through `useSyncExternalStore`, so it is hydration-safe (server / first paint
+ * = empty cart) and shared across every component.
+ *
+ * Each line is resolved against the API's variant when it is ADDED (the product
+ * page / quick-add already hold the real variant): we keep the variant id (what
+ * checkout will send to the backend) plus a snapshot of name, price and photo,
+ * so the drawer renders without fetching anything.
  */
 
 export interface CartLine {
+  /** API variant id */
+  variantId: string;
   handle: string;
+  /** variant label shown as "Talla …" */
   size: string;
   qty: number;
+  /** most units of this line the cart allows (product-detail `maxQuantity`) */
+  max: number;
+  name: string;
+  /** unit price in COP at the time it was added */
+  price: number;
+  image?: string;
+  imageAlt: string;
 }
 
 export interface CartItem extends CartLine {
-  product: Product;
+  product: { name: string; images: string[]; imageLabel: string };
   /** unit price × qty, in COP */
   total: number;
 }
 
-const KEY = "dept-cart-v1";
-const MAX_QTY = 10;
+export interface AddToCartInput {
+  variantId: string;
+  handle: string;
+  size: string;
+  name: string;
+  price: number;
+  image?: string;
+  imageAlt?: string;
+  max?: number;
+}
+
+const KEY = "dept-cart-v2";
+const DEFAULT_MAX = 10;
+const HARD_MAX = 50;
 const EMPTY: CartLine[] = [];
 
 let lines: CartLine[] = EMPTY;
 let loaded = false;
 const listeners = new Set<() => void>();
 
+function clampQty(qty: number, max: number): number {
+  return Math.min(max, Math.max(1, Math.floor(qty) || 1));
+}
+
 function sanitize(raw: unknown): CartLine[] {
   if (!Array.isArray(raw)) return EMPTY;
   const out: CartLine[] = [];
   for (const entry of raw) {
     if (!entry || typeof entry !== "object") continue;
-    const { handle, size, qty } = entry as Record<string, unknown>;
-    if (typeof handle !== "string" || typeof size !== "string" || typeof qty !== "number") continue;
-    const product = getProduct(handle);
-    if (!product || !product.sizes.includes(size) || product.badge === "agotado") continue;
-    if (!Number.isFinite(qty)) continue;
-    out.push({ handle, size, qty: Math.min(MAX_QTY, Math.max(1, Math.floor(qty))) });
+    const e = entry as Record<string, unknown>;
+    if (
+      typeof e.variantId !== "string" ||
+      typeof e.handle !== "string" ||
+      typeof e.size !== "string" ||
+      typeof e.name !== "string" ||
+      typeof e.qty !== "number" ||
+      typeof e.price !== "number" ||
+      !Number.isFinite(e.qty) ||
+      !Number.isFinite(e.price) ||
+      e.price < 0
+    ) {
+      continue;
+    }
+    const max = typeof e.max === "number" && Number.isFinite(e.max) ? Math.min(HARD_MAX, Math.max(1, Math.floor(e.max))) : DEFAULT_MAX;
+    const image = typeof e.image === "string" && /^(\/(?!\/)|https?:\/\/)/.test(e.image) ? e.image : undefined;
+    out.push({
+      variantId: e.variantId,
+      handle: e.handle,
+      size: e.size,
+      qty: clampQty(e.qty, max),
+      max,
+      name: e.name,
+      price: e.price,
+      image,
+      imageAlt: typeof e.imageAlt === "string" ? e.imageAlt : e.name,
+    });
   }
   return out.length ? out : EMPTY;
 }
@@ -91,28 +141,44 @@ const getServerSnapshot = () => EMPTY;
 
 /* ── actions ─────────────────────────────────────────────── */
 
-/** Returns false (and does nothing) for unknown / sold-out products or sizes that don't exist. */
-export function addToCart(handle: string, size: string, qty = 1): boolean {
+/** Returns false (and does nothing) when the input is not a valid, purchasable variant. */
+export function addToCart(input: AddToCartInput, qty = 1): boolean {
   load();
-  const product = getProduct(handle);
-  if (!product || !product.sizes.includes(size) || product.badge === "agotado") return false;
-  qty = Math.min(MAX_QTY, Math.max(1, Math.floor(qty) || 1));
-  const i = lines.findIndex((l) => l.handle === handle && l.size === size);
+  if (!input.variantId || !input.handle || !input.name || !Number.isFinite(input.price) || input.price < 0) return false;
+  const max = input.max ? Math.min(HARD_MAX, Math.max(1, Math.floor(input.max))) : DEFAULT_MAX;
+  qty = clampQty(qty, max);
+  const i = lines.findIndex((l) => l.variantId === input.variantId);
   if (i === -1) {
-    commit([...lines, { handle, size, qty: Math.min(MAX_QTY, qty) }]);
+    commit([
+      ...lines,
+      {
+        variantId: input.variantId,
+        handle: input.handle,
+        size: input.size,
+        qty,
+        max,
+        name: input.name,
+        price: input.price,
+        image: input.image,
+        imageAlt: input.imageAlt ?? input.name,
+      },
+    ]);
   } else {
-    commit(lines.map((l, j) => (j === i ? { ...l, qty: Math.min(MAX_QTY, l.qty + qty) } : l)));
+    // keep the latest price / photo, add the units
+    commit(
+      lines.map((l, j) =>
+        j === i
+          ? { ...l, price: input.price, name: input.name, image: input.image ?? l.image, max, qty: Math.min(max, l.qty + qty) }
+          : l,
+      ),
+    );
   }
   return true;
 }
 
 export function setLineQty(handle: string, size: string, qty: number) {
   if (!Number.isFinite(qty) || qty <= 0) return removeFromCart(handle, size);
-  commit(
-    lines.map((l) =>
-      l.handle === handle && l.size === size ? { ...l, qty: Math.min(MAX_QTY, qty) } : l,
-    ),
-  );
+  commit(lines.map((l) => (l.handle === handle && l.size === size ? { ...l, qty: Math.min(l.max, Math.floor(qty)) } : l)));
 }
 
 export function removeFromCart(handle: string, size: string) {
@@ -129,11 +195,11 @@ export function useCart() {
   const current = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   return useMemo(() => {
-    const items: CartItem[] = [];
-    for (const line of current) {
-      const product = getProduct(line.handle);
-      if (product) items.push({ ...line, product, total: product.price * line.qty });
-    }
+    const items: CartItem[] = current.map((line) => ({
+      ...line,
+      product: { name: line.name, images: line.image ? [line.image] : [], imageLabel: line.imageAlt },
+      total: line.price * line.qty,
+    }));
     return {
       items,
       /** total units in the cart */

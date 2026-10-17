@@ -10,30 +10,32 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { useRouter } from "next/navigation";
-import { products } from "@/data/products";
-import type { Product } from "@/data/types";
+import type { Product } from "@/lib/catalog/types";
+import { DEFAULT_SEARCH_CONFIG, type SearchConfig } from "./config";
 import { SearchResultRow } from "./SearchResultRow";
 import { SearchSuggestions } from "./SearchSuggestions";
-import { searchProducts } from "./search";
-
-/** "Más buscado": the first four products that are still available. */
-const FEATURED: Product[] = products.filter((p) => p.badge !== "agotado").slice(0, 4);
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), [tabindex]';
+const DEBOUNCE_MS = 180;
+const MIN_QUERY = 2;
 
 interface SearchPanelProps {
   onClose: () => void;
+  config?: SearchConfig;
+  /** "Más buscado": products that can still be bought, resolved on the server */
+  popular?: Product[];
 }
 
 /**
  * The live content of the search overlay. It is only mounted while the overlay
  * is open, so query / active row reset naturally on every open.
  *
- * Semantics: the input is a `combobox` that owns a `listbox` of product links;
- * arrow keys move `aria-activedescendant`, Enter opens the active (or first)
- * result. Tab cycles inside the dialog.
+ * Results come from our own `/api/search` route (a server-side proxy of the
+ * backend's `/storefront/search`). Semantics: the input is a `combobox` that
+ * owns a `listbox` of product links; arrow keys move `aria-activedescendant`,
+ * Enter opens the active (or first) result. Tab cycles inside the dialog.
  */
-export function SearchPanel({ onClose }: SearchPanelProps) {
+export function SearchPanel({ onClose, config = DEFAULT_SEARCH_CONFIG, popular = [] }: SearchPanelProps) {
   const router = useRouter();
   const uid = useId();
   const inputId = `${uid}-input`;
@@ -46,14 +48,22 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
   const navigating = useRef(false);
   /** true when the last active-row change came from the keyboard → scroll it into view */
   const scrollActive = useRef(false);
+  /** Enter pressed while results were still loading: open the first one when they arrive */
+  const enterPending = useRef(false);
 
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Product[]>([]);
+  /** query the current `results` belong to */
+  const [resolved, setResolved] = useState("");
   const [active, setActive] = useState(-1);
 
   const trimmed = query.trim();
-  const hasQuery = trimmed.length > 0;
-  const results = hasQuery ? searchProducts(query, products) : [];
-  const items = hasQuery ? results : FEATURED;
+  /** the backend needs at least 2 characters; below that the panel keeps showing the suggestions */
+  const hasQuery = trimmed.length >= MIN_QUERY;
+  const loading = hasQuery && resolved !== trimmed;
+  const visibleResults = hasQuery && resolved === trimmed ? results : [];
+  const featured = popular.slice(0, config.popularLimit);
+  const items = hasQuery ? visibleResults : featured;
   const activeIdx = active >= 0 && active < items.length ? active : -1;
   const optionId = (product: Product) => `${uid}-opt-${product.handle}`;
   const activeId = activeIdx >= 0 ? optionId(items[activeIdx]) : undefined;
@@ -66,6 +76,39 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
       if (!navigating.current && opener && opener.isConnected) opener.focus();
     };
   }, []);
+
+  // debounced search through the server proxy
+  useEffect(() => {
+    if (!hasQuery) return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      let found: Product[] = [];
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`, { signal: controller.signal });
+        if (res.ok) {
+          const body = (await res.json()) as { products?: Product[] };
+          found = Array.isArray(body.products) ? body.products : [];
+        }
+      } catch {
+        if (controller.signal.aborted) return;
+      }
+      setResults(found);
+      setResolved(trimmed);
+      if (enterPending.current) {
+        enterPending.current = false;
+        const first = found[0];
+        if (first) {
+          navigating.current = true;
+          router.push(`/products/${first.handle}`);
+          onClose();
+        }
+      }
+    }, DEBOUNCE_MS);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [trimmed, hasQuery, router, onClose]);
 
   // Escape closes; Tab / Shift+Tab loop inside the dialog
   useEffect(() => {
@@ -109,6 +152,7 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
     setActive(-1);
+    enterPending.current = false;
   };
 
   const choose = (product: Product) => {
@@ -138,9 +182,13 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
     if (e.key === "Enter") {
       // with an empty query only an explicitly highlighted row is opened
       const target = activeIdx >= 0 ? items[activeIdx] : hasQuery ? items[0] : undefined;
-      if (!target) return;
-      e.preventDefault();
-      choose(target);
+      if (target) {
+        e.preventDefault();
+        choose(target);
+      } else if (loading) {
+        e.preventDefault();
+        enterPending.current = true;
+      }
     }
   };
 
@@ -154,15 +202,16 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
     onClose();
   };
 
-  const count = results.length;
-  const status = hasQuery ? `${count} ${count === 1 ? "resultado" : "resultados"}` : "";
+  const count = visibleResults.length;
+  const status = hasQuery && !loading ? `${count} ${count === 1 ? config.resultSingular : config.resultPlural}` : "";
+  const noResultsTitle = config.noResultsTitle.replace("{query}", trimmed);
 
   return (
     <div
       ref={rootRef}
       role="dialog"
       aria-modal="true"
-      aria-label="Buscar"
+      aria-label={config.title}
       data-testid="search-overlay"
       style={{ animation: "search-overlay-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) backwards" }}
       className="fixed inset-0 z-[60] flex flex-col bg-dept-black/95 text-dept-white"
@@ -171,10 +220,10 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
 
       {/* Top bar */}
       <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-white/10 px-gutter">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">Buscar</p>
+        <p className="text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">{config.title}</p>
         <button
           type="button"
-          aria-label="Cerrar"
+          aria-label={config.closeLabel}
           onClick={onClose}
           className="flex size-11 items-center justify-center border border-white/15 text-lg leading-none transition-colors duration-300 ease-out-expo hover:border-dept-white hover:bg-dept-white hover:text-dept-black"
         >
@@ -185,7 +234,7 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
       {/* Query */}
       <div className="shrink-0 px-gutter pt-6 md:pt-10">
         <label htmlFor={inputId} className="sr-only">
-          Buscar productos
+          {config.title}
         </label>
         <input
           ref={inputRef}
@@ -201,7 +250,7 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
           autoCapitalize="off"
           spellCheck={false}
           enterKeyHint="search"
-          placeholder="¿Qué buscas?"
+          placeholder={config.placeholder}
           value={query}
           onChange={handleChange}
           onKeyDown={handleInputKeyDown}
@@ -224,20 +273,16 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
         <div ref={contentRef} className="px-gutter pt-6 md:pt-8">
           {!hasQuery && (
             <div className="mb-12">
-              <SearchSuggestions onNavigate={handleNavigate} />
+              <SearchSuggestions title={config.suggestionsTitle} suggestions={config.suggestions} onNavigate={handleNavigate} />
             </div>
           )}
 
-          {hasQuery && count === 0 && (
+          {hasQuery && !loading && count === 0 && (
             <div className="mb-12">
-              <p className="font-display text-display-md break-words">
-                Sin resultados para «{trimmed}»
-              </p>
-              <p className="mt-3 text-sm text-dept-gray-500">
-                Prueba con otro nombre o explora las colecciones.
-              </p>
+              <p className="font-display text-display-md break-words">{noResultsTitle}</p>
+              <p className="mt-3 text-sm text-dept-gray-500">{config.noResultsText}</p>
               <div className="mt-10">
-                <SearchSuggestions onNavigate={handleNavigate} />
+                <SearchSuggestions title={config.suggestionsTitle} suggestions={config.suggestions} onNavigate={handleNavigate} />
               </div>
             </div>
           )}
@@ -246,13 +291,13 @@ export function SearchPanel({ onClose }: SearchPanelProps) {
             <section>
               {!hasQuery && (
                 <p className="mb-4 text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">
-                  Más buscado
+                  {config.popularTitle}
                 </p>
               )}
               <ul
                 id={listId}
                 role="listbox"
-                aria-label={hasQuery ? "Resultados" : "Más buscado"}
+                aria-label={hasQuery ? config.resultsLabel : config.popularTitle}
                 className="grid border-t border-white/10 md:grid-cols-2 md:gap-x-12 md:border-t-0 md:[&>li:nth-child(-n+2)]:border-t md:[&>li:nth-child(-n+2)]:border-white/10"
               >
                 {items.map((product, i) => (

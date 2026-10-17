@@ -1,56 +1,81 @@
 import Link from "next/link";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { Reveal } from "@/components/ui/Reveal";
-import { getCollectionProducts } from "@/data/products";
+import { clsx } from "@/lib/clsx";
+import { pad2 } from "@/lib/cms/reader";
+
+export interface SplitTile {
+  id: string;
+  label: string;
+  imageUrl?: string;
+  imageAlt: string;
+  href: string;
+  ariaLabel?: string;
+  /** products in the linked collection (null = not a collection / unknown) */
+  count: number | null;
+}
+
+export interface SplitBannerProps {
+  id?: string;
+  ariaLabel?: string;
+  tiles: SplitTile[];
+  showCount: boolean;
+  countLabel: string;
+  numbered: boolean;
+  backgroundColor?: string;
+}
+
+const COLUMNS: Record<number, string> = {
+  1: "md:grid-cols-1",
+  2: "md:grid-cols-2",
+  3: "md:grid-cols-3",
+  4: "md:grid-cols-4",
+};
 
 /**
- * 50/50 collection entry: WOMEN → /collections/women, MEN → /collections/men.
+ * Collection entry tiles (50/50 for two): WOMEN → /collections/women, MEN → /collections/men.
  * Photos start slightly desaturated and bloom on hover; a square arrow fills in.
  * Stacks on mobile.
  */
-const TILES = [
-  {
-    label: "Women",
-    handle: "women" as const,
-    src: "/images/banner-women.jpg",
-    alt: "Colección Women — mujer de pie frente a un muro con grafiti",
-  },
-  {
-    label: "Men",
-    handle: "men" as const,
-    src: "/images/banner-men.jpg",
-    alt: "Colección Men — grupo posando frente a un muro",
-  },
-];
-
-export function SplitBanner() {
+export function SplitBanner({ id, ariaLabel, tiles, showCount, countLabel, numbered, backgroundColor }: SplitBannerProps) {
+  if (tiles.length === 0) return null;
   return (
-    <section aria-label="Colecciones" className="grid gap-px bg-white/10 md:grid-cols-2">
-      {TILES.map((tile, i) => {
-        const count = getCollectionProducts(tile.handle).length;
+    <section
+      id={id}
+      aria-label={ariaLabel}
+      className={clsx("grid gap-px", COLUMNS[Math.min(4, tiles.length)], !backgroundColor && "bg-white/10")}
+      style={backgroundColor ? { backgroundColor } : undefined}
+    >
+      {tiles.map((tile, i) => {
+        const meta = [
+          numbered ? `0${i + 1}` : null,
+          showCount && tile.count !== null ? `${pad2(tile.count)} ${countLabel}` : null,
+        ].filter((m): m is string => m !== null);
         return (
-          <Reveal key={tile.handle} delay={i * 120} className="h-full bg-dept-black">
+          <Reveal key={tile.id} delay={i * 120} className="h-full bg-dept-black">
             <Link
-              href={`/collections/${tile.handle}`}
-              aria-label={`Ver colección ${tile.label}`}
+              href={tile.href}
+              aria-label={tile.ariaLabel}
               className="group relative block aspect-[4/5] overflow-hidden md:aspect-auto md:h-[92svh]"
             >
               <PlaceholderImage
-                label={tile.alt}
-                src={tile.src}
+                label={tile.imageAlt}
+                src={tile.imageUrl}
                 tone="dark"
                 hideLabel
                 fill
-                sizes="(min-width: 768px) 50vw, 100vw"
+                sizes={`(min-width: 768px) ${Math.round(100 / Math.min(4, tiles.length))}vw, 100vw`}
                 imgClassName="saturate-[0.8] transition-[transform,filter] duration-[1600ms] ease-out-expo group-hover:scale-105 group-hover:saturate-100"
               />
               <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
               <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-6 p-[var(--gutter)]">
                 <div>
-                  <p className="font-condensed mb-3 text-[11px] tracking-[0.28em] text-dept-white/80">
-                    0{i + 1} — {String(count).padStart(2, "0")} piezas
-                  </p>
+                  {meta.length > 0 && (
+                    <p className="font-condensed mb-3 text-[11px] tracking-[0.28em] text-dept-white/80">
+                      {meta.join(" — ")}
+                    </p>
+                  )}
                   <span className="font-display block text-display-xl text-dept-white transition-transform duration-700 ease-out-expo group-hover:translate-x-2">
                     {tile.label}
                   </span>

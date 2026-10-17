@@ -62,6 +62,14 @@ export function ProductGallery({ images, name, imageLabel, className }: ProductG
     return () => io.disconnect();
   }, [isCarousel, total]);
 
+  if (total === 0) {
+    return (
+      <section aria-label={`Fotos de ${name}`} className={clsx("relative min-w-0", className)}>
+        <div role="img" aria-label={imageLabel} className="aspect-[4/5] w-full bg-dept-gray-900" />
+      </section>
+    );
+  }
+
   return (
     <section aria-label={`Fotos de ${name}`} className={clsx("relative min-w-0", className)}>
       <div

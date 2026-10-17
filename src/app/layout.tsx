@@ -1,87 +1,87 @@
 import type { Metadata, Viewport } from "next";
-import { Anton, Oswald, Inter, Pinyon_Script } from "next/font/google";
+import { draftMode } from "next/headers";
+import { connection } from "next/server";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { OverlayProvider } from "@/components/layout/OverlayProvider";
-import { INDEXABLE, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { PreviewBar } from "@/components/layout/PreviewBar";
+import { getSiteSettingsOrDefault } from "@/lib/api/content";
+import { resolveMediaUrl } from "@/lib/api/media";
+import { loadLayout } from "@/lib/cms/layout";
+import { FONT_CLASS_NAMES } from "@/lib/fonts";
+import { INDEXABLE, SITE_URL } from "@/lib/site";
+import { themeMeta, themeStyle } from "@/lib/theme";
 
-const anton = Anton({
-  weight: "400",
-  variable: "--font-anton",
-  subsets: ["latin"],
-  display: "swap",
-});
+/**
+ * Site-wide metadata comes from the CMS (settings/site → brand + seo).
+ * Pages add their own title; `title.template` wraps it ("%s — Daregular Dept.").
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { brand, seo } = await getSiteSettingsOrDefault();
+  const og = resolveMediaUrl(seo.ogImageUrl);
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: seo.defaultTitle || brand.name,
+      template: seo.titleTemplate,
+    },
+    description: seo.defaultDescription,
+    applicationName: brand.name,
+    openGraph: {
+      type: "website",
+      siteName: brand.name,
+      locale: "es_CO",
+      title: brand.name,
+      description: seo.defaultDescription,
+      ...(og ? { images: [{ url: og }] } : null),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: brand.name,
+      description: seo.defaultDescription,
+    },
+    // stay out of search indexes unless explicitly enabled (NEXT_PUBLIC_INDEXABLE=true)
+    robots: INDEXABLE ? { index: true, follow: true } : { index: false, follow: false },
+  };
+}
 
-const oswald = Oswald({
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-oswald",
-  subsets: ["latin"],
-  display: "swap",
-});
+export async function generateViewport(): Promise<Viewport> {
+  const meta = themeMeta(await getSiteSettingsOrDefault());
+  return { themeColor: meta.themeColor, colorScheme: meta.colorScheme };
+}
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const pinyon = Pinyon_Script({
-  weight: "400",
-  variable: "--font-pinyon",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: `${SITE_NAME} — Uniforms for the unnoticed`,
-    template: `%s — ${SITE_NAME}`,
-  },
-  description: SITE_DESCRIPTION,
-  applicationName: SITE_NAME,
-  openGraph: {
-    type: "website",
-    siteName: SITE_NAME,
-    locale: "es_CO",
-    title: SITE_NAME,
-    description: SITE_DESCRIPTION,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: SITE_NAME,
-    description: SITE_DESCRIPTION,
-  },
-  // this is a replica: stay out of search indexes unless explicitly enabled
-  robots: INDEXABLE ? { index: true, follow: true } : { index: false, follow: false },
-};
-
-export const viewport: Viewport = {
-  themeColor: "#000000",
-  colorScheme: "dark",
-};
-
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Rendered per request: CMS content is read through the Next data cache (revalidated by tag / every 60 s),
+  // so a build never needs the API and an outage can never freeze an error page into the cache.
+  await connection();
+  const [layout, draft] = await Promise.all([loadLayout(), draftMode()]);
+
   return (
     <html
       lang="es"
-      className={`${anton.variable} ${oswald.variable} ${inter.variable} ${pinyon.variable} h-full`}
+      className={`${FONT_CLASS_NAMES} h-full`}
+      style={themeStyle(layout.settings, { announcementVisible: layout.announcementVisible })}
     >
       <body className="min-h-full flex flex-col bg-dept-black text-dept-white">
         <a href="#main" className="skip-link">
-          Saltar al contenido
+          {layout.skipLinkLabel}
         </a>
-        <OverlayProvider>
-          <Header />
+        <OverlayProvider
+          searchConfig={layout.searchConfig}
+          cartConfig={layout.cartConfig}
+          popularProducts={layout.popularProducts}
+        >
+          <Header config={layout.header} />
           <main id="main" className="flex-1">
             {children}
           </main>
-          <SiteFooter />
+          <SiteFooter config={layout.footer} />
         </OverlayProvider>
         <div className="grain" aria-hidden />
+        {draft.isEnabled && <PreviewBar />}
       </body>
     </html>
   );

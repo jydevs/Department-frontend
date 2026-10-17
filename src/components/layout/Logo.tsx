@@ -1,5 +1,6 @@
 /* Stand-in wordmark. Replace with the official DEPT / Dept vector assets — see docs/ASSETS.md. */
 
+import Image from "next/image";
 import { clsx } from "@/lib/clsx";
 
 interface LogoProps {
@@ -15,6 +16,10 @@ interface LogoProps {
    */
   size?: "sm" | "md" | "lg";
   className?: string;
+  /** brand logo uploaded in the CMS (settings/site → brand.logoMediaUrl); replaces the script wordmark */
+  imageUrl?: string;
+  /** accessible name (brand name) */
+  title?: string;
 }
 
 const SIZE_MAP: Record<NonNullable<LogoProps["size"]>, number> = {
@@ -26,10 +31,23 @@ const SIZE_MAP: Record<NonNullable<LogoProps["size"]>, number> = {
 const VIEWBOX_W = 160;
 const VIEWBOX_H = 48;
 
-export function Logo({ variant = "red", size = "md", className }: LogoProps) {
+export function Logo({ variant = "red", size = "md", className, imageUrl, title = "Daregular Dept." }: LogoProps) {
   const height = SIZE_MAP[size];
   const width = (height * VIEWBOX_W) / VIEWBOX_H;
   const isRed = variant === "red";
+
+  if (imageUrl) {
+    return (
+      <Image
+        src={imageUrl}
+        alt={title}
+        width={Math.round(width)}
+        height={height}
+        priority
+        className={clsx("block select-none object-contain", className)}
+      />
+    );
+  }
 
   return (
     <svg
@@ -41,7 +59,7 @@ export function Logo({ variant = "red", size = "md", className }: LogoProps) {
       className={clsx("block select-none", className)}
       style={{ color: isRed ? "var(--dept-red)" : "var(--dept-black)" }}
     >
-      <title>Daregular Dept.</title>
+      <title>{title}</title>
       <g transform={isRed ? `rotate(-4 ${VIEWBOX_W / 2} ${VIEWBOX_H / 2})` : undefined}>
         <text
           x={VIEWBOX_W / 2}
@@ -52,7 +70,7 @@ export function Logo({ variant = "red", size = "md", className }: LogoProps) {
           stroke={isRed ? "currentColor" : undefined}
           strokeWidth={isRed ? 1.1 : undefined}
           paintOrder="stroke"
-          fontFamily="var(--font-pinyon), 'Brush Script MT', cursive"
+          fontFamily="var(--theme-font-script, var(--font-pinyon)), 'Brush Script MT', cursive"
           fontSize={44}
           fontWeight={isRed ? 600 : 400}
           letterSpacing={isRed ? -1 : 1}

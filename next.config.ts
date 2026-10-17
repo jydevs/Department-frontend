@@ -14,6 +14,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  turbopack: { root: require("path").join(__dirname, "..") }, // TEMP-WORKTREE-REMOVE
   images: {
     formats: ["image/avif", "image/webp"],
     // files keep stable names, so don't cache optimised variants for too long

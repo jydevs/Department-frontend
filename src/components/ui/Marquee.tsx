@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { clsx } from "@/lib/clsx";
 
 interface MarqueeProps {
@@ -9,6 +10,8 @@ interface MarqueeProps {
   separator?: string;
   /** colour of the separator glyph (default red) */
   separatorClassName?: string;
+  /** inline colour for the separator glyph (validated #RRGGBB from the CMS) */
+  separatorColor?: string;
   className?: string;
   /** item typography, e.g. "font-display text-6xl" */
   itemClassName?: string;
@@ -25,6 +28,7 @@ export function Marquee({
   reverse = false,
   separator = "✦",
   separatorClassName = "text-dept-red",
+  separatorColor,
   className,
   itemClassName,
   pauseOnHover = true,
@@ -37,7 +41,11 @@ export function Marquee({
       {items.map((item, i) => (
         <li key={`${item}-${i}`} className="flex shrink-0 items-center">
           <span className={clsx("whitespace-nowrap px-[0.6em]", itemClassName)}>{item}</span>
-          <span aria-hidden className={clsx("px-[0.4em] leading-none", separatorClassName)}>
+          <span
+            aria-hidden
+            className={clsx("px-[0.4em] leading-none", separatorClassName)}
+            style={separatorColor ? ({ color: separatorColor } satisfies CSSProperties) : undefined}
+          >
             {separator}
           </span>
         </li>

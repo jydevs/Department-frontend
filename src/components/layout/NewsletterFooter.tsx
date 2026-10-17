@@ -3,6 +3,8 @@
 import { useId, useState } from "react";
 import { clsx } from "@/lib/clsx";
 import { Reveal } from "@/components/ui/Reveal";
+import { publicApiBase } from "@/lib/api/config";
+import { DEFAULT_NEWSLETTER, type NewsletterConfig } from "./config";
 
 type FormState = "idle" | "loading" | "success" | "error";
 
@@ -13,7 +15,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * <footer> landmark lives in SiteFooter). The form always stays visible —
  * errors and success are announced through the aria-live status line.
  */
-export function NewsletterFooter() {
+export function NewsletterFooter({ config = DEFAULT_NEWSLETTER }: { config?: NewsletterConfig }) {
   const [state, setState] = useState<FormState>("idle");
   const [email, setEmail] = useState("");
   const uid = useId();
@@ -33,8 +35,7 @@ export function NewsletterFooter() {
     await new Promise((r) => setTimeout(r, 200));
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-      const res = await fetch(`${baseUrl}/api/v1/storefront/newsletter`, {
+      const res = await fetch(`${publicApiBase()}/storefront/newsletter`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
@@ -53,16 +54,23 @@ export function NewsletterFooter() {
   };
 
   return (
-    <section aria-labelledby={headingId} className="px-gutter py-section">
+    <section
+      aria-labelledby={headingId}
+      className="px-gutter py-section"
+      style={config.backgroundColor ? { backgroundColor: config.backgroundColor } : undefined}
+    >
       <Reveal className="grid items-end gap-12 md:grid-cols-12 md:gap-x-8">
         <div className="md:col-span-7">
-          <p className="mb-6 text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">
-            <span aria-hidden className="mr-3 inline-block h-px w-8 bg-dept-red align-middle" />
-            Newsletter
-          </p>
+          {config.eyebrow && (
+            <p className="mb-6 text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">
+              <span aria-hidden className="mr-3 inline-block h-px w-8 bg-dept-red align-middle" />
+              {config.eyebrow}
+            </p>
+          )}
           <h2 id={headingId} className="font-display text-display-lg text-dept-white">
-            Únete a Regular Members Only.
+            {config.heading}
           </h2>
+          {config.text && <p className="mt-5 max-w-xl text-white/70">{config.text}</p>}
         </div>
 
         <div className="md:col-span-5">
@@ -76,7 +84,7 @@ export function NewsletterFooter() {
               )}
             >
               <label htmlFor={inputId} className="sr-only">
-                Dirección de correo electrónico
+                {config.inputLabel}
               </label>
               <input
                 id={inputId}
@@ -89,7 +97,7 @@ export function NewsletterFooter() {
                   setEmail(e.target.value);
                   if (state !== "idle") setState("idle");
                 }}
-                placeholder="Dirección de correo electrónico"
+                placeholder={config.placeholder}
                 aria-invalid={state === "error"}
                 aria-describedby={msgId}
                 className="h-14 min-w-0 flex-1 rounded-none bg-transparent text-lg text-dept-white placeholder:text-dept-gray-500 focus:outline-none md:h-16 md:text-xl"
@@ -97,7 +105,7 @@ export function NewsletterFooter() {
               <button
                 type="submit"
                 data-testid="newsletter-subscribe"
-                aria-label="Suscribirse"
+                aria-label={config.buttonLabel}
                 className="group/arrow grid size-14 shrink-0 place-items-center text-dept-white transition-colors duration-300 ease-out-expo hover:text-dept-red md:size-16"
               >
                 <svg
@@ -129,13 +137,13 @@ export function NewsletterFooter() {
               )}
             >
               {state === "loading" && (
-                <span data-testid="newsletter-loading">Enviando...</span>
+                <span data-testid="newsletter-loading">{config.loadingMessage}</span>
               )}
               {state === "error" && (
-                <span data-testid="newsletter-error">Introduce un correo válido.</span>
+                <span data-testid="newsletter-error">{config.errorMessage}</span>
               )}
               {state === "success" && (
-                <span data-testid="newsletter-success">Gracias por suscribirte.</span>
+                <span data-testid="newsletter-success">{config.successMessage}</span>
               )}
             </p>
           </form>

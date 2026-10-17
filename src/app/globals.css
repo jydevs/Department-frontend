@@ -52,11 +52,14 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  /* font families are provided as CSS variables by next/font in layout.tsx */
-  --font-display: var(--font-anton), "Arial Narrow", sans-serif;
-  --font-condensed: var(--font-oswald), "Arial Narrow", sans-serif;
-  --font-body: var(--font-inter), system-ui, sans-serif;
-  --font-script: var(--font-pinyon), "Brush Script MT", cursive;
+  /*
+    font families: next/font defines one CSS variable per family of the closed set (lib/fonts.ts);
+    the CMS theme picks which one each role uses through --theme-font-* (set on <html> by the layout).
+  */
+  --font-display: var(--theme-font-heading, var(--font-anton)), "Arial Narrow", sans-serif;
+  --font-condensed: var(--theme-font-condensed, var(--font-oswald)), "Arial Narrow", sans-serif;
+  --font-body: var(--theme-font-body, var(--font-inter)), system-ui, sans-serif;
+  --font-script: var(--theme-font-script, var(--font-pinyon)), "Brush Script MT", cursive;
 
   /* fluid display scale */
   --text-display-2xl: clamp(3.2rem, 11vw, 11.25rem);

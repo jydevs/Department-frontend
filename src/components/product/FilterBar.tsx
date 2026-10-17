@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { clsx } from "@/lib/clsx";
+import { DEFAULT_GRID_LABELS, type GridLabels } from "./labels";
 
 /**
  * Filter/sort bar for the collection pages. Presentational + stateful for its
@@ -27,6 +28,7 @@ interface FilterBarProps {
   count: number;
   value: FilterState;
   onChange: (next: FilterState) => void;
+  labels?: GridLabels;
 }
 
 type MenuId = "availability" | "price" | "sort";
@@ -36,22 +38,28 @@ interface Option<T extends string> {
   label: string;
 }
 
-const AVAILABILITY: Option<Availability>[] = [
-  { value: "all", label: "Todos" },
-  { value: "in-stock", label: "En stock" },
-  { value: "sold-out", label: "Agotado" },
-];
+function availabilityOptions(l: GridLabels): Option<Availability>[] {
+  return [
+    { value: "all", label: l.optionAllLabel },
+    { value: "in-stock", label: l.optionInStockLabel },
+    { value: "sold-out", label: l.optionSoldOutLabel },
+  ];
+}
 
-const PRICE: Option<SortOrder>[] = [
-  { value: "price-asc", label: "Precio: menor a mayor" },
-  { value: "price-desc", label: "Precio: mayor a menor" },
-];
+function priceOptions(l: GridLabels): Option<SortOrder>[] {
+  return [
+    { value: "price-asc", label: l.sortPriceAscLabel },
+    { value: "price-desc", label: l.sortPriceDescLabel },
+  ];
+}
 
-const SORT: Option<SortOrder>[] = [
-  { value: "featured", label: "Destacado" },
-  { value: "price-asc", label: "Precio: menor a mayor" },
-  { value: "price-desc", label: "Precio: mayor a menor" },
-];
+function sortOptions(l: GridLabels): Option<SortOrder>[] {
+  return [
+    { value: "featured", label: l.sortFeaturedLabel },
+    { value: "price-asc", label: l.sortPriceAscLabel },
+    { value: "price-desc", label: l.sortPriceDescLabel },
+  ];
+}
 
 function Caret({ open }: { open: boolean }) {
   return (
@@ -84,6 +92,7 @@ interface DropdownProps<T extends string> {
   triggerRef: React.RefObject<HTMLButtonElement | null>;
   testId?: string;
   onReset?: () => void;
+  resetLabel?: string;
 }
 
 function Dropdown<T extends string>({
@@ -99,6 +108,7 @@ function Dropdown<T extends string>({
   triggerRef,
   testId,
   onReset,
+  resetLabel,
 }: DropdownProps<T>) {
   const open = openMenu === id;
   return (
@@ -152,7 +162,7 @@ function Dropdown<T extends string>({
               onClick={onReset}
               className="flex w-full items-center justify-between border-t border-white/10 px-4 py-3 text-left text-[11px] tracking-[0.18em] text-dept-red hover:bg-white/10 focus-visible:bg-dept-white focus-visible:text-dept-black"
             >
-              <span>Limpiar filtros</span>
+              <span>{resetLabel}</span>
               <span aria-hidden>✕</span>
             </button>
           )}
@@ -162,7 +172,7 @@ function Dropdown<T extends string>({
   );
 }
 
-export function FilterBar({ count, value, onChange }: FilterBarProps) {
+export function FilterBar({ count, value, onChange, labels = DEFAULT_GRID_LABELS }: FilterBarProps) {
   const [openMenu, setOpenMenu] = useState<MenuId | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const availabilityRef = useRef<HTMLButtonElement>(null);
@@ -197,12 +207,12 @@ export function FilterBar({ count, value, onChange }: FilterBarProps) {
       className="font-condensed relative z-20 flex items-center justify-between gap-4 border-y border-white/10 bg-dept-black px-gutter py-3.5 text-[11px] tracking-[0.16em] text-dept-white sm:gap-6 sm:text-[12px] sm:tracking-[0.2em]"
     >
       <div className="flex items-center gap-5 sm:gap-7">
-        <span className="hidden text-[11px] text-dept-gray-500 sm:block">Filtrar</span>
+        <span className="hidden text-[11px] text-dept-gray-500 sm:block">{labels.filterLabel}</span>
         <Dropdown
           id="availability"
-          label="Availability"
+          label={labels.availabilityLabel}
           testId="filter-btn"
-          options={AVAILABILITY}
+          options={availabilityOptions(labels)}
           selected={value.availability}
           openMenu={openMenu}
           setOpenMenu={setOpenMenu}
@@ -216,11 +226,12 @@ export function FilterBar({ count, value, onChange }: FilterBarProps) {
           }}
           active={value.availability !== "all"}
           triggerRef={availabilityRef}
+          resetLabel={labels.resetLabel}
         />
         <Dropdown
           id="price"
-          label="Price"
-          options={PRICE}
+          label={labels.priceLabel}
+          options={priceOptions(labels)}
           selected={priceSorted ? value.sort : null}
           openMenu={openMenu}
           setOpenMenu={setOpenMenu}
@@ -251,12 +262,12 @@ export function FilterBar({ count, value, onChange }: FilterBarProps) {
 
       <div className="flex items-center gap-5 sm:gap-7">
         <span className="hidden text-[11px] tabular-nums text-dept-gray-300 sm:block" aria-live="polite">
-          {String(count).padStart(2, "0")} artículos
+          {String(count).padStart(2, "0")} {labels.countLabel}
         </span>
         <Dropdown
           id="sort"
-          label="Ordenar"
-          options={SORT}
+          label={labels.sortLabel}
+          options={sortOptions(labels)}
           selected={value.sort}
           openMenu={openMenu}
           setOpenMenu={setOpenMenu}

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { formatCOP } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
+import { DEFAULT_CART_CONFIG, type CartConfig } from "./config";
 
 /**
  * Right-side cart drawer, wired to the client cart (`useCart`). Lines with
@@ -18,12 +19,35 @@ import { Button } from "@/components/ui/Button";
 interface CartDrawerProps {
   open: boolean;
   onClose: () => void;
+  config?: CartConfig;
+  /** opens the account panel (used by the highlighted text of the empty state) */
+  onOpenAccount?: () => void;
 }
 
 const stepBtn =
   "flex h-9 w-9 items-center justify-center border border-white/20 text-dept-white transition-colors duration-200 hover:bg-dept-white hover:text-dept-black disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-dept-white";
 
-function CartPanel({ onClose }: { onClose: () => void }) {
+/** Empty-state sentence with an optional underlined fragment that opens the account panel. */
+function EmptyText({ text, highlight, onHighlight }: { text: string; highlight?: string; onHighlight?: () => void }) {
+  const at = highlight ? text.indexOf(highlight) : -1;
+  if (!highlight || at < 0) return <>{text}</>;
+  const className = "text-dept-white underline underline-offset-4";
+  return (
+    <>
+      {text.slice(0, at)}
+      {onHighlight ? (
+        <button type="button" onClick={onHighlight} className={className}>
+          {highlight}
+        </button>
+      ) : (
+        <span className={className}>{highlight}</span>
+      )}
+      {text.slice(at + highlight.length)}
+    </>
+  );
+}
+
+function CartPanel({ onClose, config, onOpenAccount }: { onClose: () => void; config: CartConfig; onOpenAccount?: () => void }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const { items, count, subtotal, setQty, remove } = useCart();
 
@@ -42,14 +66,14 @@ function CartPanel({ onClose }: { onClose: () => void }) {
       className="fixed inset-0 z-[60]"
       role="dialog"
       aria-modal="true"
-      aria-label="Carrito"
+      aria-label={config.title}
     >
       <style>{`@keyframes cart-drawer-in{from{transform:translateX(100%)}to{transform:translateX(0)}}@keyframes cart-fade-in{from{opacity:0}to{opacity:1}}`}</style>
 
       {/* Backdrop */}
       <button
         type="button"
-        aria-label="Cerrar"
+        aria-label={config.closeLabel}
         onClick={onClose}
         style={{ animation: "cart-fade-in 0.4s ease-out both" }}
         className="absolute inset-0 h-full w-full cursor-default bg-black/60 backdrop-blur-sm"
@@ -62,7 +86,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
           <h2 className="font-display text-display-md">
-            Carrito{" "}
+            {config.title}{" "}
             <span className="font-condensed align-top text-[11px] tracking-[0.2em] text-dept-gray-500">
               {String(count).padStart(2, "0")}
             </span>
@@ -70,7 +94,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
           <button
             ref={closeButtonRef}
             type="button"
-            aria-label="Cerrar"
+            aria-label={config.closeLabel}
             onClick={onClose}
             className="flex h-10 w-10 items-center justify-center transition-opacity hover:opacity-60"
           >
@@ -82,10 +106,9 @@ function CartPanel({ onClose }: { onClose: () => void }) {
 
         {items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-5 px-8 text-center">
-            <p className="font-display text-display-md">Tu carrito está vacío</p>
+            <p className="font-display text-display-md">{config.emptyTitle}</p>
             <p className="max-w-[28ch] text-sm text-dept-white/60">
-              ¿Tienes una cuenta? <span className="text-dept-white underline underline-offset-4">Inicia sesión</span> para
-              pagar más rápido.
+              <EmptyText text={config.emptyText} highlight={config.emptyTextHighlight} onHighlight={onOpenAccount} />
             </p>
             <Button
               variant="red"
@@ -95,7 +118,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
               data-testid="continue-shopping-btn"
               className="mt-2"
             >
-              Seguir comprando
+              {config.continueLabel}
             </Button>
           </div>
         ) : (
@@ -111,13 +134,15 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                     onClick={onClose}
                     className="relative block aspect-[4/5] overflow-hidden bg-dept-gray-900"
                   >
-                    <Image
-                      src={item.product.images[0]}
-                      alt={item.product.imageLabel}
-                      fill
-                      sizes="84px"
-                      className="object-cover"
-                    />
+                    {item.product.images[0] && (
+                      <Image
+                        src={item.product.images[0]}
+                        alt={item.product.imageLabel}
+                        fill
+                        sizes="84px"
+                        className="object-cover"
+                      />
+                    )}
                   </Link>
 
                   <div className="flex min-w-0 flex-col justify-between gap-3">
@@ -131,7 +156,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                           {item.product.name}
                         </Link>
                         <p className="font-condensed mt-1 text-[11px] tracking-[0.2em] text-dept-gray-500">
-                          Talla {item.size}
+                          {config.sizeLabel} {item.size}
                         </p>
                       </div>
                       <p className="font-condensed shrink-0 text-[13px] tracking-[0.06em] tabular-nums">
@@ -144,7 +169,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                         <button
                           type="button"
                           className={stepBtn}
-                          aria-label="Quitar una unidad"
+                          aria-label={config.decreaseLabel}
                           onClick={() => setQty(item.handle, item.size, item.qty - 1)}
                         >
                           −
@@ -155,8 +180,8 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                         <button
                           type="button"
                           className={stepBtn}
-                          aria-label="Añadir una unidad"
-                          disabled={item.qty >= 10}
+                          aria-label={config.increaseLabel}
+                          disabled={item.qty >= item.max}
                           onClick={() => setQty(item.handle, item.size, item.qty + 1)}
                         >
                           +
@@ -168,7 +193,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                         onClick={() => remove(item.handle, item.size)}
                         className="link-underline font-condensed text-[11px] tracking-[0.2em] text-dept-gray-300 hover:text-dept-white"
                       >
-                        Eliminar
+                        {config.removeLabel}
                       </button>
                     </div>
                   </div>
@@ -178,18 +203,18 @@ function CartPanel({ onClose }: { onClose: () => void }) {
 
             <div className="border-t border-white/10 px-6 py-6">
               <div className="flex items-baseline justify-between">
-                <span className="font-condensed text-[11px] tracking-[0.24em] text-dept-gray-300">Subtotal</span>
+                <span className="font-condensed text-[11px] tracking-[0.24em] text-dept-gray-300">{config.subtotalLabel}</span>
                 <span data-testid="cart-subtotal" className="font-display text-display-md tabular-nums">{formatCOP(subtotal)}</span>
               </div>
               <Button
-                href="/checkout"
+                href={config.checkoutHref}
                 variant="red"
                 size="lg"
                 arrow
                 className="mt-5 w-full"
                 onClick={onClose}
               >
-                Finalizar compra
+                {config.checkoutLabel}
               </Button>
               <button
                 type="button"
@@ -197,7 +222,7 @@ function CartPanel({ onClose }: { onClose: () => void }) {
                 onClick={onClose}
                 className="link-underline font-condensed mx-auto mt-2 block text-[11px] tracking-[0.2em] text-dept-white/70 hover:text-dept-white"
               >
-                Seguir comprando
+                {config.continueLabel}
               </button>
             </div>
           </>
@@ -208,6 +233,6 @@ function CartPanel({ onClose }: { onClose: () => void }) {
 }
 
 /** Mounts the panel only while open, so its local state (checkout note) resets on close. */
-export function CartDrawer({ open, onClose }: CartDrawerProps) {
-  return open ? <CartPanel onClose={onClose} /> : null;
+export function CartDrawer({ open, onClose, config = DEFAULT_CART_CONFIG, onOpenAccount }: CartDrawerProps) {
+  return open ? <CartPanel onClose={onClose} config={config} onOpenAccount={onOpenAccount} /> : null;
 }

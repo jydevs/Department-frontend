@@ -13,6 +13,8 @@ interface StickyAddToCartProps {
   /** a size is already chosen → the action adds to cart instead of asking for one */
   hasSize: boolean;
   onAction: () => void;
+  addLabel?: string;
+  chooseSizeLabel?: string;
 }
 
 /** Height of the bar (content only), so the CTA counts as "hidden" while it sits under it. */
@@ -24,7 +26,15 @@ const BAR_OFFSET_PX = 72;
  * towards the related products / footer) the bar slides away so it never
  * covers the rest of the page.
  */
-export function StickyAddToCart({ name, price, targetRef, hasSize, onAction }: StickyAddToCartProps) {
+export function StickyAddToCart({
+  name,
+  price,
+  targetRef,
+  hasSize,
+  onAction,
+  addLabel = "Añadir",
+  chooseSizeLabel = "Elegir talla",
+}: StickyAddToCartProps) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -60,7 +70,7 @@ export function StickyAddToCart({ name, price, targetRef, hasSize, onAction }: S
           <p className="mt-0.5 font-condensed text-xs tabular-nums text-white/70">{formatCOP(price)}</p>
         </div>
         <Button variant="red" size="md" onClick={onAction} className="shrink-0">
-          {hasSize ? "Añadir" : "Elegir talla"}
+          {hasSize ? addLabel : chooseSizeLabel}
         </Button>
       </div>
     </div>
