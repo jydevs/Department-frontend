@@ -55,7 +55,15 @@ Ver `.env.example`. Las principales:
 ## Despliegue
 
 - **Una sola instancia de Next (o sticky sessions).** El single-flight de la rotación del refresh token (`lib/account/server/bff.ts`, mapa en memoria) es **por proceso**: con varias instancias sin afinidad de sesión, dos peticiones simultáneas con la misma cookie podrían rotar el token en procesos distintos y la API trataría la segunda como reutilización (revoca la sesión). Despliega una única instancia o configura sticky sessions por cookie en el balanceador.
-- **Variables obligatorias en el build:** `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_SITE_URL` (ver «Variables de entorno»). Se incrustan en el build.
+- **Variables obligatorias en el build:** `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL` y `STOREFRONT_SERVER_KEY` (ver «Variables de entorno»). Las `NEXT_PUBLIC_*` se incrustan en el build.
+- **Proxy inverso (IP del visitante):** el front reenvía la IP del visitante a la API (`X-Visitor-Ip`) para el rate limit. La toma de `X-Real-IP` y, si no existe, del **último** valor de `X-Forwarded-For`; el primero lo escribe el cliente y es falsificable. nginx debe fijar la IP real y sobrescribir (no concatenar) la cabecera del cliente:
+
+  ```nginx
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $remote_addr;
+  ```
+
+  Con otra capa delante (CDN, balanceador), usa su módulo de IP real (`real_ip_header`) para que `$remote_addr` sea la IP del visitante y no la del balanceador.
 - **Mejora posterior (no implementada):** servir `/admin` en un subdominio propio (p. ej. `admin.daregular.com`) para aislar cookies y orígenes del panel respecto de la tienda, y añadir una CSP con nonce (hoy el panel solo usa un script inline estático para el tema, y las cabeceras viven en `next.config.ts`).
 
 ## Estructura

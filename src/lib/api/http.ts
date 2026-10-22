@@ -151,11 +151,13 @@ export async function contentGet<T>(path: string, tags: string[]): Promise<T | n
 /**
  * Headers that let the backend rate-limit per VISITOR instead of per Next host: `X-Visitor-Ip` is only honoured by the
  * API together with the server key (`X-Storefront-Key`, added by every call), so nothing is forwarded without it.
+ * The address comes from `X-Real-IP` (the reverse proxy sets it from the socket) and, without it, from the LAST value of
+ * `X-Forwarded-For` (the one the closest proxy appended); the first values are written by the client and can be forged.
  */
 export function visitorHeaders(req: Request): Record<string, string> {
   if (!process.env.STOREFRONT_SERVER_KEY) return {};
-  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ip = forwarded || req.headers.get("x-real-ip")?.trim() || "";
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim();
+  const ip = req.headers.get("x-real-ip")?.trim() || forwarded || "";
   // an IPv4 / IPv6 literal only: anything else (spoofed text) is dropped
   return ip.length > 0 && ip.length <= 45 && /^[0-9a-fA-F:.]+$/.test(ip) ? { "X-Visitor-Ip": ip } : {};
 }
