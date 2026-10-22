@@ -9,7 +9,7 @@ const TOKEN_RE = /^[A-Za-z0-9_.-]{43,90}$/;
 export const POST = guarded(async (req, body) => {
   const token = typeof body.token === "string" ? body.token : "";
   if (!TOKEN_RE.test(token)) return fail(400, "INVALID_TOKEN");
-  const up = await upstream("/storefront/newsletter/confirm", { query: { token }, req });
+  const up = await upstream("/storefront/newsletter/confirm", { method: "POST", query: { token }, req });
   if (up.status !== 200) return errorFrom(up);
   return json({ status: "subscribed" });
 });
