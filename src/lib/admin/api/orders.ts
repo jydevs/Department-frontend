@@ -296,15 +296,20 @@ const ORDER_ERROR_MESSAGES: Record<string, string> = {
   INVALID_ORDER_STATE: "El estado actual del pedido no permite esta acción. Recarga la página para ver el estado más reciente.",
   FULFILLMENT_ALREADY_CANCELLED: "Este envío ya estaba cancelado.",
   FULFILLMENT_INCONSISTENT: "Las cantidades enviadas no coinciden con este envío. Recarga el pedido e inténtalo de nuevo.",
+  RESTOCK_NOT_APPLICABLE: "Este pedido nunca comprometió stock (venció o se canceló sin pagarse): no hay nada que reponer. Desmarca «reponer» y vuelve a intentarlo.",
   RESTOCK_REQUIRES_LINES: "Para reponer inventario indica las líneas (y cantidades) que se devuelven.",
   PAYMENT_REFERENCE_DUPLICATE: "Esa referencia de pago ya se usó en otro pedido: usa una distinta.",
   CONFLICT: "Ya existe un registro con esos valores. Revisa los datos e inténtalo de nuevo.",
   IDEMPOTENCY_IN_PROGRESS: "La operación ya se está procesando. Espera un momento.",
 };
 
-/** Mensaje en español para un error de la API de pedidos (con detalles de cantidades cuando existen). */
-export function orderErrorMessage(e: unknown): string {
+/**
+ * Mensaje en español para un error de la API de pedidos (con detalles de cantidades cuando existen).
+ * `forbidden` sustituye al genérico del 403 cuando la acción tiene su propio permiso (pagos, reembolsos).
+ */
+export function orderErrorMessage(e: unknown, forbidden?: string): string {
   if (e instanceof ApiError) {
+    if (e.status === 403 && forbidden) return forbidden;
     const details = (e.details ?? {}) as { refundable?: number; requested?: number; lines?: Array<{ reason: string; pending?: number; refundable?: number }> };
     if (e.code === "REFUND_EXCEEDS_PAID") {
       return typeof details.refundable === "number"
@@ -316,6 +321,12 @@ export function orderErrorMessage(e: unknown): string {
       return bad ? `Alguna cantidad supera las unidades pendientes de enviar (quedan ${bad.pending}). Recarga el pedido e inténtalo de nuevo.` : "Alguna cantidad supera las unidades pendientes de enviar o la línea no pertenece al pedido.";
     }
     if (e.code === "REFUND_QUANTITY_INVALID") {
+      const restocked = details.lines?.find((l) => l.reason === "ALREADY_RESTOCKED");
+      if (restocked) {
+        return typeof restocked.refundable === "number"
+          ? `Alguna cantidad ya se repuso al inventario antes (solo quedan ${restocked.refundable} unidades por reponer). Desmarca «reponer» o reduce las unidades.`
+          : "Alguna cantidad ya se repuso al inventario antes. Desmarca «reponer» o reduce las unidades.";
+      }
       const bad = details.lines?.find((l) => typeof l.refundable === "number");
       return bad ? `Alguna cantidad supera las unidades que aún se pueden reembolsar (quedan ${bad.refundable}).` : "Alguna cantidad supera las unidades reembolsables.";
     }

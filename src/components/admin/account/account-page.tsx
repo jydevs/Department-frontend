@@ -31,7 +31,7 @@ function ProfileCard() {
               <dt className="w-40 shrink-0 text-sm">{g.label}</dt>
               <dd className="flex flex-wrap gap-1.5">
                 {g.actions.map((a) => (
-                  <Badge key={a} tone={a === "write" || a === "publish" ? "warning" : "neutral"}>{ACTION_LABELS[a] ?? a}</Badge>
+                  <Badge key={a} tone={a === "write" || a === "publish" || a === "payments" || a === "refunds" ? "warning" : "neutral"}>{ACTION_LABELS[a] ?? a}</Badge>
                 ))}
               </dd>
             </div>

@@ -6,6 +6,7 @@ import { ExternalLink, Trash2 } from "lucide-react";
 import { Button, Card, Input, Textarea } from "@/components/admin/ui";
 import { STOREFRONT_URL, safeHref, storefrontLabel } from "@/lib/admin/utils";
 import { truncate } from "@/lib/admin/format";
+import { useCan } from "@/lib/admin/permissions";
 import { useDocument } from "@/lib/admin/api/content";
 import { labelWithCount } from "./fields";
 import { usePageDeletion } from "./pages-view";
@@ -64,6 +65,7 @@ export function PageEditor({ handle }: { handle: string }) {
 
 function PageEditorBody({ handle, deletion }: { handle: string; deletion: ReturnType<typeof usePageDeletion> }) {
   const doc = useDocument("page", handle);
+  const canPublish = useCan("content:publish");
   const live = doc.data?.published ? safeHref(`${STOREFRONT_URL}/pages/${handle}`) : null;
   const title = doc.data?.title || handle;
 
@@ -83,9 +85,11 @@ function PageEditorBody({ handle, deletion }: { handle: string; deletion: Return
                 Ver en la tienda <ExternalLink aria-hidden size={14} />
               </a>
             ) : null}
-            <Button variant="danger" leftIcon={<Trash2 aria-hidden size={14} />} loading={deletion.busy} onClick={() => void deletion.run(handle, doc.data?.title)}>
-              Eliminar
-            </Button>
+            {canPublish ? (
+              <Button variant="danger" leftIcon={<Trash2 aria-hidden size={14} />} loading={deletion.busy} onClick={() => void deletion.run(handle, doc.data?.title)}>
+                Eliminar
+              </Button>
+            ) : null}
           </>
         }
         top={(editor) => <PageSeoCard editor={editor} handle={handle} />}

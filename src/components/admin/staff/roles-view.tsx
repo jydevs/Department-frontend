@@ -34,7 +34,7 @@ export function RolesView({ roles, loading, error, onRetry }: { roles: Role[] | 
                     <dt className="w-40 shrink-0 text-sm font-medium">{g.label}</dt>
                     <dd className="flex flex-wrap gap-1.5">
                       {g.actions.map((a) => (
-                        <Badge key={a} tone={a === "write" || a === "publish" ? "warning" : "neutral"}>
+                        <Badge key={a} tone={a === "write" || a === "publish" || a === "payments" || a === "refunds" ? "warning" : "neutral"}>
                           {ACTION_LABELS[a] ?? a}
                         </Badge>
                       ))}

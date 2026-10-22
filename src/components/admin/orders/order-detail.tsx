@@ -93,6 +93,9 @@ function LoadingState() {
 export function OrderDetailView({ id }: { id: string }) {
   const canRead = useCan("orders:read");
   const canWrite = useCan("orders:write");
+  // marcar como pagado y reembolsar tienen permisos propios (por defecto solo owner/admin)
+  const canPayments = useCan("orders:payments");
+  const canRefunds = useCan("orders:refunds");
   const query = useOrder(id);
   const [dialog, setDialog] = useState<DialogKey>(null);
   const close = () => setDialog(null);
@@ -119,28 +122,28 @@ export function OrderDetailView({ id }: { id: string }) {
   const refundable = refundableAmount(order);
   const paid = isPaid(order);
 
-  const actions = canWrite ? (
+  const actions = canWrite || canPayments || canRefunds ? (
     <>
-      {order.status === "pending" ? (
+      {canPayments && order.status === "pending" ? (
         <Button variant="primary" leftIcon={<Banknote aria-hidden size={15} />} onClick={() => setDialog("markPaid")}>
           Marcar como pagado
         </Button>
       ) : null}
-      {canCreateFulfillment(order) ? (
+      {canWrite && canCreateFulfillment(order) ? (
         <Button variant="primary" leftIcon={<PackageCheck aria-hidden size={15} />} onClick={() => setDialog("fulfill")}>
           Crear envío
         </Button>
       ) : null}
-      {canRefund(order) ? (
+      {canRefunds && canRefund(order) ? (
         <Button variant={refundPending ? "primary" : "secondary"} leftIcon={<ReceiptText aria-hidden size={15} />} onClick={() => setDialog("refund")}>
           Registrar reembolso
         </Button>
       ) : null}
-      {canCancelOrder(order) ? (
+      {canWrite && canCancelOrder(order) ? (
         <Button variant="danger" leftIcon={<Ban aria-hidden size={15} />} onClick={() => setDialog("cancel")}>
           Cancelar pedido
         </Button>
-      ) : order.status === "open" && hasShipments(order) ? (
+      ) : canWrite && order.status === "open" && hasShipments(order) ? (
         <Button variant="danger" disabled title="Tiene envíos: cancélalos primero o emite un reembolso" leftIcon={<Ban aria-hidden size={15} />}>
           Cancelar pedido
         </Button>
@@ -183,7 +186,7 @@ export function OrderDetailView({ id }: { id: string }) {
           title="Reembolso pendiente"
           className="mb-6"
           actions={
-            canWrite && canRefund(order) ? (
+            canRefunds && canRefund(order) ? (
               <Button size="sm" variant="primary" onClick={() => setDialog("refund")}>
                 Registrar reembolso
               </Button>

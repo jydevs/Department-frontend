@@ -5,7 +5,7 @@ import { useRouter } from "@/lib/admin/navigation";
 import { ExternalLink, FileText, Plus } from "lucide-react";
 import { Button, Card, DataTable, DateTime, EmptyState, NoAccess, PageHeader, SearchInput, useConfirm, useToast, type DataTableColumn } from "@/components/admin/ui";
 import { RedirectDialog } from "@/components/admin/redirects/redirects-view";
-import { errorMessage } from "@/lib/admin/errors";
+import { ApiError, errorMessage } from "@/lib/admin/errors";
 import { useCan } from "@/lib/admin/permissions";
 import { STOREFRONT_URL, safeHref } from "@/lib/admin/utils";
 import { useDeletePage, useDocuments, type DocListItem } from "@/lib/admin/api/content";
@@ -32,7 +32,7 @@ export function usePageDeletion(onDeleted?: () => void, onFinished?: () => void)
       setRedirect(res.suggestedRedirect);
       onDeleted?.();
     } catch (e) {
-      toast.error(errorMessage(e));
+      toast.error(e instanceof ApiError && e.status === 403 ? "No puedes eliminar páginas: requiere el permiso content:publish." : errorMessage(e));
     }
   };
 
@@ -43,6 +43,8 @@ export function usePageDeletion(onDeleted?: () => void, onFinished?: () => void)
 export function PagesView() {
   const canRead = useCan("content:read");
   const canWrite = useCan("content:write");
+  // borrar una página la quita de la tienda: exige publicar
+  const canPublish = useCan("content:publish");
   const router = useRouter();
   const docs = useDocuments("page");
   const [q, setQ] = useState("");
@@ -82,7 +84,7 @@ export function PagesView() {
             <Button size="sm" variant="ghost" onClick={() => router.push(`/content/pages/${encodeURIComponent(d.key)}`)}>
               Editar
             </Button>
-            {canWrite ? (
+            {canPublish ? (
               <Button size="sm" variant="ghost" className="text-danger" onClick={() => void deletion.run(d.key, d.title)}>
                 Eliminar
               </Button>

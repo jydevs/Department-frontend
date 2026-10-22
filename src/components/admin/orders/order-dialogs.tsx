@@ -52,7 +52,7 @@ export function MarkPaidDialog({ order, onClose }: DialogBaseProps) {
           toast.success(`Pedido #${order.orderNumber} marcado como pagado`);
           onClose();
         },
-        onError: (err) => setError(orderErrorMessage(err)),
+        onError: (err) => setError(orderErrorMessage(err, "Tu rol no puede marcar pedidos como pagados (requiere el permiso orders:payments).")),
       },
     );
   };
@@ -330,6 +330,9 @@ export function RefundDialog({ order, onClose }: DialogBaseProps) {
   const [restock, setRestock] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // paidAt solo existe si la reserva llegó a descontarse del inventario; un pedido que venció o se canceló sin pagarse
+  // nunca comprometió stock y la API rechaza reponerlo (RESTOCK_NOT_APPLICABLE)
+  const restockApplicable = order.paidAt !== null;
 
   const returned = lines.filter((l) => (qty[l.id] ?? 0) > 0);
   const suggested = Math.min(max, returned.reduce((s, l) => s + l.unitPrice * (qty[l.id] ?? 0), 0));
@@ -366,14 +369,14 @@ export function RefundDialog({ order, onClose }: DialogBaseProps) {
         amount,
         reason: reason.trim() || undefined,
         lines: returned.length ? returned.map((l) => ({ orderLineId: l.id, quantity: qty[l.id] })) : undefined,
-        restock,
+        restock: restockApplicable && restock,
       },
       {
         onSuccess: (res) => {
           toast.success(res.order.paymentStatus === "refunded" ? "Reembolso total registrado" : "Reembolso parcial registrado");
           onClose();
         },
-        onError: (err) => setError(orderErrorMessage(err)),
+        onError: (err) => setError(orderErrorMessage(err, "Tu rol no puede registrar reembolsos (requiere el permiso orders:refunds).")),
       },
     );
   };
@@ -466,10 +469,18 @@ export function RefundDialog({ order, onClose }: DialogBaseProps) {
 
         <Checkbox
           label="Reponer las unidades devueltas al inventario"
-          hint={errors.restock ? undefined : returned.length ? `Se repondrán ${returned.reduce((s, l) => s + (qty[l.id] ?? 0), 0)} unidades.` : "Selecciona primero las unidades devueltas."}
+          hint={
+            errors.restock
+              ? undefined
+              : !restockApplicable
+                ? "No aplica: este pedido nunca descontó inventario (no llegó a pagarse)."
+                : returned.length
+                  ? `Se repondrán ${returned.reduce((s, l) => s + (qty[l.id] ?? 0), 0)} unidades.`
+                  : "Selecciona primero las unidades devueltas."
+          }
           error={errors.restock}
-          disabled={returned.length === 0}
-          checked={restock}
+          disabled={!restockApplicable || returned.length === 0}
+          checked={restockApplicable && restock}
           onChange={(e) => setRestock(e.target.checked)}
         />
       </form>

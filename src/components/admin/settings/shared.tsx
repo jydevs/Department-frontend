@@ -108,6 +108,8 @@ export const ACTION_LABELS: Record<string, string> = {
   read: "Ver",
   write: "Editar",
   publish: "Publicar",
+  payments: "Registrar pagos",
+  refunds: "Reembolsar",
 };
 
 export interface PermissionGroup {
