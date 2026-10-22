@@ -15,6 +15,8 @@ export interface CartLineView {
   available: boolean;
   /** units of this variant the shop can still sell (null = no limit known) */
   maxQuantity: number | null;
+  /** client only: the server has not confirmed this line yet */
+  pending?: boolean;
 }
 
 export interface CartDiscountView {

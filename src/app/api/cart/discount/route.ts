@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { ensureCart, onCart } from "@/lib/cart/bff";
+import { onCart } from "@/lib/cart/bff";
 import { badRequest, guardMutation, readJson } from "@/lib/cart/server";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +14,6 @@ export async function PUT(req: NextRequest) {
   if ("status" in body) return body;
   const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
   if (!CODE_RE.test(code)) return badRequest("Escribe un código de descuento válido (letras, números, guiones).", { code: "Escribe un código válido." });
-  const cart = await ensureCart(req);
-  if ("status" in cart) return cart;
   return onCart(req, "PUT", "/discount", { code });
 }
 
