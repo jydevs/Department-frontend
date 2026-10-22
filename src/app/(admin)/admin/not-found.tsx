@@ -1,8 +1,7 @@
-import type { Metadata } from "next";
+"use client";
+
 import { Link } from "@/lib/admin/navigation";
 import { buttonClasses } from "@/components/admin/ui/button";
-
-export const metadata: Metadata = { title: "Página no encontrada" };
 
 export default function AdminNotFound() {
   return (
