@@ -55,12 +55,8 @@ export async function getCollection(
   });
 }
 
-/** `GET /storefront/search?q=` */
+/** `GET /storefront/search?q=` — never cached (rate-limited per visitor, see visitorHeaders) */
 export async function search(q: string, headers?: Record<string, string>): Promise<ApiSearchResponse> {
-  const result = await apiGet<ApiSearchResponse>("/storefront/search", {
-    query: { q },
-    headers,
-    tags: ["catalog"],
-  });
+  const result = await apiGet<ApiSearchResponse>("/storefront/search", { query: { q }, headers, noStore: true });
   return result ?? { products: [], collections: [] };
 }

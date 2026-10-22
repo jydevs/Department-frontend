@@ -1,9 +1,8 @@
+import "server-only";
 import { cookies, draftMode } from "next/headers";
+import { decodePreviewTarget, PREVIEW_COOKIE, type PreviewTarget } from "@/lib/preview";
 import { API_REVALIDATE_SECONDS, API_TIMEOUT_MS, apiBase } from "./config";
 import type { ApiErrorBody } from "./types";
-
-/** Name of the session cookie that holds the CMS preview token while Draft Mode is on. */
-export const PREVIEW_COOKIE = "dept_preview";
 
 /** Anything other than a 2xx / 404 answer, a timeout or a network failure. */
 export class ApiError extends Error {
@@ -107,19 +106,56 @@ export async function getPreviewToken(): Promise<string | null> {
   }
 }
 
+/** Content document a `/storefront/content/…` path reads, in the vocabulary of the preview tokens. */
+function documentOfPath(path: string): PreviewTarget | null {
+  const m = /^\/storefront\/content\/(settings|menus|templates|pages)(?:\/([^/?]+))?$/.exec(path);
+  if (!m) return null;
+  try {
+    switch (m[1]) {
+      case "settings":
+        return { kind: "settings", key: "site" };
+      case "menus":
+        return m[2] ? { kind: "menu", key: decodeURIComponent(m[2]) } : null;
+      case "templates":
+        return m[2] ? { kind: "template", key: decodeURIComponent(m[2]) } : null;
+      default:
+        return m[2] ? { kind: "page", key: decodeURIComponent(m[2]) } : null;
+    }
+  } catch {
+    return null;
+  }
+}
+
 /**
- * GET of a CMS content document. In Draft Mode the draft is requested with the visitor's preview
- * token and never cached; a token is valid for ONE document only, so a 401 for any other document
- * silently falls back to its published version.
+ * GET of a CMS content document. In Draft Mode the draft is requested with the visitor's preview token and is NEVER
+ * cached (no-store: neither the data cache nor another visitor can ever see it). A token is valid for ONE document, so
+ * it is only sent for that document; every other document (and an expired / rejected token: 400 / 401) is served from
+ * its published version through the normal cache.
  */
 export async function contentGet<T>(path: string, tags: string[]): Promise<T | null> {
   const token = await getPreviewToken();
   if (token) {
-    try {
-      return await apiGet<T>(path, { noStore: true, query: { preview: token } });
-    } catch (err) {
-      if (!(err instanceof ApiError) || (err.status !== 401 && err.status !== 400)) throw err;
+    const target = decodePreviewTarget(token);
+    const wanted = documentOfPath(path);
+    if (target && wanted && target.kind === wanted.kind && target.key === wanted.key) {
+      try {
+        return await apiGet<T>(path, { noStore: true, query: { preview: token } });
+      } catch (err) {
+        if (!(err instanceof ApiError) || (err.status !== 401 && err.status !== 400)) throw err;
+      }
     }
   }
   return apiGet<T>(path, { tags });
+}
+
+/**
+ * Headers that let the backend rate-limit per VISITOR instead of per Next host: `X-Visitor-Ip` is only honoured by the
+ * API together with the server key (`X-Storefront-Key`, added by every call), so nothing is forwarded without it.
+ */
+export function visitorHeaders(req: Request): Record<string, string> {
+  if (!process.env.STOREFRONT_SERVER_KEY) return {};
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const ip = forwarded || req.headers.get("x-real-ip")?.trim() || "";
+  // an IPv4 / IPv6 literal only: anything else (spoofed text) is dropped
+  return ip.length > 0 && ip.length <= 45 && /^[0-9a-fA-F:.]+$/.test(ip) ? { "X-Visitor-Ip": ip } : {};
 }
