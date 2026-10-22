@@ -20,7 +20,9 @@ export function wompiCheckoutUrl(p: PaymentInstructions): string | null {
     `&amount-in-cents=${enc(String(p.amountInCents))}` +
     `&reference=${enc(p.reference)}` +
     `&signature:integrity=${enc(p.signatureIntegrity)}` +
-    `&redirect-url=${enc(p.redirectUrl)}`
+    `&redirect-url=${enc(p.redirectUrl)}` +
+    // part of the signed payload when the backend sends it: without it Wompi rejects the signature
+    (p.expirationTime ? `&expiration-time=${enc(p.expirationTime)}` : "")
   );
 }
 

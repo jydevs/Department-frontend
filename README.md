@@ -162,3 +162,10 @@ de Wompi debe apuntar a la API. En este front no se pone ninguna llave:
 El front arma `https://checkout.wompi.co/p/` con `public-key`, `currency`, `amount-in-cents`, `reference`,
 `signature:integrity` y `redirect-url`, usando exactamente los campos que devuelve el backend. Wompi vuelve a
 `/checkout/result?id=<transacción>` y el estado real lo confirma el webhook (la página lo consulta en la API).
+
+**Expiración del enlace de pago (`expiration-time`).** Si el backend corre con `WOMPI_EXPIRATION_ENABLED=true`, las
+instrucciones de pago traen `expirationTime` (ISO-8601, igual a `reservedUntil` del pedido) y la firma de integridad lo
+incluye. El front lo reenvía tal cual como `expiration-time=<expirationTime>` en la URL de Wompi; sin ese parámetro
+Wompi rechazaría la firma. **Activar `WOMPI_EXPIRATION_ENABLED=true` en el backend exige desplegar antes esta versión del
+front** (una versión anterior descarta el campo y todos los pagos fallarían). Sin el flag no hay `expirationTime` y la
+URL es la de siempre.

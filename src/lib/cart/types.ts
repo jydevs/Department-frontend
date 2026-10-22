@@ -112,6 +112,8 @@ export interface PaymentInstructions {
   publicKey?: string;
   signatureIntegrity?: string;
   redirectUrl?: string;
+  /** ISO-8601; only when the API signs with WOMPI_EXPIRATION_ENABLED=true: Wompi needs it as `expiration-time` */
+  expirationTime?: string;
 }
 
 export interface CheckoutResult {

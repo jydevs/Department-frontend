@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
     publicKey: payment.publicKey,
     signatureIntegrity: payment.signatureIntegrity,
     redirectUrl: payment.redirectUrl,
+    expirationTime: payment.expirationTime,
   };
   await saveOrderCookie(orderNumber, accessToken);
   // the API marked the cart as converted: from now on the order is what matters
