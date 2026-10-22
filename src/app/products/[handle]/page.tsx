@@ -5,12 +5,14 @@ import { SectionRenderer } from "@/components/cms/SectionRenderer";
 import { getProduct as getApiProduct } from "@/lib/api/catalog";
 import { getSiteSettingsOrDefault, getTemplate } from "@/lib/api/content";
 import { mapProduct } from "@/lib/catalog/service";
+import { isHandle } from "@/lib/handle";
 import { absoluteUrl } from "@/lib/site";
 
 type PageProps = { params: Promise<{ handle: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { handle } = await params;
+  if (!isHandle(handle)) return {};
   try {
     const api = await getApiProduct(handle);
     if (!api) return {};
@@ -35,6 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  */
 export default async function ProductPage({ params }: PageProps) {
   const { handle } = await params;
+  if (!isHandle(handle)) notFound();
   const [settings, template, api] = await Promise.all([
     getSiteSettingsOrDefault(),
     getTemplate("product"),

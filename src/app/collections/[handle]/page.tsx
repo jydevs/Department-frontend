@@ -6,11 +6,13 @@ import { getCollection } from "@/lib/api/catalog";
 import { getCollectionView } from "@/lib/catalog/service";
 import { htmlToText } from "@/lib/catalog/html";
 import { resolveMediaUrl } from "@/lib/api/media";
+import { isHandle } from "@/lib/handle";
 
 type PageProps = { params: Promise<{ handle: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { handle } = await params;
+  if (!isHandle(handle)) return {};
   try {
     const data = await getCollection(handle, { limit: 1 });
     if (!data) return {};
@@ -34,6 +36,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
  */
 export default async function CollectionPage({ params }: PageProps) {
   const { handle } = await params;
+  if (!isHandle(handle)) notFound();
   const [settings, template, collection] = await Promise.all([
     getSiteSettingsOrDefault(),
     getTemplate("collection"),

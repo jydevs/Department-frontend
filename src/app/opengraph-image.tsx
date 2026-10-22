@@ -3,9 +3,14 @@ import { getSiteSettingsOrDefault, getTemplate } from "@/lib/api/content";
 import { resolveMediaUrl } from "@/lib/api/media";
 import { renderOg } from "@/lib/og";
 
-export const alt = "Daregular Dept. — Uniforms for the unnoticed";
-export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+const size = { width: 1200, height: 630 };
+const contentType = "image/png";
+
+/** The alt text comes from the CMS (settings/site), never hard-coded. */
+export async function generateImageMetadata() {
+  const { brand, seo } = await getSiteSettingsOrDefault();
+  return [{ id: "default", alt: seo.defaultTitle || brand.name, size, contentType }];
+}
 
 /** Share card of the site: the CMS' og image (settings/site → seo.ogImageUrl) or the home hero photo. */
 export default async function Image() {
