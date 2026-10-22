@@ -90,3 +90,25 @@ Todo el contenido editorial (textos, menús, secciones, tema) sale del CMS de la
   falla o tarda más de 1,5 s, la petición sigue sin redirigir).
 - **Sin API:** menú, newsletter y pie vuelven a los textos originales (`src/lib/cms/fallback.ts`) y las páginas de
   contenido muestran un error con la marca en lugar de una pantalla en blanco.
+
+## Cuenta del cliente
+
+El navegador **no** habla con la API de clientes: lo hace un BFF de route handlers de Next bajo `/api/account/*`
+(`src/app/api/account/**`, núcleo en `src/lib/account/server/`). La cookie de refresh de la API (`dept_ct`) tiene el
+`Path` de la API y `SameSite=Lax`, así que no viaja entre orígenes distintos.
+
+- **Sesión:** solo cookies httpOnly del front, `path=/`, `SameSite=Lax`, `Secure` en producción: `dept_at` (access token,
+  ~15 min) y `dept_rt_c` (refresh). Ningún token llega a JavaScript del navegador ni al cuerpo de las respuestas.
+- **Refresh transparente:** si falta `dept_at` (o la API da 401) el BFF rota el refresh y propaga las cookies nuevas.
+  Las peticiones simultáneas con la misma cookie comparten **una** rotación (la API trata un refresh reutilizado como robo y
+  cierra la sesión). El mapa de rotaciones vive en memoria del proceso: con varias instancias de Next detrás de un balanceador
+  hace falta afinidad de sesión o un almacén compartido.
+- **CSRF:** las mutaciones exigen `Content-Type: application/json` y `Origin` (o `Sec-Fetch-Site`) del propio sitio.
+  Todas las respuestas llevan `Cache-Control: no-store`. Se reenvían `X-Visitor-Ip` / `X-Storefront-Key` como en `lib/api/http.ts`.
+- **Páginas** (todas `noindex`): `/account/login`, `register`, `verify-email?token=` (pide contraseña nueva: el enlace
+  prueba el buzón y fija la contraseña), `forgot-password`, `reset-password?token=`; protegidas (`proxy.ts` + `AccountArea`,
+  redirigen a `/account/login?next=<ruta interna>`): `/account`, `/account/addresses`, `/account/orders[/<n>]`,
+  `/account/privacy`. Newsletter: `/newsletter/confirmar?token=` y `/newsletter/baja?token=` (pregunta antes de dar de baja).
+  Son exactamente los enlaces que envía la API por correo (`STOREFRONT_URL` = `NEXT_PUBLIC_SITE_URL`).
+- **Estado en el cliente:** `useCustomer()` (`src/lib/account/useCustomer.tsx`), provisto en `app/layout.tsx`. El servidor
+  solo comprueba si las cookies existen para no pedir `/api/account/me` a los visitantes anónimos.

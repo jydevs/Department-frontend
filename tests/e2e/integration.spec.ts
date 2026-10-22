@@ -191,10 +191,10 @@ test.describe('4. Autenticación', () => {
     await expect(registerForm).toBeVisible();
   });
 
-  test('4.3 Página órdenes existe', async ({ page }) => {
+  test('4.3 Pedidos exige sesión: redirige al login con next validado', async ({ page }) => {
     await page.goto('/account/orders');
-    const ordersPage = page.locator('[data-testid="orders-page"]');
-    await expect(ordersPage).toBeVisible();
+    await expect(page).toHaveURL(/\/account\/login\?next=%2Faccount%2Forders/);
+    await expect(page.locator('[data-testid="login-form"]')).toBeVisible();
   });
 
   test('4.4 Formulario login valida email', async ({ page }) => {

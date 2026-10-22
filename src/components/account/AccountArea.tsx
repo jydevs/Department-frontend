@@ -78,7 +78,7 @@ export function AccountArea({ children }: { children: React.ReactNode }) {
                     href={tab.href}
                     aria-current={current ? "page" : undefined}
                     className={clsx(
-                      "font-condensed block whitespace-nowrap border-b-2 px-4 py-3 text-xs tracking-[0.16em] transition-colors",
+                      "font-condensed block whitespace-nowrap border-b-2 px-3 py-3 text-xs tracking-[0.12em] transition-colors sm:px-4 sm:tracking-[0.16em]",
                       current ? "border-dept-red text-dept-white" : "border-transparent text-dept-gray-500 hover:text-dept-white",
                     )}
                   >
