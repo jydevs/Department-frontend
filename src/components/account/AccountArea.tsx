@@ -25,12 +25,12 @@ function isCurrent(href: string, pathname: string): boolean {
 export function AccountArea({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { status, customer, logout } = useCustomer();
+  const { status, customer, logout, ended } = useCustomer();
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    if (status === "anonymous" && !leaving) router.replace(`/account/login?next=${encodeURIComponent(pathname)}`);
-  }, [status, leaving, pathname, router]);
+    if (status === "anonymous" && !leaving && !ended) router.replace(`/account/login?next=${encodeURIComponent(pathname)}`);
+  }, [status, leaving, ended, pathname, router]);
 
   if (status !== "authenticated" || !customer) {
     return (

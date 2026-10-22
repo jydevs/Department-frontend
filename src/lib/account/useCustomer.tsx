@@ -17,6 +17,8 @@ interface CustomerContextValue {
   setCustomer: (customer: CustomerProfile) => void;
   /** Drops the local session state without calling the API (cookies were already cleared by the BFF). */
   endSession: () => void;
+  /** true after the session ended on purpose (password changed, account deleted): the caller navigates, guards must not. */
+  ended: boolean;
 }
 
 const CustomerContext = createContext<CustomerContextValue | null>(null);
@@ -32,11 +34,13 @@ const REVALIDATE_AFTER_MS = 60_000;
 export function CustomerProvider({ hasSession, children }: { hasSession: boolean; children: ReactNode }) {
   const [status, setStatus] = useState<CustomerStatus>(hasSession ? "loading" : "anonymous");
   const [customer, setCustomerState] = useState<CustomerProfile | null>(null);
+  const [ended, setEnded] = useState(false);
   const lastCheck = useRef(0);
   const channel = useRef<BroadcastChannel | null>(null);
 
   const apply = useCallback((profile: CustomerProfile | null) => {
     setCustomerState(profile);
+    if (profile) setEnded(false);
     setStatus(profile ? "authenticated" : "anonymous");
   }, []);
 
@@ -103,13 +107,14 @@ export function CustomerProvider({ hasSession, children }: { hasSession: boolean
 
   const setCustomer = useCallback((profile: CustomerProfile) => apply(profile), [apply]);
   const endSession = useCallback(() => {
+    setEnded(true);
     apply(null);
     channel.current?.postMessage("logout");
   }, [apply]);
 
   const value = useMemo(
-    () => ({ status, customer, request, login, logout, setCustomer, endSession }),
-    [status, customer, request, login, logout, setCustomer, endSession],
+    () => ({ status, customer, request, login, logout, setCustomer, endSession, ended }),
+    [status, customer, request, login, logout, setCustomer, endSession, ended],
   );
   return <CustomerContext.Provider value={value}>{children}</CustomerContext.Provider>;
 }
