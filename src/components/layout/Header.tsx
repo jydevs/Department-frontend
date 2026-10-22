@@ -16,6 +16,8 @@ import { useChromeState } from "./useChromeState";
 export interface HeaderConfig {
   brandName: string;
   logoUrl?: string;
+  /** text of the drawn wordmark when there is no logo image (settings/site → brand.logoText) */
+  logoText: string;
   logoVariant: "red" | "black";
   /** first level of the main menu (children feed the mobile menu) */
   nav: NavItem[];
@@ -259,6 +261,7 @@ export function Header({ config }: { config: HeaderConfig }) {
               variant={config.logoVariant}
               size="lg"
               imageUrl={config.logoUrl}
+              text={config.logoText}
               title={config.brandName}
               className="h-8 w-auto md:h-10"
             />

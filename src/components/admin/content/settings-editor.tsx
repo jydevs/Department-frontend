@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, ErrorState, Input, NoAccess, PageHeader, Select, Skeleton, TabPanel, Tabs } from "@/components/admin/ui";
+import { Button, Card, ErrorState, Input, NoAccess, PageHeader, Select, Skeleton, Switch, TabPanel, Tabs } from "@/components/admin/ui";
 import { useCan } from "@/lib/admin/permissions";
 import { storefrontLabel } from "@/lib/admin/utils";
 import { isObj, setIn, type Obj } from "./content-utils";
@@ -111,7 +111,7 @@ export function SettingsEditor() {
       />
 
       <TabPanel base="settings" tabKey="brand" active={tab === "brand"}>
-        <Card title="Marca" description="Nombre, eslogan y logotipo que se muestran en la cabecera, el pie y los correos.">
+        <Card title="Marca" description="Nombre, eslogan, logotipo (imagen o texto dibujado) e icono de la pestaña del navegador (favicon).">
           <div className="max-w-2xl">
             <SchemaForm schema={BRAND_SCHEMA} value={group(data, "brand")} onChange={(v) => setGroup("brand", v)} errors={editor.errors} path="brand" disabled={disabled} />
           </div>
@@ -136,6 +136,14 @@ export function SettingsEditor() {
                   <option key={f} value={f} />
                 ))}
               </datalist>
+              <div className="mt-4">
+                <Switch
+                  checked={theme.grain !== false}
+                  disabled={disabled}
+                  onChange={(v) => setPath(["theme", "grain"], v)}
+                  label="Textura de grano sobre toda la tienda"
+                />
+              </div>
               <div className="mt-4 max-w-xs">
                 <Select
                   label="Esquema de color de la tienda"

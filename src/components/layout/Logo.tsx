@@ -1,4 +1,4 @@
-/* Stand-in wordmark. Replace with the official DEPT / Dept vector assets — see docs/ASSETS.md. */
+/* Drawn script wordmark (text editable in settings/site → brand.logoText) or the uploaded logo image (brand.logoMediaUrl). */
 
 import Image from "next/image";
 import { canOptimize } from "@/lib/api/media";
@@ -21,6 +21,8 @@ interface LogoProps {
   imageUrl?: string;
   /** accessible name (brand name) */
   title?: string;
+  /** text of the drawn wordmark (settings/site → brand.logoText) */
+  text?: string;
 }
 
 const SIZE_MAP: Record<NonNullable<LogoProps["size"]>, number> = {
@@ -32,7 +34,7 @@ const SIZE_MAP: Record<NonNullable<LogoProps["size"]>, number> = {
 const VIEWBOX_W = 160;
 const VIEWBOX_H = 48;
 
-export function Logo({ variant = "red", size = "md", className, imageUrl, title = "Daregular Dept." }: LogoProps) {
+export function Logo({ variant = "red", size = "md", className, imageUrl, title = "Daregular Dept.", text = "Dept" }: LogoProps) {
   const height = SIZE_MAP[size];
   const width = (height * VIEWBOX_W) / VIEWBOX_H;
   const isRed = variant === "red";
@@ -76,8 +78,10 @@ export function Logo({ variant = "red", size = "md", className, imageUrl, title 
           fontSize={44}
           fontWeight={isRed ? 600 : 400}
           letterSpacing={isRed ? -1 : 1}
+          // a longer brand text is squeezed into the logo box instead of overflowing the header
+          {...(text.length > 6 ? { textLength: VIEWBOX_W, lengthAdjust: "spacingAndGlyphs" } : null)}
         >
-          Dept
+          {text}
         </text>
       </g>
     </svg>

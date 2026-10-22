@@ -250,7 +250,7 @@ function CartPanel({ onClose, config, onOpenAccount }: { onClose: () => void; co
                           )}
                         </p>
                         {!item.available && (
-                          <p className="font-condensed mt-1 text-[11px] tracking-[0.1em] text-dept-red-light">Ya no está disponible. Elimínalo para continuar.</p>
+                          <p className="font-condensed mt-1 text-[11px] tracking-[0.1em] text-dept-red-light">{config.unavailableMessage}</p>
                         )}
                       </div>
                       <p
@@ -307,7 +307,7 @@ function CartPanel({ onClose, config, onOpenAccount }: { onClose: () => void; co
             </ul>
 
             <div className="space-y-4 border-t border-white/10 px-6 py-5">
-              <DiscountBox discountCode={cart.discountCode} discountAmount={cart.discountTotal} />
+              <DiscountBox discountCode={cart.discountCode} discountAmount={cart.discountTotal} labels={config} />
 
               <dl className={clsx("font-condensed space-y-2 text-xs tracking-[0.12em] transition-opacity", busy && "opacity-60")} aria-busy={busy}>
                 <div className="flex justify-between text-dept-gray-300">
@@ -318,24 +318,24 @@ function CartPanel({ onClose, config, onOpenAccount }: { onClose: () => void; co
                 </div>
                 {cart.discountTotal > 0 && (
                   <div className="flex justify-between text-dept-gray-300">
-                    <dt>Descuento{cart.discountCode ? ` (${cart.discountCode})` : ""}</dt>
+                    <dt>{config.discountLabel}{cart.discountCode ? ` (${cart.discountCode})` : ""}</dt>
                     <dd data-testid="cart-discount" className="tabular-nums text-dept-white">
                       −{formatCOP(cart.discountTotal)}
                     </dd>
                   </div>
                 )}
                 <div className="flex justify-between text-dept-gray-300">
-                  <dt>Envío</dt>
-                  <dd className="text-dept-white/70">Se calcula al pagar</dd>
+                  <dt>{config.shippingLabel}</dt>
+                  <dd className="text-dept-white/70">{config.shippingText}</dd>
                 </div>
                 {!cart.taxIncluded && (
                   <div className="flex justify-between text-dept-gray-300">
-                    <dt>IVA</dt>
+                    <dt>{config.taxLabel}</dt>
                     <dd className="tabular-nums text-dept-white">{formatCOP(cart.taxTotal)}</dd>
                   </div>
                 )}
                 <div className="flex items-baseline justify-between border-t border-white/10 pt-3 text-dept-white">
-                  <dt className="text-[11px] tracking-[0.24em]">Total estimado</dt>
+                  <dt className="text-[11px] tracking-[0.24em]">{config.totalLabel}</dt>
                   <dd data-testid="cart-total" className="font-display text-display-md tabular-nums">
                     {formatCOP(cart.total)}
                   </dd>
@@ -345,7 +345,7 @@ function CartPanel({ onClose, config, onOpenAccount }: { onClose: () => void; co
                 <p data-testid="cart-tax-note" className="font-condensed text-[11px] tracking-[0.1em] text-dept-gray-500">
                   {cart.taxBreakdown
                     ? `Incluye ${cart.taxBreakdown.label} (${cart.taxBreakdown.ratePercent}%): ${formatCOP(cart.taxBreakdown.taxAmount)}. `
-                    : "Precios con IVA incluido. "}
+                    : `${config.taxIncludedNote} `}
                   El envío se suma al elegir tu dirección.
                 </p>
               )}

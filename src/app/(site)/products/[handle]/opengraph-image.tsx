@@ -39,5 +39,6 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
     kicker: settings.brand.name,
     title: product.name,
     subtitle: formatCOP(product.price),
+    accent: settings.theme.colors.accent,
   });
 }

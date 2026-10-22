@@ -36,11 +36,11 @@ export function readGridLabels(r: Reader): GridLabels {
     emptyText: r.str("emptyText", d.emptyText),
     soldOutBadgeLabel: r.str("soldOutBadgeLabel", d.soldOutBadgeLabel),
     saleBadgeLabel: r.str("saleBadgeLabel", d.saleBadgeLabel),
-    noPriceLabel: d.noPriceLabel,
-    quickAddLabel: d.quickAddLabel,
+    noPriceLabel: r.str("noPriceLabel", d.noPriceLabel),
+    quickAddLabel: r.str("quickAddLabel", d.quickAddLabel),
     loadMoreLabel: r.str("loadMoreLabel", d.loadMoreLabel),
-    loadingMoreLabel: d.loadingMoreLabel,
-    loadMoreErrorLabel: d.loadMoreErrorLabel,
+    loadingMoreLabel: r.str("loadingMoreLabel", d.loadingMoreLabel),
+    loadMoreErrorLabel: r.str("loadMoreErrorLabel", d.loadMoreErrorLabel),
   };
 }
 
@@ -111,6 +111,18 @@ export function readCartConfig(section: SectionEnvelope | undefined): CartConfig
     removeLabel: r.str("removeLabel", d.removeLabel),
     decreaseLabel: r.str("decreaseLabel", d.decreaseLabel),
     increaseLabel: r.str("increaseLabel", d.increaseLabel),
+    unavailableMessage: r.str("unavailableMessage", d.unavailableMessage),
+    discountLabel: r.str("discountLabel", d.discountLabel),
+    shippingLabel: r.str("shippingLabel", d.shippingLabel),
+    shippingText: r.str("shippingText", d.shippingText),
+    taxLabel: r.str("taxLabel", d.taxLabel),
+    totalLabel: r.str("totalLabel", d.totalLabel),
+    taxIncludedNote: r.str("taxIncludedNote", d.taxIncludedNote),
+    discountCodeLabel: r.str("discountCodeLabel", d.discountCodeLabel),
+    discountApplyLabel: r.str("discountApplyLabel", d.discountApplyLabel),
+    discountApplyingLabel: r.str("discountApplyingLabel", d.discountApplyingLabel),
+    discountRemoveLabel: r.str("discountRemoveLabel", d.discountRemoveLabel),
+    discountEmptyMessage: r.str("discountEmptyMessage", d.discountEmptyMessage),
   };
 }
 

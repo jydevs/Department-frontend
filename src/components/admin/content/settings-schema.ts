@@ -18,6 +18,8 @@ export const BRAND_SCHEMA: JsonSchema = {
     tagline: str(200),
     description: str(500),
     logoMediaUrl: { type: "string" },
+    logoText: str(20, { minLength: 1 }),
+    faviconMediaUrl: { type: "string" },
   },
 };
 

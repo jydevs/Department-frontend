@@ -135,7 +135,15 @@ export interface ApiRedirect {
 }
 
 export interface SiteSettings {
-  brand: { name: string; tagline?: string; description?: string; logoMediaUrl?: string };
+  brand: {
+    name: string;
+    tagline?: string;
+    description?: string;
+    logoMediaUrl?: string;
+    /** text of the drawn script wordmark (no logo image) */
+    logoText?: string;
+    faviconMediaUrl?: string;
+  };
   theme: {
     colors: {
       background: string;
@@ -153,6 +161,8 @@ export interface SiteSettings {
     };
     fonts: { heading: string; body: string; condensed?: string; script?: string };
     colorScheme?: "dark" | "light";
+    /** film-grain texture over the page (default on) */
+    grain?: boolean;
   };
   seo: { titleTemplate: string; defaultTitle?: string; defaultDescription: string; ogImageUrl?: string };
   social: Partial<Record<"instagram" | "tiktok" | "facebook" | "youtube" | "pinterest" | "x", string>>;

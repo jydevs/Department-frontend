@@ -16,6 +16,18 @@ export interface CartConfig {
   removeLabel: string;
   decreaseLabel: string;
   increaseLabel: string;
+  unavailableMessage: string;
+  discountLabel: string;
+  shippingLabel: string;
+  shippingText: string;
+  taxLabel: string;
+  totalLabel: string;
+  taxIncludedNote: string;
+  discountCodeLabel: string;
+  discountApplyLabel: string;
+  discountApplyingLabel: string;
+  discountRemoveLabel: string;
+  discountEmptyMessage: string;
 }
 
 export const DEFAULT_CART_CONFIG: CartConfig = {
@@ -32,6 +44,18 @@ export const DEFAULT_CART_CONFIG: CartConfig = {
   removeLabel: "Eliminar",
   decreaseLabel: "Quitar una unidad",
   increaseLabel: "Añadir una unidad",
+  unavailableMessage: "Ya no está disponible. Elimínalo para continuar.",
+  discountLabel: "Descuento",
+  shippingLabel: "Envío",
+  shippingText: "Se calcula al pagar",
+  taxLabel: "IVA",
+  totalLabel: "Total estimado",
+  taxIncludedNote: "Precios con IVA incluido. El envío se suma al elegir tu dirección.",
+  discountCodeLabel: "Código de descuento",
+  discountApplyLabel: "Aplicar",
+  discountApplyingLabel: "Aplicando…",
+  discountRemoveLabel: "Quitar",
+  discountEmptyMessage: "Escribe tu código de descuento.",
 };
 
 
