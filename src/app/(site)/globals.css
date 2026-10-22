@@ -20,6 +20,7 @@
   --dept-blue: #4f7bd6; /* "Iniciar sesión con shop" button */
   --dept-gray-100: #f2f2f2;
   --dept-gray-300: #cfcfcf;
+  --dept-gray-400: #ababab;
   --dept-gray-500: #8a8a8a;
   --dept-gray-900: #141414;
 
@@ -51,6 +52,7 @@
   --color-dept-blue: var(--dept-blue);
   --color-dept-gray-100: var(--dept-gray-100);
   --color-dept-gray-300: var(--dept-gray-300);
+  --color-dept-gray-400: var(--dept-gray-400);
   --color-dept-gray-500: var(--dept-gray-500);
   --color-dept-gray-900: var(--dept-gray-900);
 
