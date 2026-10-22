@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { ACCESS_COOKIE, REFRESH_COOKIE, isProtectedPath } from "@/lib/account/config";
 import { findRedirect } from "@/lib/cms/redirects";
 
 /**
@@ -7,6 +8,16 @@ import { findRedirect } from "@/lib/cms/redirects";
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (request.method !== "GET" && request.method !== "HEAD") return NextResponse.next();
+
+  // account pages that need a session: without any session cookie go straight to the login (no flash of the page).
+  // Expired / revoked sessions are handled by the page itself (AccountArea).
+  if (isProtectedPath(request.nextUrl.pathname) && !request.cookies.has(ACCESS_COOKIE) && !request.cookies.has(REFRESH_COOKIE)) {
+    const login = request.nextUrl.clone();
+    login.pathname = "/account/login";
+    login.search = "";
+    login.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(login);
+  }
 
   const rule = await findRedirect(request.nextUrl.pathname);
   if (!rule) return NextResponse.next();

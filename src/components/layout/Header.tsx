@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { clsx } from "@/lib/clsx";
 import { useCart } from "@/lib/cart";
+import { useCustomer } from "@/lib/account/useCustomer";
 import type { NavItem } from "@/lib/cms/links";
 import { Marquee } from "@/components/ui/Marquee";
 import { Logo } from "./Logo";
@@ -90,6 +91,9 @@ export function Header({ config }: { config: HeaderConfig }) {
   const chrome = useChromeState();
   const { openAccount, openCart, openSearch } = useOverlay();
   const { count } = useCart();
+  const { status: sessionStatus, customer } = useCustomer();
+  const signedIn = sessionStatus === "authenticated" && customer !== null;
+  const accountAria = signedIn ? `${config.accountLabel}, ${customer.firstName}` : config.accountLabel;
   const [menuOpen, setMenuOpen] = useState(false);
 
   const overlayPage = config.transparentOnHero && hasHero(pathname);
@@ -278,8 +282,9 @@ export function Header({ config }: { config: HeaderConfig }) {
             {config.showAccount && (
               <button
                 type="button"
-                aria-label={config.accountLabel}
+                aria-label={accountAria}
                 data-testid="account-button"
+                data-session={sessionStatus}
                 aria-haspopup="dialog"
                 onClick={openAccount}
                 className={clsx(iconBtn, "hidden sm:flex")}
@@ -288,6 +293,7 @@ export function Header({ config }: { config: HeaderConfig }) {
                   <circle cx="12" cy="8" r="4" />
                   <path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" />
                 </Icon>
+                {signedIn && <span aria-hidden data-testid="account-signed-in" className="absolute right-2 top-2.5 h-2 w-2 rounded-full bg-dept-red ring-2 ring-black" />}
               </button>
             )}
             {config.showCart && (
@@ -370,7 +376,7 @@ export function Header({ config }: { config: HeaderConfig }) {
                 }}
                 className="font-condensed border border-white/25 px-4 py-2.5 text-[11px] tracking-[0.2em] text-dept-white"
               >
-                {config.accountLabel}
+                {signedIn ? customer.firstName : config.accountLabel}
               </button>
             )}
             {config.showCart && (

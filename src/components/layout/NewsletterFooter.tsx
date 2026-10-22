@@ -3,7 +3,8 @@
 import { useId, useState } from "react";
 import { clsx } from "@/lib/clsx";
 import { Reveal } from "@/components/ui/Reveal";
-import { publicApiBase } from "@/lib/api/config";
+import { bff } from "@/lib/account/client";
+import { describeError } from "@/lib/account/errors";
 import { DEFAULT_NEWSLETTER, type NewsletterConfig } from "./config";
 
 type FormState = "idle" | "loading" | "success" | "error";
@@ -18,6 +19,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function NewsletterFooter({ config = DEFAULT_NEWSLETTER }: { config?: NewsletterConfig }) {
   const [state, setState] = useState<FormState>("idle");
   const [email, setEmail] = useState("");
+  const [failure, setFailure] = useState<string | null>(null);
   const uid = useId();
   const headingId = `${uid}-heading`;
   const inputId = `${uid}-email`;
@@ -27,30 +29,23 @@ export function NewsletterFooter({ config = DEFAULT_NEWSLETTER }: { config?: New
     e.preventDefault();
 
     if (!EMAIL_RE.test(email.trim())) {
+      setFailure(null);
       setState("error");
       return;
     }
 
     setState("loading");
-    await new Promise((r) => setTimeout(r, 200));
+    setFailure(null);
 
-    try {
-      const res = await fetch(`${publicApiBase()}/storefront/newsletter`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Newsletter subscription failed");
-      }
-
+    // through the storefront server (/api/account/newsletter): the API rate-limits per visitor, no CORS involved
+    const res = await bff("/newsletter", { method: "POST", body: { email: email.trim() } });
+    if (res.ok) {
       setState("success");
       setEmail("");
-    } catch {
-      setState("success");
-      setEmail("");
+      return;
     }
+    setFailure(res.status === 429 || res.status === 0 || res.status === 503 ? describeError(res.error, res.status) : null);
+    setState("error");
   };
 
   return (
@@ -140,7 +135,7 @@ export function NewsletterFooter({ config = DEFAULT_NEWSLETTER }: { config?: New
                 <span data-testid="newsletter-loading">{config.loadingMessage}</span>
               )}
               {state === "error" && (
-                <span data-testid="newsletter-error">{config.errorMessage}</span>
+                <span data-testid="newsletter-error">{failure ?? config.errorMessage}</span>
               )}
               {state === "success" && (
                 <span data-testid="newsletter-success">{config.successMessage}</span>
