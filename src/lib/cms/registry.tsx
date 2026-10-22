@@ -1,12 +1,10 @@
 import type { ReactNode } from "react";
 import type { SectionEnvelope, SiteSettings } from "@/lib/api/types";
-import { listProducts } from "@/lib/api/catalog";
 import type { Product } from "@/lib/catalog/types";
 import {
-  enrichSummaries,
   getCollectionCount,
-  getCollectionSummaries,
   getRelatedProducts,
+  getShowcaseProducts,
   type CollectionView as CollectionData,
 } from "@/lib/catalog/service";
 import { CollectionView } from "@/components/product/CollectionView";
@@ -192,12 +190,11 @@ const campaign: Renderer = async (section) => {
   const r = reader(section);
   const limit = Math.round(r.num("limit", 6, 1, 24));
   const handle = r.opt("collectionHandle");
-  const summaries = handle
-    ? await getCollectionSummaries(handle, limit)
-    : await listProducts({ limit })
-        .then((p) => p.items.slice(0, limit))
-        .catch(() => []);
-  const products = await enrichSummaries(summaries);
+  const showCount = r.bool("showCount", true);
+  const [products, total] = await Promise.all([
+    getShowcaseProducts(handle, limit),
+    showCount && handle ? getCollectionCount(handle) : Promise.resolve(0),
+  ]);
   const cta = r.oneOf("ctaVariant", ["solid", "outline", "red"], "outline");
   return (
     <CampaignSection
@@ -208,12 +205,15 @@ const campaign: Renderer = async (section) => {
       text={r.opt("text")}
       products={products}
       columns={r.oneOf("columns", ["3", "4"], "3") === "3" ? 3 : 4}
-      showCount={r.bool("showCount", true)}
+      imageUrl={r.image("imageUrl")}
+      imageAlt={r.str("imageAlt")}
+      count={total > 0 ? total : products.length}
+      showCount={showCount}
       countLabel={r.str("countLabel", "piezas")}
       ctaLabel={r.opt("ctaLabel")}
       ctaHref={r.link("ctaHref")}
       ctaVariant={cta}
-      alignment={r.oneOf("alignment", ["left", "center", "right"], "left")}
+      alignment={r.oneOf("alignment", ["left", "center", "right"], "center")}
       labels={readGridLabels(r)}
     />
   );
@@ -420,7 +420,9 @@ const productGrid: Renderer = async (section, ctx) => {
     return (
       <CollectionView
         id={section.id}
-        products={ctx.collection.products.slice(0, limit)}
+        handle={ctx.collection.collection.handle}
+        products={ctx.collection.products}
+        nextCursor={ctx.collection.nextCursor}
         columns={columns}
         showFilters={r.bool("showFilters", true)}
         srHeading={r.opt("srHeading")}
@@ -435,12 +437,7 @@ const productGrid: Renderer = async (section, ctx) => {
     products = await getRelatedProducts(ctx.product, limit);
   } else {
     const handle = r.opt("collectionHandle");
-    const summaries = handle
-      ? await getCollectionSummaries(handle, limit)
-      : await listProducts({ limit })
-          .then((p) => p.items.slice(0, limit))
-          .catch(() => []);
-    products = await enrichSummaries(summaries);
+    products = await getShowcaseProducts(handle, limit);
   }
   if (products.length === 0 && source === "related") return null;
 

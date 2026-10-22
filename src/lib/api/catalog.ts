@@ -23,10 +23,14 @@ export interface ListProductsParams {
 const EMPTY_PAGE: ApiPage<ApiProductSummary> = { items: [], hasMore: false, nextCursor: null };
 
 /** `GET /storefront/products` */
-export async function listProducts(params: ListProductsParams = {}): Promise<ApiPage<ApiProductSummary>> {
+export async function listProducts(
+  params: ListProductsParams = {},
+  options: { revalidate?: number } = {},
+): Promise<ApiPage<ApiProductSummary>> {
   const page = await apiGet<ApiPage<ApiProductSummary>>("/storefront/products", {
     query: { ...params },
     tags: ["catalog", "catalog:products"],
+    revalidate: options.revalidate,
   });
   return page ?? EMPTY_PAGE;
 }

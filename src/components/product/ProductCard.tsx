@@ -73,7 +73,7 @@ export function ProductCard({
           </span>
         )}
 
-        {!soldOut && product.variants.length > 0 && <QuickAdd product={product} label={labels.quickAddLabel} />}
+        {!soldOut && product.needsSize && product.variants.length > 0 && <QuickAdd product={product} label={labels.quickAddLabel} />}
       </div>
 
       <div className="mt-3 flex flex-col gap-1 pb-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">

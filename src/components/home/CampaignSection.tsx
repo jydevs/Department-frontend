@@ -2,6 +2,7 @@ import type { Product } from "@/lib/catalog/types";
 import { ProductGrid } from "@/components/product/ProductGrid";
 import type { GridLabels } from "@/components/product/labels";
 import { Button } from "@/components/ui/Button";
+import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { Reveal } from "@/components/ui/Reveal";
 import { pad2 } from "@/lib/cms/reader";
 
@@ -12,6 +13,11 @@ export interface CampaignSectionProps {
   headingOutline?: string;
   text?: string;
   products: Product[];
+  /** optional background photo (dimmed behind the content) */
+  imageUrl?: string;
+  imageAlt?: string;
+  /** real number of products of the collection ("NN piezas") */
+  count: number;
   columns: 3 | 4;
   showCount: boolean;
   countLabel: string;
@@ -33,6 +39,9 @@ export function CampaignSection({
   headingOutline,
   text,
   products,
+  imageUrl,
+  imageAlt,
+  count,
   columns,
   showCount,
   countLabel,
@@ -46,7 +55,13 @@ export function CampaignSection({
   const centered = alignment === "center";
 
   return (
-    <section id={id} aria-labelledby={titleId} className="py-section">
+    <section id={id} aria-labelledby={titleId} className="relative isolate overflow-hidden py-section">
+      {imageUrl && (
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+          <PlaceholderImage label={imageAlt ?? ""} src={imageUrl} tone="dark" hideLabel fill sizes="100vw" imgClassName="opacity-30 saturate-[0.7]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-dept-black via-dept-black/60 to-dept-black" />
+        </div>
+      )}
       <div
         className={`mb-12 flex flex-wrap items-end gap-8 px-gutter md:mb-16 ${centered ? "justify-center text-center" : "justify-between"}`}
       >
@@ -73,7 +88,7 @@ export function CampaignSection({
           <Reveal delay={150} className="flex items-center gap-6">
             {showCount && (
               <p className="font-condensed hidden text-[11px] tracking-[0.24em] text-dept-gray-500 sm:block">
-                {pad2(products.length)} {countLabel}
+                {pad2(count)} {countLabel}
               </p>
             )}
             {ctaLabel && ctaHref && (

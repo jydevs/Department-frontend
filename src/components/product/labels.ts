@@ -18,6 +18,10 @@ export interface GridLabels {
   saleBadgeLabel: string;
   noPriceLabel: string;
   quickAddLabel: string;
+  /** "Ver más" button of a paginated collection */
+  loadMoreLabel: string;
+  loadingMoreLabel: string;
+  loadMoreErrorLabel: string;
 }
 
 export const DEFAULT_GRID_LABELS: GridLabels = {
@@ -39,4 +43,7 @@ export const DEFAULT_GRID_LABELS: GridLabels = {
   saleBadgeLabel: "Oferta",
   noPriceLabel: "Precio no disponible",
   quickAddLabel: "Añadir rápido",
+  loadMoreLabel: "Ver más",
+  loadingMoreLabel: "Cargando...",
+  loadMoreErrorLabel: "No se pudo cargar. Inténtalo de nuevo.",
 };

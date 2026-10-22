@@ -38,6 +38,9 @@ export function readGridLabels(r: Reader): GridLabels {
     saleBadgeLabel: r.str("saleBadgeLabel", d.saleBadgeLabel),
     noPriceLabel: d.noPriceLabel,
     quickAddLabel: d.quickAddLabel,
+    loadMoreLabel: r.str("loadMoreLabel", d.loadMoreLabel),
+    loadingMoreLabel: d.loadingMoreLabel,
+    loadMoreErrorLabel: d.loadMoreErrorLabel,
   };
 }
 
