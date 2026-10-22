@@ -63,6 +63,8 @@ export function OrderStatusView({ mode, number, token }: Props) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [acting, setActing] = useState<null | "pay" | "restore">(null);
   const [confirmingCart, setConfirmingCart] = useState(false);
+  /** the lines were put back in the cart: the button goes away and the products that did not fit are listed */
+  const [restored, setRestored] = useState<null | { title: string; variantTitle: string }[]>(null);
   const startedAt = useRef(0);
   const cartRefreshed = useRef(false);
 
@@ -142,7 +144,7 @@ export function OrderStatusView({ mode, number, token }: Props) {
   };
 
   const backToCart = async () => {
-    if (!loaded) return;
+    if (!loaded || restored) return;
     setActing("restore");
     setActionError(null);
     try {
@@ -153,6 +155,9 @@ export function OrderStatusView({ mode, number, token }: Props) {
         setActing(null);
         return;
       }
+      const data = (await res.json().catch(() => null)) as { skipped?: { title: string; variantTitle: string }[] } | null;
+      setRestored(Array.isArray(data?.skipped) ? data.skipped : []);
+      setConfirmingCart(false);
       await refreshCart();
       setActing(null);
       openCart();
@@ -269,7 +274,7 @@ export function OrderStatusView({ mode, number, token }: Props) {
               {acting === "pay" ? "Abriendo la pasarela…" : phase === "pending" ? "Continuar con el pago" : "Reintentar el pago"}
             </Button>
           )}
-          {(phase === "declined" || phase === "cancelled" || phase === "expired" || phase === "pending") && loaded.hasLines && (
+          {(phase === "declined" || phase === "cancelled" || phase === "expired" || phase === "pending") && loaded.hasLines && !restored && (
             <Button
               variant="outline"
               size="lg"
@@ -284,6 +289,24 @@ export function OrderStatusView({ mode, number, token }: Props) {
             Seguir comprando
           </Button>
         </div>
+        {restored && (
+          <div role="status" data-testid="order-restored" className="mt-4 max-w-[60ch] text-sm leading-relaxed text-dept-white/75">
+            <p>Pusimos de nuevo tus productos en el carrito.</p>
+            {restored.length > 0 && (
+              <>
+                <p className="mt-2">No pudimos añadir (sin inventario o ya no disponibles):</p>
+                <ul className="mt-1 list-disc pl-5" data-testid="order-skipped">
+                  {restored.map((l, i) => (
+                    <li key={i}>
+                      {l.title}
+                      {l.variantTitle && l.variantTitle.toLowerCase() !== "default title" ? ` · Talla ${l.variantTitle}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
         <p role="alert" data-testid="order-action-error" className="font-condensed mt-3 text-xs text-dept-red-light">{actionError}</p>
       </section>
 

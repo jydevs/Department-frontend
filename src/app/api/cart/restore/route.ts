@@ -8,8 +8,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * Puts the lines of an order that was not paid (cancelled / expired / declined) back into a cart. The lines come from
- * the API's order (token from the tracking link or this browser's cookie), so it works from any browser. Skips what is
- * out of stock.
+ * the API's order (token from the tracking link or this browser's cookie), so it works from any browser. A variant the
+ * cart already has is left as it is (pressing the button twice never doubles quantities) and what cannot be added
+ * (out of stock, gone) comes back in `skipped` so the page can say which products are missing.
  */
 export async function POST(req: NextRequest) {
   const blocked = guardMutation(req);
@@ -27,10 +28,13 @@ export async function POST(req: NextRequest) {
   const lines = order.data.lines.filter((l): l is typeof l & { variantId: string } => Boolean(l.variantId));
   if (lines.length === 0) return notFound;
 
-  let skipped = 0;
+  const inCart = new Set((await readCart(req)).lines.map((l) => l.variantId));
+  const skipped: { title: string; variantTitle: string }[] = [];
   for (const line of lines) {
+    if (inCart.has(line.variantId)) continue;
     const res = await addLine(req, line.variantId, Math.min(20, Math.max(1, line.quantity)));
-    if (res.status >= 400) skipped++;
+    if (res.status >= 400) skipped.push({ title: line.title, variantTitle: line.variantTitle });
+    else inCart.add(line.variantId);
   }
   const cart = await readCart(req);
   return json({ cart, skipped });
