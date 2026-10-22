@@ -89,7 +89,8 @@ export interface QuoteQuery {
 export async function readCartResult(req: Request, quote: QuoteQuery = {}): Promise<ApiResult<CartState>> {
   const cart = await readCartCookie();
   if (!cart) return { ok: true, status: 200, data: EMPTY_CART_STATE };
-  const result = await callApi<ApiCartResponse>(req, "GET", `/storefront/carts/${cart.id}`, { cartToken: cart.token, query: { ...quote } });
+  const { email, ...query } = quote;
+  const result = await callApi<ApiCartResponse>(req, "GET", `/storefront/carts/${cart.id}`, { cartToken: cart.token, query, quoteEmail: email });
   if (!result.ok) {
     if (isCartGone(result.issue)) {
       await clearCartCookie();

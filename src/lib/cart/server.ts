@@ -133,6 +133,8 @@ interface CallOptions {
   cartToken?: string;
   /** customer's access token: lets the API tie the order to the account (optional, ignored by the API if invalid) */
   accessToken?: string;
+  /** e-mail to validate single-use discount codes on a quote: a header, so it never sits in a URL the proxy may log */
+  quoteEmail?: string;
   idempotencyKey?: string;
   body?: unknown;
   query?: Record<string, string | number | undefined | null>;
@@ -163,6 +165,8 @@ export async function callApi<T>(req: Request, method: string, path: string, opt
   const key = process.env.STOREFRONT_SERVER_KEY;
   if (key) headers["X-Storefront-Key"] = key;
   if (options.cartToken) headers["X-Cart-Token"] = options.cartToken;
+  // header values must be ASCII: an address that is not would be rejected by the API anyway
+  if (options.quoteEmail && /^[!-~]+$/.test(options.quoteEmail)) headers["X-Quote-Email"] = options.quoteEmail;
   if (options.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
   if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
