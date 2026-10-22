@@ -3,6 +3,8 @@
  * colours — comes from the CMS: settings/site; see lib/api/content.ts).
  *
  * NEXT_PUBLIC_SITE_URL    canonical origin (no trailing slash). Required in production; defaults to localhost in dev.
+ * STOREFRONT_SERVER_KEY   (server only) required in production, like NEXT_PUBLIC_SITE_URL: without it the API cannot tell
+ *                         visitors apart and rate-limits the whole site as one client.
  * NEXT_PUBLIC_INDEXABLE   "true" lets search engines index the site. Off by default:
  *                         it must not compete with the real store until it goes live.
  */
@@ -13,6 +15,13 @@ function defaultSiteUrl(): string {
   }
   return "http://localhost:3000";
 }
+
+function requireServerKey(): void {
+  if (process.env.NODE_ENV === "production" && !process.env.STOREFRONT_SERVER_KEY) {
+    throw new Error("Falta STOREFRONT_SERVER_KEY: el build/arranque de producción exige la llave de servidor del storefront (la misma que STOREFRONT_SERVER_KEY del backend).");
+  }
+}
+requireServerKey();
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? defaultSiteUrl()).replace(/\/$/, "");
 export const INDEXABLE = process.env.NEXT_PUBLIC_INDEXABLE === "true";

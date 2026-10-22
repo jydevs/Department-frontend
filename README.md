@@ -38,11 +38,11 @@ Ver `.env.example`. Las principales:
 | `NEXT_PUBLIC_API_URL` | `http://localhost:4000` (solo en desarrollo; **obligatoria** en producción) | Origen **público** de la API (navegador: newsletter/contacto) y respaldo de `API_URL`. |
 | `NEXT_PUBLIC_MEDIA_URL` | `NEXT_PUBLIC_API_URL` | Origen **público** de `/media/...` (imágenes subidas). Es el único host remoto que `next/image` acepta. |
 | `STOREFRONT_REVALIDATE_SECRET` | — | Secreto HMAC del webhook `POST /api/revalidate` (sin él la ruta queda cerrada). |
-| `STOREFRONT_SERVER_KEY` | — | `X-Storefront-Key`: permite reenviar la IP del visitante (`X-Visitor-Ip`) para el rate limit de la API. |
+| `STOREFRONT_SERVER_KEY` | — (solo en desarrollo; **obligatoria** en producción) | `X-Storefront-Key`: permite reenviar la IP del visitante (`X-Visitor-Ip`) para el rate limit de la API. Mismo valor que en el backend. |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` (solo en desarrollo; **obligatoria** en producción) | Origen canónico (metadata, Open Graph, sitemap, JSON-LD). Sin `/` final. |
 | `NEXT_PUBLIC_INDEXABLE` | `false` | `true` permite indexación. Por defecto el sitio es `noindex` y `robots.txt` bloquea todo (es una réplica). |
 
-> **Build de producción:** con `NODE_ENV=production` (`next build` / `next start`) `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_SITE_URL` son obligatorias; si faltan, el build falla con un mensaje claro en lugar de caer a localhost. Defínelas en el entorno o en `.env.production.local` (no versionado). `next dev` no las exige.
+> **Build de producción:** con `NODE_ENV=production` (`next build` / `next start`) `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SITE_URL` y `STOREFRONT_SERVER_KEY` son obligatorias; si faltan, el build falla con un mensaje claro en lugar de caer a localhost. Defínelas en el entorno o en `.env.production.local` (no versionado). `next dev` no las exige.
 
 ## SEO y producción
 
