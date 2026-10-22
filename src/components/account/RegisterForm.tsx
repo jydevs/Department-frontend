@@ -7,6 +7,7 @@ import { bff, fieldErrors } from "@/lib/account/client";
 import { PRIVACY_HREF, TERMS_HREF } from "@/lib/account/config";
 import { describeError } from "@/lib/account/errors";
 import { nameError, passwordError, validEmail, type FieldErrors } from "@/lib/account/validation";
+import { ResendVerification } from "./ResendVerification";
 import { AuthShell, Checkbox, Field, Notice, PasswordField, focusFirstInvalid, linkClass } from "./ui";
 
 export function RegisterForm() {
@@ -77,7 +78,8 @@ export function RegisterForm() {
           <p className="font-condensed text-xs leading-relaxed tracking-[0.08em] text-dept-gray-300">
             Lo enviamos a <span className="text-dept-white">{sentTo}</span>. El enlace vence en 48 horas. Si no lo ves, revisa la carpeta de correo no deseado.
           </p>
-          <Button href="/account/login" variant="solid" size="lg" className="w-full">
+          <ResendVerification email={sentTo} />
+          <Button href="/account/login" variant="outline" size="lg" className="w-full">
             Ir a iniciar sesión
           </Button>
         </div>

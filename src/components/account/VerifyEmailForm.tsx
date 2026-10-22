@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { bff, fieldErrors } from "@/lib/account/client";
 import { describeError } from "@/lib/account/errors";
 import { passwordError, type FieldErrors } from "@/lib/account/validation";
+import { ResendVerification } from "./ResendVerification";
 import { AuthShell, Notice, PasswordField, focusFirstInvalid, linkClass } from "./ui";
 
 /**
@@ -83,11 +84,9 @@ export function VerifyEmailForm({ token }: { token?: string }) {
             {token ? "Este enlace no es válido, ya fue usado o venció." : "Falta el enlace de verificación. Ábrelo desde el correo que te enviamos."}
           </Notice>
           <p className="font-condensed text-xs leading-relaxed tracking-[0.08em] text-dept-gray-300">
-            Puedes pedir un enlace nuevo: te enviaremos un correo para restablecer tu contraseña, y al usarlo tu correo también queda verificado.
+            Escribe tu correo y te enviaremos un enlace de verificación nuevo. El anterior deja de funcionar.
           </p>
-          <Button href="/account/forgot-password" variant="solid" size="lg" className="w-full">
-            Pedir otro enlace
-          </Button>
+          <ResendVerification />
           <p className="font-condensed text-center text-xs tracking-[0.1em] text-dept-gray-400">
             <Link href="/account/login" className={linkClass}>
               Volver a iniciar sesión
