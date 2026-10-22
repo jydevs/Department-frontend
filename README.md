@@ -90,6 +90,3 @@ Todo el contenido editorial (textos, menús, secciones, tema) sale del CMS de la
   falla o tarda más de 1,5 s, la petición sigue sin redirigir).
 - **Sin API:** menú, newsletter y pie vuelven a los textos originales (`src/lib/cms/fallback.ts`) y las páginas de
   contenido muestran un error con la marca en lugar de una pantalla en blanco.
-
-> Desarrollo en un worktree de git con `node_modules` enlazado: usa `next dev --webpack` y
-> `next build --webpack` (Turbopack no resuelve la unión).
