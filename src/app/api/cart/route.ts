@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
  * The visitor's cart with the server's quote. No cart yet → an empty one (no API call, no cart created).
  * `?shippingRateId=&department=` asks the API to quote the shipping and the tax over it. The e-mail (to validate
  * single-use discount codes) comes in the `X-Quote-Email` header, URI-encoded, so it never sits in the browser's URL;
- * it only goes to the API as a query parameter on the server-to-server call.
+ * it goes to the API in the same header (never as a query parameter).
  */
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams;
