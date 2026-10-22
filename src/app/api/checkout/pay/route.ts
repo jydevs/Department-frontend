@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { callApi, fail, guardMutation, json, readJson } from "@/lib/cart/server";
 import type { OrderView } from "@/lib/cart/types";
-import { orderToken } from "@/lib/checkout/server";
+import { orderToken, saveOrderCookie } from "@/lib/checkout/server";
 
 export const dynamic = "force-dynamic";
 
@@ -26,5 +26,7 @@ export async function POST(req: NextRequest) {
   if (order.data.status !== "pending" || order.data.paymentStatus === "paid" || !payment) {
     return fail({ code: "ORDER_NOT_PAYABLE", message: "Este pedido ya no se puede pagar.", status: 409 });
   }
+  // this browser is about to pay: remember the order so the gateway's return (which only carries `?id=`) finds it
+  await saveOrderCookie(number, token);
   return json({ orderNumber: number, payment });
 }
