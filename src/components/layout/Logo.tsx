@@ -1,6 +1,7 @@
 /* Stand-in wordmark. Replace with the official DEPT / Dept vector assets — see docs/ASSETS.md. */
 
 import Image from "next/image";
+import { canOptimize } from "@/lib/api/media";
 import { clsx } from "@/lib/clsx";
 
 interface LogoProps {
@@ -40,6 +41,7 @@ export function Logo({ variant = "red", size = "md", className, imageUrl, title 
     return (
       <Image
         src={imageUrl}
+        unoptimized={!canOptimize(imageUrl)}
         alt={title}
         width={Math.round(width)}
         height={height}

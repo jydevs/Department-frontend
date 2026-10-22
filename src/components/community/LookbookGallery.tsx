@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { canOptimize } from "@/lib/api/media";
 import Link from "next/link";
 import { Reveal } from "@/components/ui/Reveal";
 
@@ -55,6 +56,7 @@ function Photo({ photo, sizes, showCaption }: { photo: LookbookPhoto; sizes: str
     <figure className={`group relative overflow-hidden bg-dept-gray-900 ${ASPECT[photo.aspect]}`}>
       <Image
         src={photo.imageUrl}
+        unoptimized={!canOptimize(photo.imageUrl)}
         alt={photo.alt}
         fill
         sizes={sizes}

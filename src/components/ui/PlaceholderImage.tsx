@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { canOptimize } from "@/lib/api/media";
 import { clsx } from "@/lib/clsx";
 
 type Tone = "dark" | "light" | "accent" | "cold";
@@ -64,6 +65,7 @@ export function PlaceholderImage({
       >
         <Image
           src={src}
+          unoptimized={!canOptimize(src)}
           alt={label}
           fill
           priority={priority}

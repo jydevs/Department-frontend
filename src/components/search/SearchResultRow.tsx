@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { canOptimize } from "@/lib/api/media";
 import Link from "next/link";
 import type { Product } from "@/lib/catalog/types";
 import { formatCOP } from "@/lib/format";
@@ -47,6 +48,7 @@ export function SearchResultRow({ product, id, active, onHover, onSelect }: Sear
           {product.images[0] && (
             <Image
               src={product.images[0]}
+              unoptimized={!canOptimize(product.images[0])}
               alt=""
               fill
               sizes="72px"

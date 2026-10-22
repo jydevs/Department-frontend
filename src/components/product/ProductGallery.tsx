@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { canOptimize } from "@/lib/api/media";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { clsx } from "@/lib/clsx";
 
@@ -89,6 +90,7 @@ export function ProductGallery({ images, name, imageLabel, className }: ProductG
             >
               <Image
                 src={src}
+                unoptimized={!canOptimize(src)}
                 alt={total > 1 ? `${imageLabel} — foto ${i + 1} de ${total}` : imageLabel}
                 fill
                 priority={i === 0}

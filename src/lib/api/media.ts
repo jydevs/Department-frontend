@@ -28,3 +28,12 @@ export function resolveMediaUrl(url: string | null | undefined): string | null {
   if (isTrustedMediaUrl(value)) return value;
   return null;
 }
+
+/**
+ * Whether next/image may optimise this src: local files and the trusted media origin (the only remote host in
+ * `images.remotePatterns`). Any other https image coming from the CMS is served as is (`unoptimized`) instead of
+ * crashing the render with "hostname not configured".
+ */
+export function canOptimize(src: string): boolean {
+  return src.startsWith("/") || isTrustedMediaUrl(src);
+}

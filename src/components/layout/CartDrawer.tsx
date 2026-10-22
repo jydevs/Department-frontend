@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Image from "next/image";
+import { canOptimize } from "@/lib/api/media";
 import Link from "next/link";
 import { useCart } from "@/lib/cart";
 import { formatCOP } from "@/lib/format";
@@ -137,6 +138,7 @@ function CartPanel({ onClose, config, onOpenAccount }: { onClose: () => void; co
                     {item.product.images[0] && (
                       <Image
                         src={item.product.images[0]}
+                        unoptimized={!canOptimize(item.product.images[0])}
                         alt={item.product.imageLabel}
                         fill
                         sizes="84px"
