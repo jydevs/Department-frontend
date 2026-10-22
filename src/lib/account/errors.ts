@@ -8,7 +8,7 @@ const MESSAGES: Record<string, string> = {
   VALIDATION_ERROR: "Revisa los datos e inténtalo de nuevo.",
   ADDRESS_LIMIT: "Ya tienes 10 direcciones guardadas. Elimina una para agregar otra.",
   NOT_FOUND: "No encontramos lo que buscas.",
-  RATE_LIMITED: "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+  RATE_LIMITED: "Demasiados intentos.",
   UNAUTHORIZED: "Tu sesión terminó. Inicia sesión de nuevo.",
   SESSION_EXPIRED: "Tu sesión terminó. Inicia sesión de nuevo.",
   SERVICE_UNAVAILABLE: "No pudimos conectar con la tienda. Inténtalo de nuevo en unos minutos.",
@@ -24,7 +24,7 @@ const BY_STATUS: Record<number, string> = {
   403: "No tienes permiso para hacer esto.",
   404: "No encontramos lo que buscas.",
   409: "Hubo un conflicto con los datos actuales. Recarga e inténtalo de nuevo.",
-  429: "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+  429: "Demasiados intentos.",
 };
 
 export function errorMessage(code: string, status: number): string {
@@ -33,10 +33,9 @@ export function errorMessage(code: string, status: number): string {
 
 /** "Espera 1 min 5 s" style hint for a 429. */
 export function retryHint(seconds: number | undefined): string {
-  if (!seconds || seconds < 1) return "";
+  if (!seconds || seconds < 1) return " Espera un momento e inténtalo de nuevo.";
   if (seconds < 60) return ` Inténtalo de nuevo en ${seconds} s.`;
-  const min = Math.ceil(seconds / 60);
-  return ` Inténtalo de nuevo en ${min} min.`;
+  return ` Inténtalo de nuevo en ${Math.ceil(seconds / 60)} min.`;
 }
 
 export function describeError(error: BffError | null, status: number): string {
