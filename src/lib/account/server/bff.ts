@@ -53,7 +53,8 @@ const secure = (): boolean => process.env.NODE_ENV === "production";
 export interface SessionTokens {
   accessToken: string;
   expiresIn: number;
-  refreshToken: string;
+  /** null: the API reused a token rotated <20 s ago and sent no new cookie; the browser keeps the one it has */
+  refreshToken: string | null;
 }
 
 /** httpOnly cookies, never readable by page scripts. Path `/` so every page and every BFF route receives them. */
@@ -63,7 +64,7 @@ export function setSessionCookies(res: NextResponse, tokens: SessionTokens): voi
     ...base,
     maxAge: Math.max(30, tokens.expiresIn - ACCESS_COOKIE_MARGIN_SECONDS),
   });
-  res.cookies.set(REFRESH_COOKIE, tokens.refreshToken, { ...base, maxAge: REFRESH_COOKIE_MAX_AGE_SECONDS });
+  if (tokens.refreshToken) res.cookies.set(REFRESH_COOKIE, tokens.refreshToken, { ...base, maxAge: REFRESH_COOKIE_MAX_AGE_SECONDS });
 }
 
 export function clearSessionCookies(res: NextResponse): void {
@@ -139,7 +140,9 @@ export function refreshSession(req: Request, refreshToken: string): Promise<Refr
   const run = (async (): Promise<RefreshOutcome> => {
     const up = await upstream("/storefront/customers/refresh", { method: "POST", refreshToken, req });
     const body = (up.body ?? {}) as { accessToken?: unknown; expiresIn?: unknown };
-    if (up.status === 200 && typeof body.accessToken === "string" && up.refreshCookie) {
+    // 200/201 with an access token is a success; a missing Set-Cookie is the API's 20 s grace for a concurrent refresh
+    // (the winning request already left the new cookie in the browser), not an error
+    if (up.status >= 200 && up.status < 300 && typeof body.accessToken === "string") {
       const expiresIn = typeof body.expiresIn === "number" ? body.expiresIn : 900;
       return { kind: "ok", tokens: { accessToken: body.accessToken, expiresIn, refreshToken: up.refreshCookie } };
     }

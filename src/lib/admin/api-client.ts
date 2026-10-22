@@ -87,7 +87,13 @@ async function presentRefreshCookie(): Promise<string | null> {
       setAccessToken(null);
       return null;
     }
+    // 200 o 201: dentro de los 20 s de gracia la API devuelve solo el accessToken, sin Set-Cookie (la petición que
+    // ganó ya dejó la cookie nueva). Es un éxito, no se toca la sesión.
     const data = (await res.json()) as RefreshResult;
+    if (typeof data.accessToken !== "string") {
+      setAccessToken(null);
+      return null;
+    }
     setAccessToken(data.accessToken, data.expiresIn);
     try {
       authChannel()?.postMessage({ accessToken: data.accessToken, expiresIn: data.expiresIn } satisfies TokenMessage);
