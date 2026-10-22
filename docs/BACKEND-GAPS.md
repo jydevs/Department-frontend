@@ -56,3 +56,20 @@ catálogo. Por eso productos, colecciones, precios y disponibilidad se **revalid
   (`GET /storefront/collections`), así que la cabecera de `/collections/men` y `/collections/women` muestra "Clothes" y
   se distinguen solo por el `handle`. **Petición:** títulos "Men" / "Women" (o `seo.title`) en la semilla.
 - El pie de página fija `© 2026 Daregular Dept.` en el texto del CMS; el respaldo del front usa el año actual.
+
+## 6. Carrito, checkout y pagos
+
+Evidencia: `Department-backend/src/commerce/{cart,checkout,payments,shipping,pricing}` y la API de pruebas (`department_qa`).
+
+| # | Hueco | Qué hace el front mientras tanto | Petición exacta |
+| --- | --- | --- | --- |
+| 1 | No hay cotización con envío: `GET /storefront/carts/:id` devuelve siempre `shippingTotal: 0`. El `Quote` con `shippingRateId`/`department` solo se usa dentro del checkout. | El resumen suma el precio de la tarifa que devuelve `/storefront/shipping-rates` y no muestra el IVA exacto hasta que existe el pedido (el total final lo fija el servidor). | Aceptar `?shippingRateId=&department=` en `GET /storefront/carts/:id` (o un `POST …/quote`). |
+| 2 | El `Quote` no dice si el IVA está incluido (`prices_include_tax`). | Se infiere: `total == subtotal − descuento + envío`. | Añadir `pricesIncludeTax: boolean` (y `taxRatePercent`) al `Quote`. |
+| 3 | Las líneas del `Quote` no traen el `handle` del producto. | Se guarda `variantId → handle` en `localStorage` (solo metadatos de presentación, nunca precios). Una línea añadida desde otro navegador no enlaza a su ficha. | `productHandle` en `QuoteLine`. |
+| 4 | `GET /storefront/carts/:id` no indica `converted`: tras el checkout el carrito sigue respondiendo con sus líneas y las mutaciones dan 409 `CART_CONVERTED`. | Al crear el pedido, el BFF borra su cookie `dept_cart` (el carrito ya está convertido). | `convertedOrderNumber` (o 410) en `CartResponse`. |
+| 5 | Las líneas del pedido público no traen `variantId` y el pedido no devuelve las instrucciones de pago: no se puede reabrir el pago ni recuperar el carrito desde la API. | El BFF guarda en la cookie httpOnly del pedido las instrucciones de pago (no secretas) y `[variantId, cantidad]` de su carrito. Sin esa cookie (otro navegador) no hay reintento. | `GET /storefront/orders/:n?token=` con `payment.instructions` mientras `status=pending`, y `variantId` en las líneas. |
+| 6 | `redirectUrl` de Wompi es `${STOREFRONT_URL}/checkout/result` sin referencia ni número de pedido (Wompi solo añade `?id=`). | El pedido se identifica por la cookie `dept_last_order`. Si el comprador vuelve en otro navegador, la página pide el enlace de seguimiento o iniciar sesión. | Permitir `redirect-url` con `?order=<n>` o devolver `redirectUrl` que ya incluya el número de pedido. |
+| 7 | `GET /storefront/shipping-rates` exige `X-Cart-Token` (no documentado en `docs/API.md`, que no lo lista como «Auth»). | El BFF lo envía. | Documentarlo. |
+| 8 | `DISCOUNT_INVALID` en el carrito nunca trae `already_used` (necesita el email), solo aparece al pagar. | El checkout mapea el error a un mensaje claro. | Opcional: aceptar `email` al aplicar el código. |
+| 9 | Un pago `DECLINED`/`ERROR` deja el pedido `pending` (decisión documentada del backend). | El front lo muestra como «no aprobado» (`pending` + `payment.status=declined|error`) y permite reintentar con la misma referencia. | — (solo informativo). |
+| 10 | El stock del catálogo de pruebas es limitado y las reservas de pedidos `pending` (30 min) lo consumen: las pruebas automáticas agotan variantes. | Las pruebas rotan tallas. | — |
