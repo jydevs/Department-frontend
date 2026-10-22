@@ -17,6 +17,7 @@ El contenido del CMS se refleja al instante (webhook de revalidación); el **cat
 | Logotipo dibujado (sin imagen, texto «Dept») | Ajustes y tema › Marca | `brand.logoText` «Texto del logotipo dibujado» |
 | Variante del logotipo (rojo / negro) | Contenido › Plantillas › Cabecera y pie › Cabecera del sitio | `logoVariant` |
 | Favicon (icono de la pestaña) | Ajustes y tema › Marca | `brand.faviconMediaUrl` (vacío → `/favicon.svg` incluido) |
+| Icono al añadir a la pantalla de inicio (iOS, `apple-touch-icon`) | Archivo del repositorio: `public/apple-touch-icon.png` (PNG 180×180) | No sale del CMS: iOS no admite SVG y el favicon del CMS puede ser SVG. Para cambiarlo, sustituye el PNG (cuadrado, sin esquinas redondeadas) |
 | Imagen al compartir en redes (og-image de la portada y páginas) | Ajustes y tema › SEO | `seo.ogImageUrl` (vacío → foto del hero de Inicio). Título/antetítulo del cartel: `brand.tagline` y `announcement.text`; color de la franja: `theme.colors.accent` |
 | og-image de un producto | Catálogo › Productos › (producto) › Medios | primera imagen del producto (+ título y precio) |
 | og-image de una colección | Catálogo › Colecciones › (colección) › Imagen | imagen de la colección |

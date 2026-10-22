@@ -34,7 +34,8 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: seo.defaultDescription,
     applicationName: brand.name,
-    icons: { icon: favicon, shortcut: favicon, apple: favicon },
+    // iOS ignores SVG for the home-screen icon: it gets its own 180×180 PNG (public/apple-touch-icon.png)
+    icons: { icon: favicon, shortcut: favicon, apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" } },
     openGraph: {
       type: "website",
       siteName: brand.name,
