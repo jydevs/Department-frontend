@@ -24,5 +24,5 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
 export const config = {
   // pages only: no framework assets, API routes, admin or static files (anything with an extension)
-  matcher: ["/((?!_next/|api/|admin/|.*\..*).*)"],
+  matcher: ["/((?!_next/|api/|admin/|.*\\.[A-Za-z0-9]+$).*)"],
 };
