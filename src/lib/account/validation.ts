@@ -5,7 +5,6 @@ import type { CustomerAddress } from "./types";
 /** Field errors: field name → message. Empty object = valid. */
 export type FieldErrors = Record<string, string>;
 
-// eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f\u007f]/;
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^\+?[0-9]{7,20}$/;

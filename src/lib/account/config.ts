@@ -42,7 +42,6 @@ export function isProtectedPath(pathname: string): boolean {
 export function safeNextPath(value: string | null | undefined, fallback = "/account"): string {
   if (!value || value.length > 512) return fallback;
   if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return fallback;
-  // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f\\]/.test(value)) return fallback;
   try {
     const url = new URL(value, "http://internal.invalid");
