@@ -19,13 +19,20 @@ export const dynamic = "force-dynamic";
 
 /**
  * The visitor's cart with the server's quote. No cart yet → an empty one (no API call, no cart created).
- * `?shippingRateId=&department=[&email=]` asks the API to quote the shipping and the tax over it.
+ * `?shippingRateId=&department=` asks the API to quote the shipping and the tax over it. The e-mail (to validate
+ * single-use discount codes) comes in the `X-Quote-Email` header, URI-encoded, so it never sits in the browser's URL;
+ * it only goes to the API as a query parameter on the server-to-server call.
  */
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams;
   const shippingRateId = q.get("shippingRateId") ?? "";
   const department = q.get("department")?.trim() ?? "";
-  const email = q.get("email")?.trim() ?? "";
+  let email = "";
+  try {
+    email = decodeURIComponent(req.headers.get("x-quote-email") ?? "").trim();
+  } catch {
+    /* malformed encoding: ignored, the quote just goes without the e-mail */
+  }
   if (Boolean(shippingRateId) !== Boolean(department) || (shippingRateId && !isUuid(shippingRateId)) || department.length > 60 || email.length > 255) {
     return badRequest("Método de envío o destino no válidos.");
   }

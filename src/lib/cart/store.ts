@@ -72,7 +72,6 @@ let quoteParams: ShippingQuoteParams | null = null;
 function quoteUrl(): string {
   if (!quoteParams) return "/api/cart";
   const q = new URLSearchParams({ shippingRateId: quoteParams.shippingRateId, department: quoteParams.department });
-  if (quoteParams.email) q.set("email", quoteParams.email);
   return `/api/cart?${q}`;
 }
 
@@ -89,12 +88,12 @@ export function setShippingQuote(next: ShippingQuoteParams | null): Promise<void
 
 type Outcome = { ok: true; cart: CartState } | { ok: false; issue: ApiIssue };
 
-async function call(method: string, url: string, body?: unknown): Promise<Outcome> {
+async function call(method: string, url: string, body?: unknown, extraHeaders?: Record<string, string>): Promise<Outcome> {
   try {
     const res = await fetch(url, {
       method,
       cache: "no-store",
-      headers: { Accept: "application/json", ...(method !== "GET" ? { "Content-Type": "application/json" } : null) },
+      headers: { Accept: "application/json", ...(method !== "GET" ? { "Content-Type": "application/json" } : null), ...extraHeaders },
       body: method === "GET" ? undefined : JSON.stringify(body ?? {}),
     });
     type Body = { cart?: CartState; error?: ApiIssue };
@@ -122,7 +121,8 @@ function broadcast() {
 /* ── reading ─────────────────────────────────────────────── */
 
 async function refresh(): Promise<void> {
-  const r = await call("GET", quoteUrl());
+  // the e-mail is personal data: it travels in a header, never in the URL (browser history, proxies, access logs)
+  const r = await call("GET", quoteUrl(), undefined, quoteParams?.email ? { "X-Quote-Email": encodeURIComponent(quoteParams.email) } : undefined);
   lastRead = Date.now();
   if (r.ok) set({ cart: r.cart, ready: true });
   else {

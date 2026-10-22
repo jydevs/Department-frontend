@@ -93,3 +93,9 @@ está conectado en el front.
   «Volver al carrito». **Petición:** que ese endpoint devuelva el mismo shape que `GET /storefront/orders/:n`
   (`payment: { provider, status, method, instructions }` mientras el pedido sea pagable, `reservedUntil`, y por línea
   `variantId`, `productId`, `productHandle`); el front ya usa `canRetry` / `hasLines` a partir de esos campos.
+- **El email de la cotización viaja en la query de la API.** `GET /storefront/carts/:id?shippingRateId=&department=&email=`
+  es la única forma de pasar el correo (para validar descuentos de un solo uso). El navegador ya no lo envía en la URL
+  (va en la cabecera `X-Quote-Email` hacia el BFF), pero el BFF lo reenvía como query a la API, donde puede acabar en
+  logs de acceso del proxy. **Petición:** aceptar el correo también en una cabecera `X-Customer-Email` (o un
+  `POST /storefront/carts/:id/quote` con body `{ shippingRateId, department, email }`) y quitar la query de los logs;
+  el BFF cambiará a esa vía en cuanto exista.
