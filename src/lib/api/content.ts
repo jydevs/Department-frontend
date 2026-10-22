@@ -2,7 +2,6 @@ import { apiGet, contentGet } from "./http";
 import type {
   ApiContentDocument,
   ApiPageListItem,
-  ApiRedirect,
   MenuData,
   PageData,
   SectionEnvelope,
@@ -90,39 +89,4 @@ export async function getPage(handle: string): Promise<(PageData & { sections: S
 export async function listPages(): Promise<ApiPageListItem[]> {
   const list = await apiGet<ApiPageListItem[]>(`${BASE}/pages`, { tags: ["content:pages"] });
   return Array.isArray(list) ? list : [];
-}
-
-export interface ContentBundle {
-  settings: SiteSettings | null;
-  menus: Record<string, MenuData>;
-  template: TemplateData | null;
-}
-
-/** `GET /storefront/content/bundle?template=…` — one round trip with settings, menus and a template. Not available in preview. */
-export async function getBundle(template: TemplateKey | "page"): Promise<ContentBundle | null> {
-  const raw = await apiGet<{
-    settings?: ApiContentDocument<Partial<SiteSettings>>;
-    menus?: Record<string, ApiContentDocument<MenuData>>;
-    template?: ApiContentDocument<TemplateData>;
-  }>(`${BASE}/bundle`, {
-    query: { template },
-    tags: ["content:settings:site", "content:menu:main", "content:menu:footer", `content:template:${template}`],
-  });
-  if (!raw) return null;
-  const menus: Record<string, MenuData> = {};
-  for (const [key, doc] of Object.entries(raw.menus ?? {})) {
-    if (doc && isRecord(doc.data) && Array.isArray(doc.data.items)) menus[key] = doc.data;
-  }
-  return {
-    settings: raw.settings && isRecord(raw.settings.data) ? mergeSettings(raw.settings.data) : null,
-    menus,
-    template: raw.template && isRecord(raw.template.data) ? { sections: cleanSections(raw.template.data.sections) } : null,
-  };
-}
-
-/** Active redirects (`GET /storefront/redirects`). */
-export async function getRedirects(): Promise<ApiRedirect[]> {
-  const list = await apiGet<ApiRedirect[]>("/storefront/redirects", { tags: ["redirects"] });
-  if (!Array.isArray(list)) return [];
-  return list.filter((r) => r && typeof r.from === "string" && typeof r.to === "string" && typeof r.status === "number");
 }
