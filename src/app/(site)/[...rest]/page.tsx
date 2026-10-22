@@ -1,4 +1,8 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+
+// same title as `(site)/not-found.tsx`, so an unmatched URL looks exactly like any other 404
+export const metadata: Metadata = { title: "404" };
 
 /**
  * Catch-all of the storefront: a URL that matches no route is turned into a regular `notFound()`, so the 404 is rendered
