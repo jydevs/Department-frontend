@@ -34,6 +34,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  // pages only: no framework assets, API routes, admin or static files (anything with an extension)
-  matcher: ["/((?!_next/|api/|admin/|admin$|.*\\.[A-Za-z0-9]+$).*)"],
+  // pages only: no framework assets, API routes, admin or KNOWN static files. Other extensions (e.g. a CMS redirect
+  // from /pages/x.html) do reach the proxy so their redirect applies.
+  matcher: [
+    "/((?!_next/|api/|admin/|admin$|.*\\.(?:js|css|map|png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|webmanifest)$|robots\\.txt$|sitemap[^/]*\\.xml$).*)",
+  ],
 };
