@@ -1,5 +1,8 @@
 # Assets
 
+> Todas las imágenes visibles se cambian desde el panel (`/admin`); ver `docs/EDITABILIDAD.md`. Los archivos de
+> `public/images/` son solo los valores iniciales que siembra el backend.
+
 ## Current state: lookbook photos wired, product renders still placeholders
 
 `<PlaceholderImage>` (`src/components/ui/PlaceholderImage.tsx`) accepts an optional
