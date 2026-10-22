@@ -18,7 +18,7 @@ interface FieldProps {
   children: (props: { id: string; "aria-invalid": boolean | undefined; "aria-required": boolean | undefined; "aria-describedby": string | undefined; className: string }) => ReactNode;
 }
 
-/** Label + control + error/hint, wired for assistive tech (`aria-invalid`, `aria-describedby`, announced error). */
+/** Label + control + error/hint, wired for assistive tech (`aria-invalid`, `aria-describedby`, error linked through `aria-describedby`; the summary announces errors). */
 export function Field({ id, label, required, optionalHint, error, hint, className, children }: FieldProps) {
   const uid = useId();
   const errId = `${uid}-err`;
@@ -43,7 +43,7 @@ export function Field({ id, label, required, optionalHint, error, hint, classNam
           {hint}
         </p>
       ) : null}
-      <p id={errId} role="alert" data-testid={`error-${id}`} className="font-condensed mt-1.5 min-h-0 text-xs tracking-[0.04em] text-dept-red-light">
+      <p id={errId} data-testid={`error-${id}`} className="font-condensed mt-1.5 min-h-0 text-xs tracking-[0.04em] text-dept-red-light">
         {error}
       </p>
     </div>
