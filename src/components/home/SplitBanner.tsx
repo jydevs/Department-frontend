@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PlaceholderImage } from "@/components/ui/PlaceholderImage";
 import { Reveal } from "@/components/ui/Reveal";
+import { Button } from "@/components/ui/Button";
 import { clsx } from "@/lib/clsx";
 import { pad2 } from "@/lib/cms/reader";
 
@@ -15,10 +16,22 @@ export interface SplitTile {
   count: number | null;
 }
 
+/** Legacy single-banner mode (a `split-banner` section without `tile` blocks): photo on one side, text on the other. */
+export interface LegacyBanner {
+  heading: string;
+  text?: string;
+  imageUrl?: string;
+  imageAlt: string;
+  imagePosition: "left" | "right";
+  ctaLabel?: string;
+  ctaHref?: string;
+}
+
 export interface SplitBannerProps {
   id?: string;
   ariaLabel?: string;
   tiles: SplitTile[];
+  legacy?: LegacyBanner;
   showCount: boolean;
   countLabel: string;
   numbered: boolean;
@@ -37,7 +50,32 @@ const COLUMNS: Record<number, string> = {
  * Photos start slightly desaturated and bloom on hover; a square arrow fills in.
  * Stacks on mobile.
  */
-export function SplitBanner({ id, ariaLabel, tiles, showCount, countLabel, numbered, backgroundColor }: SplitBannerProps) {
+export function SplitBanner({ id, ariaLabel, tiles, legacy, showCount, countLabel, numbered, backgroundColor }: SplitBannerProps) {
+  if (tiles.length === 0 && legacy) {
+    return (
+      <section
+        id={id}
+        aria-label={ariaLabel ?? legacy.heading}
+        className="grid md:grid-cols-2"
+        style={backgroundColor ? { backgroundColor } : undefined}
+      >
+        <div className={clsx("relative aspect-[4/5] md:aspect-auto md:min-h-[80svh]", legacy.imagePosition === "right" && "md:order-2")}>
+          <PlaceholderImage label={legacy.imageAlt} src={legacy.imageUrl} tone="dark" hideLabel fill sizes="(min-width: 768px) 50vw, 100vw" />
+        </div>
+        <Reveal className="flex flex-col justify-center gap-6 px-gutter py-section">
+          <h2 className="font-display text-display-xl text-dept-white">{legacy.heading}</h2>
+          {legacy.text && <p className="max-w-xl text-lg leading-relaxed text-white/70">{legacy.text}</p>}
+          {legacy.ctaLabel && legacy.ctaHref && (
+            <div>
+              <Button href={legacy.ctaHref} variant="outline" arrow>
+                {legacy.ctaLabel}
+              </Button>
+            </div>
+          )}
+        </Reveal>
+      </section>
+    );
+  }
   if (tiles.length === 0) return null;
   return (
     <section

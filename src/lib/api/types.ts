@@ -166,7 +166,7 @@ export interface SiteSettings {
     separator?: string;
     duration?: number;
   };
-  store: { currency: "COP"; locale: "es-CO"; contactEmail?: string };
+  store: { currency: "COP"; locale: "es-CO"; contactEmail?: string; whatsapp?: string };
 }
 
 export type MenuLink = { type: "collection" | "product" | "page"; handle: string } | { type: "url"; url: string };
@@ -210,4 +210,4 @@ export interface PageData {
 }
 
 /** Template keys the API accepts (`GET /storefront/content/templates/:key`). */
-export type TemplateKey = "layout" | "home" | "collection" | "product" | "search" | "cart" | "404";
+export type TemplateKey = "layout" | "home" | "collection" | "product" | "search" | "cart" | "404" | "page";

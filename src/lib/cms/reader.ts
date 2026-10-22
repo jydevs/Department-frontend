@@ -1,4 +1,5 @@
 import { resolveMediaUrl } from "@/lib/api/media";
+import { isHandle } from "@/lib/handle";
 import type { SectionBlock, SectionEnvelope } from "@/lib/api/types";
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
@@ -78,10 +79,16 @@ export class Reader {
     return resolveMediaUrl(typeof v === "string" ? v : undefined) ?? undefined;
   }
 
-  /** DOM id / handle-like string (no `#`), or undefined */
+  /** DOM id (no `#`), same rule as the backend (lowercase letters, digits and dashes, 1-40 chars), or undefined */
   anchor(key: string): string | undefined {
     const v = this.bag[key];
-    return typeof v === "string" && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(v) ? v : undefined;
+    return typeof v === "string" && /^[a-z0-9-]{1,40}$/.test(v) ? v : undefined;
+  }
+
+  /** product / collection / page handle (`a-b-c`), or undefined */
+  handle(key: string): string | undefined {
+    const v = this.bag[key];
+    return isHandle(v) ? v : undefined;
   }
 
   strings(key: string): string[] | undefined {

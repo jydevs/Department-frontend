@@ -9,7 +9,9 @@ import type { CartConfig } from "@/components/layout/config";
 import type { SearchConfig } from "@/components/search/config";
 import { readCartConfig, readNewsletter, readSearchConfig } from "./adapters";
 import { flattenNav, toNav, type NavItem } from "./links";
-import { blocksOf, isSafeLink, reader } from "./reader";
+import { blocksOf, isHexColor, isSafeLink, reader } from "./reader";
+import { fallbackLayoutTemplate, FALLBACK_MENUS } from "./fallback";
+import { DEFAULT_NEWSLETTER } from "@/components/layout/config";
 import { resolveMediaUrl } from "@/lib/api/media";
 
 /** Everything the root layout needs, resolved once per request from the CMS (and gracefully defaulted). */
@@ -69,8 +71,8 @@ function buildHeader(
       ? {
           items,
           href: a.href && isSafeLink(a.href) ? a.href : undefined,
-          backgroundColor: a.backgroundColor,
-          textColor: a.textColor,
+          backgroundColor: isHexColor(a.backgroundColor) ? a.backgroundColor : undefined,
+          textColor: isHexColor(a.textColor) ? a.textColor : undefined,
           separator: a.separator || "✦",
           duration: a.duration ?? 38,
         }
@@ -107,9 +109,18 @@ function buildFooter(
   settings: SiteSettings,
   menus: Record<string, NavItem[]>,
 ): FooterConfig {
-  const newsletter = newsletterSection ? readNewsletter(newsletterSection) : null;
+  // legacy flag `footer.showNewsletter`: a footer asking for the newsletter gets one even without a `newsletter` section
+  const legacyNewsletter = section ? reader(section).bool("showNewsletter", false) : false;
+  const newsletter = newsletterSection
+    ? readNewsletter(newsletterSection)
+    : legacyNewsletter
+      ? DEFAULT_NEWSLETTER
+      : null;
   const social: FooterLink[] = Object.entries(settings.social)
     .flatMap(([key, url]) => (typeof url === "string" && url.startsWith("https://") ? [{ label: SOCIAL_LABELS[key] ?? key, href: url }] : []));
+  // settings/site.store.whatsapp (digits, optional +) → wa.me link
+  const whatsapp = settings.store.whatsapp?.replace(/^\+/, "");
+  if (whatsapp && /^[0-9]{7,15}$/.test(whatsapp)) social.push({ label: "WhatsApp", href: `https://wa.me/${whatsapp}` });
 
   if (!section) {
     // no footer section published: keep a small brand footer
@@ -161,12 +172,14 @@ function buildFooter(
 
 /** Loads (and memoises per request) everything the shared chrome needs. Never throws. */
 export const loadLayout = cache(async (): Promise<LayoutData> => {
-  const [settings, layoutTemplate, searchTemplate, cartTemplate] = await Promise.all([
+  const [settings, fetchedLayout, searchTemplate, cartTemplate] = await Promise.all([
     getSiteSettingsOrDefault(),
     safe(getTemplate("layout"), null),
     safe(getTemplate("search"), null),
     safe(getTemplate("cart"), null),
   ]);
+  // no layout document (API down / not seeded yet): the original header, newsletter and footer
+  const layoutTemplate = fetchedLayout ?? fallbackLayoutTemplate(settings.brand.name);
 
   const headerSection = findSection(layoutTemplate, "site-header");
   const footerSection = findSection(layoutTemplate, "footer");
@@ -179,7 +192,7 @@ export const loadLayout = cache(async (): Promise<LayoutData> => {
     if (typeof key === "string" && /^[a-z0-9-]{1,60}$/.test(key)) menuKeys.add(key);
   }
   const menuEntries = await Promise.all(
-    [...menuKeys].map(async (key) => [key, toNav(await safe(getMenu(key), null))] as const),
+    [...menuKeys].map(async (key) => [key, toNav((await safe(getMenu(key), null)) ?? FALLBACK_MENUS[key] ?? null)] as const),
   );
   const menus: Record<string, NavItem[]> = Object.fromEntries(menuEntries);
 

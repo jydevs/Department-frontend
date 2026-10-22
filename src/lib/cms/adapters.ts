@@ -52,7 +52,7 @@ export function readProductDetail(section: SectionEnvelope | undefined): Product
     id: section.id,
     breadcrumbHomeLabel: r.str("breadcrumbHomeLabel", d.breadcrumbHomeLabel),
     breadcrumbCollectionLabel: r.str("breadcrumbCollectionLabel", d.breadcrumbCollectionLabel),
-    breadcrumbCollectionHandle: r.anchor("breadcrumbCollectionHandle") ?? d.breadcrumbCollectionHandle,
+    breadcrumbCollectionHandle: r.handle("breadcrumbCollectionHandle") ?? d.breadcrumbCollectionHandle,
     sizeLabel: r.str("sizeLabel", d.sizeLabel),
     quantityLabel: r.str("quantityLabel", d.quantityLabel),
     maxQuantity: Math.round(r.num("maxQuantity", d.maxQuantity, 1, 50)),

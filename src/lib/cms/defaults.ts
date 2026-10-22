@@ -37,7 +37,15 @@ export const FALLBACK_SETTINGS: SiteSettings = {
       "Uniforms for the unnoticed. Rags to Riches — Extended Version: ropa que no diseña ropa, sino mensajes.",
   },
   social: {},
-  announcement: { enabled: false, text: "" },
+  // same ticker the original site shows; the CMS (settings/site) overrides or disables it
+  announcement: {
+    enabled: true,
+    text: "Rags to Riches — Extended Version",
+    items: ["Rags to Riches — Extended Version", "Uniforms for the unnoticed", "Regular members only", "Precios en COP"],
+    backgroundColor: "#e10e0e",
+    textColor: "#ffffff",
+    duration: 38,
+  },
   store: { currency: "COP", locale: "es-CO" },
 };
 
@@ -61,7 +69,8 @@ export function mergeSettings(data: Partial<SiteSettings>): SiteSettings {
     },
     seo: group(FALLBACK_SETTINGS.seo, data.seo),
     social: group(FALLBACK_SETTINGS.social, data.social),
-    announcement: group(FALLBACK_SETTINGS.announcement, data.announcement),
+    // a CMS announcement replaces the built-in one entirely (its ticker items must not leak into an edited text)
+    announcement: group<SiteSettings["announcement"]>(isRecord(data.announcement) ? { enabled: false, text: "" } : FALLBACK_SETTINGS.announcement, data.announcement),
     store: group(FALLBACK_SETTINGS.store, data.store),
   };
 }

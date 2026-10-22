@@ -145,7 +145,7 @@ const splitBanner: Renderer = async (section) => {
   const r = reader(section);
   const showCount = r.bool("showCount", true);
   const tileBlocks = blocksOf(section, "tile");
-  let tiles: SplitTile[] = await Promise.all(
+  const tiles: SplitTile[] = await Promise.all(
     tileBlocks.map(async (b): Promise<SplitTile> => {
       const collectionHandle = b.s.opt("collectionHandle");
       const href = collectionHandle ? `/collections/${encodeURIComponent(collectionHandle)}` : (b.s.link("href") ?? "#");
@@ -160,24 +160,25 @@ const splitBanner: Renderer = async (section) => {
       };
     }),
   );
-  if (tiles.length === 0 && r.opt("heading")) {
-    // legacy single-banner mode
-    tiles = [
-      {
-        id: section.id,
-        label: r.str("heading"),
-        imageUrl: r.image("imageUrl"),
-        imageAlt: r.str("imageAlt", r.str("heading")),
-        href: r.link("ctaHref") ?? "#",
-        count: null,
-      },
-    ];
-  }
+  // legacy single-banner mode: only when there are no tile blocks
+  const legacy =
+    tiles.length === 0 && r.opt("heading")
+      ? {
+          heading: r.str("heading"),
+          text: r.opt("text"),
+          imageUrl: r.image("imageUrl"),
+          imageAlt: r.str("imageAlt", r.str("heading")),
+          imagePosition: r.oneOf("imagePosition", ["left", "right"], "left"),
+          ctaLabel: r.opt("ctaLabel"),
+          ctaHref: r.link("ctaHref"),
+        }
+      : undefined;
   return (
     <SplitBanner
       id={section.id}
       ariaLabel={r.opt("ariaLabel")}
       tiles={tiles}
+      legacy={legacy}
       showCount={showCount}
       countLabel={r.str("countLabel", "piezas")}
       numbered={r.bool("numbered", true)}
