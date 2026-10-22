@@ -1,6 +1,9 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { cookieOptions } from "@/lib/cart/server";
+import type { NextRequest } from "next/server";
+import { optionalSession, type SessionTokens } from "@/lib/account/server/bff";
+import { callApi, cookieOptions, type ApiResult } from "@/lib/cart/server";
+import type { OrderView } from "@/lib/cart/types";
 
 /**
  * The order's access token (returned by the API when the order is created) lives in a short httpOnly cookie
@@ -30,6 +33,30 @@ async function readOrderToken(orderNumber: number): Promise<string | null> {
 export async function orderToken(orderNumber: number, fromRequest: unknown): Promise<string | null> {
   if (typeof fromRequest === "string" && ORDER_TOKEN_RE.test(fromRequest)) return fromRequest;
   return readOrderToken(orderNumber);
+}
+
+/** Only remembers which order this browser is paying (a customer session reads it without a token). */
+export async function saveLastOrderCookie(orderNumber: number): Promise<void> {
+  (await cookies()).set(LAST_ORDER_COOKIE, String(orderNumber), cookieOptions(ORDER_MAX_AGE_SECONDS));
+}
+
+/**
+ * The order as the shop shows it, from the access token of the tracking link / cookie or, without one, from the
+ * logged-in customer's own orders (same shape: lines with variant ids, payment instructions while payable, reservation).
+ * `token` is the one that opened it (null when the customer's session did); `rotated` holds new session tokens the
+ * caller must put on its response.
+ */
+export async function fetchOrderView(
+  req: NextRequest,
+  number: number,
+  fromRequest: unknown,
+): Promise<{ result: ApiResult<OrderView> | null; token: string | null; rotated: SessionTokens | null }> {
+  const token = await orderToken(number, fromRequest);
+  if (token) return { result: await callApi<OrderView>(req, "GET", `/storefront/orders/${number}`, { query: { token } }), token, rotated: null };
+  const session = await optionalSession(req);
+  if (!session.accessToken) return { result: null, token: null, rotated: null };
+  const result = await callApi<OrderView>(req, "GET", `/storefront/customers/me/orders/${number}`, { accessToken: session.accessToken });
+  return { result, token: null, rotated: session.rotated };
 }
 
 export async function readLastOrderNumber(): Promise<number | null> {

@@ -87,20 +87,12 @@ está conectado en el front.
 
 ## 8. Peticiones al backend (auditoría 2)
 
-- **`GET /storefront/customers/me/orders/:orderNumber` incompleto.** Hoy devuelve el pedido sin `payment.instructions`
-  ni `variantId` / `productHandle` / `productId` por línea ni `reservedUntil`. Por eso `/orders/<n>` sin token pero con
-  sesión de cliente (el front lo lee de la cuenta) solo puede **mostrar** el pedido: no puede reintentar el pago ni
-  «Volver al carrito». **Petición:** que ese endpoint devuelva el mismo shape que `GET /storefront/orders/:n`
-  (`payment: { provider, status, method, instructions }` mientras el pedido sea pagable, `reservedUntil`, y por línea
-  `variantId`, `productId`, `productHandle`); el front ya usa `canRetry` / `hasLines` a partir de esos campos.
-- **El email de la cotización viaja en la query de la API.** `GET /storefront/carts/:id?shippingRateId=&department=&email=`
-  es la única forma de pasar el correo (para validar descuentos de un solo uso). El navegador ya no lo envía en la URL
-  (va en la cabecera `X-Quote-Email` hacia el BFF), pero el BFF lo reenvía como query a la API, donde puede acabar en
-  logs de acceso del proxy. **Petición:** aceptar el correo también en una cabecera `X-Customer-Email` (o un
-  `POST /storefront/carts/:id/quote` con body `{ shippingRateId, department, email }`) y quitar la query de los logs;
-  el BFF cambiará a esa vía en cuanto exista.
-- **Los listados de productos no traen `updatedAt`.** `GET /storefront/products` devuelve por item
-  `{ id, handle, title, price, image, available }`; el sitemap necesitaba la fecha real de cada producto y pedía el detalle
-  de hasta 500 productos (lecturas que consumen el cupo por `X-Storefront-Key`). Ahora el sitemap **no** pide detalles:
-  emite los productos sin `lastModified` mientras el listado no la traiga. **Petición:** añadir
-  `updatedAt: Date` a `StorefrontProductSummary` (los tres endpoints de listado); el sitemap ya la usa si llega.
+Las tres quedaron atendidas en el backend (rama `fix/audit-backend-2`) y el front ya las usa. **Resuelto.**
+
+- **`GET /storefront/customers/me/orders/:orderNumber`** devuelve ahora por línea `variantId` / `productId` /
+  `productHandle`, `payment.instructions` mientras el pedido está pendiente y `reservedUntil`. `/orders/<n>` sin token pero
+  con sesión de cliente (`/api/checkout/order`, `/api/checkout/pay`, `/api/cart/restore`) lee el pedido de la cuenta y
+  permite «Continuar con el pago» y «Volver al carrito»; el detalle del pedido en «Mi cuenta» enlaza a esa página.
+- **Email de la cotización.** El BFF del carrito lo reenvía a la API en la cabecera `X-Quote-Email` (ya no en la query
+  `?email=`, que podía acabar en los logs del proxy).
+- **`updatedAt` en los listados de productos.** El sitemap lo usa como `lastModified` de cada producto sin pedir su detalle.

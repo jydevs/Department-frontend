@@ -198,6 +198,19 @@ export function OrderDetailPanel({ orderNumber }: { orderNumber: string }) {
         </div>
       </div>
 
+      {order.paymentStatus !== "paid" && ["pending", "cancelled", "expired"].includes(order.status) && (
+        <div data-testid="order-recover" className="flex flex-wrap items-center gap-4 border border-white/15 p-4">
+          <p className="font-condensed min-w-0 flex-1 text-xs leading-relaxed tracking-[0.08em] text-dept-gray-300">
+            {order.status === "pending"
+              ? "Este pedido sigue esperando el pago. Puedes continuar con el pago o volver a armar el carrito."
+              : "Este pedido no se pagó. Puedes volver a armar el carrito con sus productos."}
+          </p>
+          <Button href={`/orders/${order.orderNumber}`} variant={order.status === "pending" ? "red" : "outline"} size="md" data-testid="order-recover-link">
+            {order.status === "pending" ? "Continuar con el pago" : "Volver al carrito"}
+          </Button>
+        </div>
+      )}
+
       <section aria-labelledby="lines-h">
         <h3 id="lines-h" className="font-condensed mb-4 text-[11px] tracking-[0.2em] text-dept-gray-500">ARTÍCULOS</h3>
         <ul className="divide-y divide-white/10 border border-white/15">

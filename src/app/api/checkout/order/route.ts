@@ -7,26 +7,17 @@ import { orderToken, readLastOrderNumber } from "@/lib/checkout/server";
 
 export const dynamic = "force-dynamic";
 
-type AccountOrder = Omit<OrderView, "lines" | "payment" | "reservedUntil"> & {
-  lines: Omit<OrderView["lines"][number], "variantId" | "productId" | "productHandle">[];
-};
-
-/** The customer's own order has no variant ids, product handles, payment nor reservation: they come back empty. */
-function fromAccountOrder(o: AccountOrder): OrderView {
-  return {
-    ...o,
-    lines: o.lines.map((l) => ({ ...l, variantId: null, productId: null, productHandle: null })),
-    payment: null,
-    reservedUntil: null,
-  };
+/** `canRetry` / `hasLines` tell the page it can reopen the payment / put the lines back in a cart. */
+function orderPayload(order: OrderView) {
+  return { order, canRetry: Boolean(order.payment?.instructions), hasLines: order.lines.some((l) => l.variantId) };
 }
 
 /**
  * Status of an order. `?number=` picks the order (default: the one this browser checked out last); the access token
  * comes from `?token=` (the tracking link, valid from any browser) or from the httpOnly cookie. `canRetry` and
  * `hasLines` tell the page it can reopen the payment / put the lines back in a cart; both come from the order itself.
- * Without a token but with a customer session, the order is read from the customer's own orders
- * (`/me/orders/:n`), which carries no payment instructions nor variant ids: there the page can only show the order.
+ * Without a token but with a customer session, the order is read from the customer's own orders (`/me/orders/:n`),
+ * which carries the same payment instructions, variant ids and reservation: the page can retry the payment too.
  */
 export async function GET(req: NextRequest) {
   const asked = Number(req.nextUrl.searchParams.get("number"));
@@ -37,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (!token) {
     if (hasSessionCookie(req)) {
       return withSession(req, (accessToken) => upstream(`/storefront/customers/me/orders/${number}`, { accessToken, req }), {
-        map: (body) => ({ order: fromAccountOrder(body as AccountOrder), canRetry: false, hasLines: false }),
+        map: (body) => orderPayload(body as OrderView),
       });
     }
     return fail({
@@ -54,6 +45,5 @@ export async function GET(req: NextRequest) {
     }
     return fail(result.issue);
   }
-  const order = result.data;
-  return json({ order, canRetry: Boolean(order.payment?.instructions), hasLines: order.lines.some((l) => l.variantId) });
+  return json(orderPayload(result.data));
 }
