@@ -112,3 +112,37 @@ El navegador **no** habla con la API de clientes: lo hace un BFF de route handle
   Son exactamente los enlaces que envía la API por correo (`STOREFRONT_URL` = `NEXT_PUBLIC_SITE_URL`).
 - **Estado en el cliente:** `useCustomer()` (`src/lib/account/useCustomer.tsx`), provisto en `app/layout.tsx`. El servidor
   solo comprueba si las cookies existen para no pedir `/api/account/me` a los visitantes anónimos.
+
+## Carrito, checkout y pagos
+
+- **Carrito en el servidor.** El carrito vive en la API (`/storefront/carts`). El navegador nunca la llama: usa las rutas
+  de Next `/api/cart/**` (BFF), que guardan el id y el token del carrito en la cookie httpOnly `dept_cart` (30 días,
+  `Secure` en producción, `SameSite=Lax`). Las mutaciones exigen `Content-Type: application/json` y un `Origin` igual al
+  host (protección CSRF) y nunca se cachean. Los precios, descuentos e IVA los dicta siempre la cotización de la API.
+  `src/lib/cart.ts` conserva su API pública (`useCart`, `addToCart`, `setLineQty`, `removeFromCart`).
+- **Checkout** (`/checkout`): contacto, dirección de envío (32 departamentos + Bogotá D.C.), tarifas por departamento
+  (`/storefront/shipping-rates`), facturación opcional, código de descuento y aceptación obligatoria de Términos y
+  Privacidad. `POST /api/checkout` llama a `POST /storefront/checkouts` con `Idempotency-Key` (una por cuerpo distinto,
+  reutilizada en reintentos). El token de acceso del pedido se guarda en la cookie httpOnly `dept_order_<n>` (3 días),
+  nunca en `localStorage`.
+- **Resultado** (`/checkout/result`, destino de `redirect-url` de Wompi) y **seguimiento** (`/orders/<n>?token=…`):
+  consultan el estado cada 2 s hasta 30 s mientras el pago está pendiente. Un pago rechazado permite reabrir la pasarela
+  con la misma referencia; un pedido cancelado/expirado permite recuperar el carrito.
+- **Pasarela mock (solo desarrollo).** Con `PAYMENT_PROVIDER=mock` y `MOCK_PAYMENTS_ENABLED=true` en el backend, el pago
+  redirige a `/mock-checkout/<referencia>` (aprobar / rechazar). Esa ruta y `/api/checkout/mock-payment` devuelven 404
+  con `NODE_ENV=production` o con `NEXT_PUBLIC_PAYMENT_PROVIDER=wompi`.
+
+### Activar Wompi
+
+Las llaves **solo van en el backend** (`WOMPI_PUBLIC_KEY`, `WOMPI_INTEGRITY_SECRET`, `WOMPI_EVENTS_SECRET`,
+`PAYMENT_PROVIDER=wompi`, `MOCK_PAYMENTS_ENABLED=false`, `STOREFRONT_URL` = el origen público de esta tienda) y el webhook
+de Wompi debe apuntar a la API. En este front no se pone ninguna llave:
+
+1. `NEXT_PUBLIC_SITE_URL` = origen público de la tienda (debe coincidir con `STOREFRONT_URL` del backend: la cookie del
+   pedido se lee en `/checkout/result`, que Wompi abre en ese origen).
+2. `API_URL` / `NEXT_PUBLIC_API_URL` = la API.
+3. (Opcional) `NEXT_PUBLIC_PAYMENT_PROVIDER=wompi` para ocultar del todo el simulador.
+
+El front arma `https://checkout.wompi.co/p/` con `public-key`, `currency`, `amount-in-cents`, `reference`,
+`signature:integrity` y `redirect-url`, usando exactamente los campos que devuelve el backend. Wompi vuelve a
+`/checkout/result?id=<transacción>` y el estado real lo confirma el webhook (la página lo consulta en la API).
