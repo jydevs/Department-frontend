@@ -1,0 +1,248 @@
+/*
+  Hoja del panel: solo se carga con el layout raíz de (admin), nunca en la tienda. Tailwind solo escanea el código del panel.
+*/
+@import "tailwindcss" source(none);
+@source "../../components/admin";
+@source "../../lib/admin";
+@source "./";
+
+/*
+  Daregular Dept. Admin — design tokens.
+  Oscuro por defecto; claro con [data-theme="light"] (fijado antes de pintar por el script de <head>).
+*/
+
+:root {
+  color-scheme: dark;
+  --bg: #0b0b0c;
+  --surface: #141416;
+  --surface-2: #1d1d20;
+  --surface-3: #26262a;
+  --border: #2c2c31;
+  --border-strong: #3b3b42;
+  --text: #ededf0;
+  --muted: #a0a0a9;
+  --accent: #d10000;
+  --accent-hover: #e01a1a;
+  --accent-contrast: #ffffff;
+  --accent-text: #ff6b63; /* acento para texto pequeño sobre fondo oscuro (AA) */
+  --success: #3ccf7a;
+  --warning: #f0b232;
+  --danger: #ff6b63;
+  --info: #5aa2ff;
+  --overlay: rgb(0 0 0 / 0.6);
+  --sh-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --sh-md: 0 8px 24px rgb(0 0 0 / 0.45);
+  --sh-lg: 0 24px 64px rgb(0 0 0 / 0.55);
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --sidebar-w: 248px;
+  --topbar-h: 56px;
+  --focus: #7ab4ff;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f4f6;
+  --surface: #ffffff;
+  --surface-2: #f0f0f3;
+  --surface-3: #e6e6ea;
+  --border: #dfdfe5;
+  --border-strong: #c9c9d1;
+  --text: #17171a;
+  --muted: #5d5d68;
+  --accent: #d10000;
+  --accent-hover: #b30000;
+  --accent-contrast: #ffffff;
+  --accent-text: #b00000;
+  --success: #12804a;
+  --warning: #8f5f00;
+  --danger: #b3261e;
+  --info: #1558b8;
+  --overlay: rgb(10 10 14 / 0.45);
+  --sh-sm: 0 1px 2px rgb(20 20 30 / 0.08);
+  --sh-md: 0 8px 24px rgb(20 20 30 / 0.12);
+  --sh-lg: 0 24px 64px rgb(20 20 30 / 0.2);
+  --focus: #1a5fd0;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-accent-text: var(--accent-text);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-overlay: var(--overlay);
+  --color-focus: var(--focus);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --shadow-sm: var(--sh-sm);
+  --shadow-md: var(--sh-md);
+  --shadow-lg: var(--sh-lg);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color: var(--text);
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  a {
+    color: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  button {
+    font: inherit;
+  }
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  p {
+    margin: 0;
+  }
+}
+
+/* utilidad: texto solo para lectores de pantalla ya viene como sr-only de Tailwind */
+
+@keyframes dept-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes dept-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes dept-slide-in-right {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes dept-slide-in-left {
+  from {
+    transform: translateX(-24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes dept-pop {
+  from {
+    transform: translateY(6px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes dept-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dept-spin {
+  animation: dept-spin 0.8s linear infinite;
+}
+.dept-skeleton {
+  animation: dept-pulse 1.6s ease-in-out infinite;
+  background: var(--surface-3);
+  border-radius: var(--r-sm);
+}
+.dept-anim-right {
+  animation: dept-slide-in-right 0.18s ease-out;
+}
+.dept-anim-left {
+  animation: dept-slide-in-left 0.18s ease-out;
+}
+.dept-anim-pop {
+  animation: dept-pop 0.16s ease-out;
+}
+.dept-anim-fade {
+  animation: dept-fade 0.15s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .dept-spin {
+    animation: none;
+  }
+}

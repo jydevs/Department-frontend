@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* el código del panel (/admin) tiene su propia hoja: no aporta utilidades a la tienda */
+@source not "../../components/admin";
+@source not "../../lib/admin";
+@source not "../(admin)";
+
 /*
   Daregular Dept. — design tokens
   NOTE: color values are sampled by eye from the reference screenshots.

@@ -48,6 +48,7 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
       >
         <p className="font-condensed text-[11px] tracking-[0.28em] text-dept-gray-500">Cuenta</p>
 
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- full navigation on purpose (closes the modal) */}
         <a
           ref={firstButtonRef}
           href="/account/login"
@@ -57,6 +58,7 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
           Iniciar sesión
         </a>
 
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- full navigation on purpose (closes the modal) */}
         <a
           href="/account/register"
           onClick={onClose}
@@ -66,6 +68,7 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
         </a>
 
         <div className="mt-4 flex gap-2">
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- full navigation on purpose (closes the modal) */}
           <a href="/account/orders" onClick={onClose} className={ghostBtn}>
             <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 8h14l-1.2 12H6.2L5 8z" />

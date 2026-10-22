@@ -12,6 +12,12 @@ const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
 ];
 
+const adminHeaders = [
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Robots-Tag", value: "noindex, nofollow" },
+  { key: "Cache-Control", value: "no-store" },
+];
+
 /**
  * Hosts next/image may optimise: ONLY the PUBLIC origin that serves the uploaded files (`/media/**`).
  * NEXT_PUBLIC_MEDIA_URL wins over NEXT_PUBLIC_API_URL; the internal API_URL is never used here.
@@ -52,6 +58,9 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // the admin panel is never framed (the storefront keeps SAMEORIGIN: the CMS preview is a same-origin iframe of
+      // storefront pages inside /admin) and is kept out of search indexes. Declared after the catch-all so it wins.
+      { source: "/admin/:path*", headers: adminHeaders },
       {
         source: "/images/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }],
