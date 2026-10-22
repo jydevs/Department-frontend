@@ -15,6 +15,14 @@
 
 const DEFAULT_ORIGIN = "http://localhost:4000";
 
+/** Dev fallback only: a production build/server must never silently talk to localhost. */
+function defaultOrigin(): string {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Falta NEXT_PUBLIC_API_URL: el build/arranque de producción exige el origen público de la API (p. ej. https://api.daregular.com).");
+  }
+  return DEFAULT_ORIGIN;
+}
+
 export function normalizeOrigin(value: string | undefined): string | null {
   if (!value) return null;
   const trimmed = value.trim().replace(/\/+$/, "").replace(/\/api\/v1$/, "");
@@ -24,12 +32,12 @@ export function normalizeOrigin(value: string | undefined): string | null {
 
 /** Origin of the backend, for server code (never ends with a slash nor with /api/v1). May be an internal address. */
 export function apiOrigin(): string {
-  return normalizeOrigin(process.env.API_URL) ?? normalizeOrigin(process.env.NEXT_PUBLIC_API_URL) ?? DEFAULT_ORIGIN;
+  return normalizeOrigin(process.env.API_URL) ?? normalizeOrigin(process.env.NEXT_PUBLIC_API_URL) ?? defaultOrigin();
 }
 
 /** Origin of the backend, for browser code (only NEXT_PUBLIC_* is available there). */
 export function publicApiOrigin(): string {
-  return normalizeOrigin(process.env.NEXT_PUBLIC_API_URL) ?? DEFAULT_ORIGIN;
+  return normalizeOrigin(process.env.NEXT_PUBLIC_API_URL) ?? defaultOrigin();
 }
 
 /** PUBLIC origin that serves the uploaded files (`/media/...`): what visitors' browsers and next/image can reach. */
