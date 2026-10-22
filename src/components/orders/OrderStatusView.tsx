@@ -104,9 +104,9 @@ export function OrderStatusView({ mode, number, token }: Props) {
     return () => clearTimeout(t);
   }, [phase, loaded, load]);
 
-  // the cart is only emptied when the order is paid (the server already dropped the converted cart)
+  // the server already turned the cart into this order: re-read it so the header / drawer show the real (empty) cart
   useEffect(() => {
-    if (mode === "result" && phase === "paid" && !cartRefreshed.current) {
+    if (mode === "result" && phase !== null && !cartRefreshed.current) {
       cartRefreshed.current = true;
       void refreshCart();
     }

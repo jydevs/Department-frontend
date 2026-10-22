@@ -136,52 +136,29 @@ export function CheckoutForm() {
   // clears the error of a field as soon as the user edits it
   const clearError = useCallback((...ids: string[]) => setErrors((e) => (ids.some((i) => i in e) ? Object.fromEntries(Object.entries(e).filter(([k]) => !ids.includes(k))) : e)), []);
 
-  /* optional prefill when the customer is signed in (the account area is built apart: ignore any failure) */
+  // coming back (e.g. with the browser button from the gateway) the server cart may have become an order
+  useEffect(() => {
+    void refreshCart();
+  }, []);
+
+  /* optional prefill when the customer is signed in (the server answers 200 either way) */
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/account/me", { cache: "no-store", headers: { Accept: "application/json" } });
+        const res = await fetch("/api/checkout/prefill", { cache: "no-store", headers: { Accept: "application/json" } });
         if (!res.ok) return;
-        const data = (await res.json()) as Record<string, unknown>;
-        const c = (data.customer && typeof data.customer === "object" ? data.customer : data) as Record<string, unknown>;
-        if (cancelled || typeof c.email !== "string") return;
-        const name = [c.firstName, c.lastName].filter((x) => typeof x === "string" && x).join(" ") || (typeof c.fullName === "string" ? c.fullName : "");
-        const phone = typeof c.phone === "string" ? c.phone : "";
+        const { customer: c } = (await res.json()) as { customer: { email: string; firstName: string; lastName: string; phone: string } | null };
+        if (cancelled || !c) return;
+        const name = [c.firstName, c.lastName].filter(Boolean).join(" ");
         setForm((f) => ({
           ...f,
-          email: f.email || (c.email as string),
-          phone: f.phone || phone,
-          shipping: { ...f.shipping, fullName: f.shipping.fullName || name, phone: f.shipping.phone || phone },
+          email: f.email || c.email,
+          phone: f.phone || c.phone,
+          shipping: { ...f.shipping, fullName: f.shipping.fullName || name, phone: f.shipping.phone || c.phone },
         }));
-        const ar = await fetch("/api/account/addresses", { cache: "no-store", headers: { Accept: "application/json" } });
-        if (!ar.ok || cancelled) return;
-        const list = (await ar.json()) as unknown;
-        const arr = Array.isArray(list) ? list : Array.isArray((list as { items?: unknown })?.items) ? (list as { items: unknown[] }).items : [];
-        const def = (arr.find((a) => (a as { isDefault?: boolean })?.isDefault) ?? arr[0]) as Record<string, string | null> | undefined;
-        if (def && typeof def.department === "string" && (DEPARTMENTS as readonly string[]).includes(def.department)) {
-          setForm((f) =>
-            f.shipping.address1
-              ? f
-              : {
-                  ...f,
-                  shipping: {
-                    ...f.shipping,
-                    fullName: f.shipping.fullName || def.fullName || "",
-                    phone: f.shipping.phone || def.phone || "",
-                    department: def.department as string,
-                    city: def.city ?? "",
-                    address1: def.address1 ?? "",
-                    address2: def.address2 ?? "",
-                    postalCode: def.postalCode ?? "",
-                    documentType: def.documentType ?? "",
-                    documentNumber: def.documentNumber ?? "",
-                  },
-                },
-          );
-        }
       } catch {
-        /* no session / no account area yet */
+        /* no account area: the form simply stays empty */
       }
     })();
     return () => {
@@ -278,7 +255,7 @@ export function CheckoutForm() {
         setSubmitting(false);
         return;
       }
-      void refreshCart();
+      // the cart on screen is left as is while the browser navigates (no flash of the empty state)
       if (dest.external) window.location.assign(dest.url);
       else router.push(dest.url);
       return; // stays "submitting" while the browser navigates
@@ -321,9 +298,14 @@ export function CheckoutForm() {
       <div data-testid="checkout-empty" className="border border-white/15 p-8 text-center sm:p-12">
         <p className="font-display text-display-md">Tu carrito está vacío</p>
         <p className="mx-auto mt-3 max-w-[40ch] text-sm text-dept-white/60">Añade productos para poder finalizar tu compra.</p>
-        <Button href="/collections/all" variant="red" size="lg" arrow className="mt-6">
-          Seguir comprando
-        </Button>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Button href="/collections/all" variant="red" size="lg" arrow>
+            Seguir comprando
+          </Button>
+          <Button href="/checkout/result" variant="outline" size="lg" data-testid="checkout-last-order">
+            Ver mi último pedido
+          </Button>
+        </div>
       </div>
     );
   }

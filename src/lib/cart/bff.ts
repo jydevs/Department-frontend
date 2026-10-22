@@ -57,7 +57,7 @@ export async function createCart(req: Request): Promise<CartCookie | NextRespons
 /** Adds a line, replacing a stale cart (expired / converted) with a fresh one once. */
 export async function addLine(req: Request, variantId: string, quantity: number): Promise<NextResponse> {
   let cart = await ensureCart(req);
-  if ("status" in cart) return cart; // NextResponse
+  if (cart instanceof Response) return cart; // NextResponse
   let result = await callApi<ApiCartResponse>(req, "POST", `/storefront/carts/${cart.id}/lines`, {
     cartToken: cart.token,
     body: { variantId, quantity },
@@ -65,7 +65,7 @@ export async function addLine(req: Request, variantId: string, quantity: number)
   if (!result.ok && isCartGone(result.issue)) {
     await clearCartCookie();
     const fresh = await createCart(req);
-    if ("status" in fresh) return fresh;
+    if (fresh instanceof Response) return fresh;
     cart = fresh;
     result = await callApi<ApiCartResponse>(req, "POST", `/storefront/carts/${cart.id}/lines`, {
       cartToken: cart.token,

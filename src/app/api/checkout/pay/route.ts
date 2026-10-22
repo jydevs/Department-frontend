@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   const blocked = guardMutation(req);
   if (blocked) return blocked;
   const body = await readJson(req);
-  if ("status" in body) return body;
+  if (body instanceof Response) return body;
   const number = Number(body.number);
   if (!Number.isInteger(number) || number < 1) return fail({ code: "VALIDATION_ERROR", message: "Pedido no válido.", status: 400 });
 

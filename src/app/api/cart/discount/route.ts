@@ -11,7 +11,7 @@ export async function PUT(req: NextRequest) {
   const blocked = guardMutation(req);
   if (blocked) return blocked;
   const body = await readJson(req);
-  if ("status" in body) return body;
+  if (body instanceof Response) return body;
   const code = typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
   if (!CODE_RE.test(code)) return badRequest("Escribe un código de descuento válido (letras, números, guiones).", { code: "Escribe un código válido." });
   return onCart(req, "PUT", "/discount", { code });
@@ -22,6 +22,6 @@ export async function DELETE(req: NextRequest) {
   const blocked = guardMutation(req);
   if (blocked) return blocked;
   const body = await readJson(req);
-  if ("status" in body) return body;
+  if (body instanceof Response) return body;
   return onCart(req, "PUT", "/discount", { code: null });
 }

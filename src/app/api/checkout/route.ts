@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   const blocked = guardMutation(req);
   if (blocked) return blocked;
   const body = await readJson(req);
-  if ("status" in body) return body;
+  if (body instanceof Response) return body;
 
   const key = typeof body.idempotencyKey === "string" ? body.idempotencyKey : "";
   if (!/^[\x21-\x7e]{8,120}$/.test(key)) return badRequest("Falta la clave de la solicitud. Recarga la página.");

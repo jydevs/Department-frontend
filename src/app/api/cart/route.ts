@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const blocked = guardMutation(req);
   if (blocked) return blocked;
   const body = await readJson(req);
-  if ("status" in body) return body;
+  if (body instanceof Response) return body;
   const quantity = quantityOf(body.quantity, 1);
   if (!isUuid(body.variantId) || quantity === null) return badRequest("Producto o cantidad no válidos.");
   return addLine(req, body.variantId, quantity);
@@ -52,7 +52,7 @@ export async function PATCH(req: NextRequest) {
   const blocked = guardMutation(req);
   if (blocked) return blocked;
   const body = await readJson(req);
-  if ("status" in body) return body;
+  if (body instanceof Response) return body;
   const quantity = quantityOf(body.quantity, 0);
   if (!isUuid(body.variantId) || quantity === null) return badRequest("Producto o cantidad no válidos.");
   return onCart(req, "PATCH", `/lines/${body.variantId}`, { quantity });
@@ -63,7 +63,7 @@ export async function DELETE(req: NextRequest) {
   const blocked = guardMutation(req);
   if (blocked) return blocked;
   const body = await readJson(req);
-  if ("status" in body) return body;
+  if (body instanceof Response) return body;
   if (body.variantId === undefined) {
     const cart = await readCartCookie();
     if (cart) {

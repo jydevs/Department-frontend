@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   const blocked = guardMutation(req);
   if (blocked) return blocked;
   const body = await readJson(req);
-  if ("status" in body) return body;
+  if (body instanceof Response) return body;
   const number = Number(body.number);
   const cookie = Number.isInteger(number) ? await readOrderCookie(number) : null;
   if (!cookie || cookie.lines.length === 0) return fail({ code: "NOT_FOUND", message: "No pudimos recuperar los productos de ese pedido.", status: 404 });

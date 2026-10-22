@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const blocked = guardMutation(req);
   if (blocked) return blocked;
   const body = await readJson(req);
-  if ("status" in body) return body;
+  if (body instanceof Response) return body;
   const reference = typeof body.reference === "string" ? body.reference : "";
   const status = typeof body.status === "string" ? body.status : "";
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(reference) || !STATUSES.has(status)) {
