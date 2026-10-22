@@ -12,8 +12,3 @@ export const INDEXABLE = process.env.NEXT_PUBLIC_INDEXABLE === "true";
 export function absoluteUrl(path: string): string {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
-
-/** `%s — Brand` with the page title; the home page uses `defaultTitle` instead. */
-export function applyTitleTemplate(template: string, title: string): string {
-  return template.includes("%s") ? template.replace("%s", title) : `${title} — ${template}`;
-}

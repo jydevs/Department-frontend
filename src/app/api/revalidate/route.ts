@@ -11,6 +11,7 @@ import { revalidateTag } from "next/cache";
 
 const MAX_SKEW_MS = 5 * 60_000;
 const MAX_TAGS = 100;
+const MAX_BODY_BYTES = 64 * 1024;
 /** content:<kind>:<key> · content:pages · redirects (catalogue tags are not pushed by the backend) */
 const TAG_FORMAT = /^(content:[a-z]+:[a-z0-9:_-]+|redirects|content:pages)$/;
 
@@ -30,8 +31,11 @@ export async function POST(req: Request): Promise<Response> {
   // without a configured secret the endpoint is closed (never "open by default")
   if (!secret) return unauthorized();
 
+  // refuse oversized bodies BEFORE reading them (a missing / invalid length is checked again after reading)
+  const declared = Number(req.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return unauthorized();
   const raw = await req.text();
-  if (raw.length > 64 * 1024) return unauthorized();
+  if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) return unauthorized();
   const signature = req.headers.get("x-signature") ?? "";
   if (!signatureMatches(raw, signature, secret)) return unauthorized();
 

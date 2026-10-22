@@ -20,11 +20,13 @@ import { themeMeta, themeStyle } from "@/lib/theme";
 export async function generateMetadata(): Promise<Metadata> {
   const { brand, seo } = await getSiteSettingsOrDefault();
   const og = resolveMediaUrl(seo.ogImageUrl);
+  // Next only substitutes "%s": a template without it would replace every page title by the template itself
+  const titleTemplate = seo.titleTemplate.includes("%s") ? seo.titleTemplate : `%s — ${brand.name}`;
   return {
     metadataBase: new URL(SITE_URL),
     title: {
       default: seo.defaultTitle || brand.name,
-      template: seo.titleTemplate,
+      template: titleTemplate,
     },
     description: seo.defaultDescription,
     applicationName: brand.name,

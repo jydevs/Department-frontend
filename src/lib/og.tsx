@@ -1,16 +1,17 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { ImageResponse } from "next/og";
+import { isTrustedMediaUrl } from "@/lib/api/media";
 
 interface OgOptions {
-  /** `/images/x.jpg` (public/), an https URL, or the API's own media URL; missing / unreadable → plain black card */
+  /** `/images/x.jpg` (public/) or a file of the media origin (`/media/...`); missing / unreadable → plain black card */
   photo?: string | null;
   kicker?: string;
   title: string;
   subtitle?: string;
 }
 
-const MAX_REMOTE_BYTES = 6 * 1024 * 1024;
+const MAX_REMOTE_BYTES = 2 * 1024 * 1024;
 
 /** Reads the photo as a JPEG/PNG data URI (satori can't decode WebP/AVIF), or null. */
 async function loadPhoto(photo: string | null | undefined): Promise<string | null> {
@@ -26,12 +27,29 @@ async function loadPhoto(photo: string | null | undefined): Promise<string | nul
       const bytes = await readFile(file);
       return `data:${ext === ".png" ? "image/png" : "image/jpeg"};base64,${bytes.toString("base64")}`;
     }
-    const res = await fetch(photo, { signal: AbortSignal.timeout(5000), next: { revalidate: 3600 } });
+    // only files of the media origin (the same host next.config allows for next/image), never an arbitrary CMS URL
+    const url = new URL(photo);
+    if (!isTrustedMediaUrl(photo) || !url.pathname.startsWith("/media/")) return null;
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000), redirect: "error", next: { revalidate: 3600 } });
     const type = res.headers.get("content-type")?.split(";")[0] ?? "";
-    if (!res.ok || (type !== "image/jpeg" && type !== "image/png")) return null;
-    const buffer = Buffer.from(await res.arrayBuffer());
-    if (buffer.byteLength > MAX_REMOTE_BYTES) return null;
-    return `data:${type};base64,${buffer.toString("base64")}`;
+    if (!res.ok || !res.body || (type !== "image/jpeg" && type !== "image/png")) return null;
+    const declared = Number(res.headers.get("content-length"));
+    if (Number.isFinite(declared) && declared > MAX_REMOTE_BYTES) return null;
+    // read as a stream and give up as soon as the limit is crossed (a lying / missing Content-Length can not bypass it)
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    const reader = res.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > MAX_REMOTE_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+    return `data:${type};base64,${Buffer.concat(chunks).toString("base64")}`;
   } catch {
     return null;
   }

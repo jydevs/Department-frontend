@@ -71,7 +71,9 @@ export async function getTemplate(key: TemplateKey): Promise<TemplateData | null
   return { sections: cleanSections(doc.data.sections) };
 }
 
-export async function getPage(handle: string): Promise<(PageData & { sections: SectionEnvelope[] }) | null> {
+export async function getPage(
+  handle: string,
+): Promise<(PageData & { sections: SectionEnvelope[]; publishedAt: string | null }) | null> {
   const doc = await contentGet<ApiContentDocument<PageData>>(`${BASE}/pages/${encodeURIComponent(handle)}`, [
     `content:page:${handle}`,
     "content:pages",
@@ -82,6 +84,7 @@ export async function getPage(handle: string): Promise<(PageData & { sections: S
     title: typeof doc.data.title === "string" ? doc.data.title : (doc.title ?? handle),
     handle,
     sections: cleanSections(doc.data.sections),
+    publishedAt: doc.publishedAt ?? null,
   };
 }
 

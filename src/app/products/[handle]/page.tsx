@@ -57,13 +57,18 @@ export default async function ProductPage({ params }: PageProps) {
     image: product.images.map((src) => (src.startsWith("/") ? absoluteUrl(src) : src)),
     brand: { "@type": "Brand", name: product.vendor ?? settings.brand.name },
     url,
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "COP",
-      price: product.price,
-      availability: product.available ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-      url,
-    },
+    // no variants → no price to announce: omit the offer instead of publishing a price of 0
+    ...(product.variants.length > 0 && product.price > 0
+      ? {
+          offers: {
+            "@type": "Offer",
+            priceCurrency: "COP",
+            price: product.price,
+            availability: product.available ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+            url,
+          },
+        }
+      : null),
   };
 
   return (

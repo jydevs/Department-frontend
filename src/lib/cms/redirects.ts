@@ -1,3 +1,4 @@
+import "server-only";
 import { apiBase } from "@/lib/api/config";
 import type { ApiRedirect } from "@/lib/api/types";
 
