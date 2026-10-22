@@ -71,12 +71,13 @@ export function OrderStatusView({ mode, number, token }: Props) {
     if (token) qs.set("token", token);
     try {
       const res = await fetch(`/api/checkout/order?${qs}`, { cache: "no-store" });
-      const data = (await res.json().catch(() => null)) as ({ order?: OrderView; canRetry?: boolean; hasLines?: boolean; error?: ApiIssue }) | null;
+      // the customer-session path answers with the account BFF's flat error (`{ code, message }`), the rest with `{ error }`
+      const data = (await res.json().catch(() => null)) as ({ order?: OrderView; canRetry?: boolean; hasLines?: boolean; error?: ApiIssue; code?: string; message?: string }) | null;
       if (res.ok && data?.order) {
         setLoaded({ order: data.order, canRetry: Boolean(data.canRetry), hasLines: Boolean(data.hasLines) });
         setError(null);
       } else {
-        setError(data?.error ?? { code: "HTTP", status: res.status, message: "No pudimos consultar tu pedido." });
+        setError(data?.error ?? { code: data?.code ?? "HTTP", status: res.status, message: data?.code && data.message ? data.message : "No pudimos consultar tu pedido." });
       }
     } catch {
       setError({ code: "NETWORK", status: 0, message: "No pudimos conectar con la tienda. Revisa tu conexión." });
@@ -169,11 +170,17 @@ export function OrderStatusView({ mode, number, token }: Props) {
     );
   }
   if (!loaded || !phase) {
+    // 401 = no tracking token and no (valid) customer session: logging in is the way out, and it returns here with the
+    // session, which the page then uses to read the order from the account. Anything else (404, 5xx) is not a login problem.
     const needsLogin = error?.status === 401;
+    const message =
+      error?.status === 404 && !token
+        ? "No encontramos ese pedido en este navegador ni en tu cuenta. Si lo compraste como invitado, abre el enlace de seguimiento del correo de confirmación."
+        : (error?.message ?? "No encontramos un pedido reciente en este navegador.");
     return (
       <div data-testid="order-unavailable" role="alert" className="border border-white/15 p-8 sm:p-12">
         <p className="font-display text-display-md">{needsLogin ? "Necesitamos verificar que el pedido es tuyo" : "No encontramos tu pedido"}</p>
-        <p className="mt-3 max-w-[56ch] text-sm text-dept-white/70">{error?.message ?? "No encontramos un pedido reciente en este navegador."}</p>
+        <p className="mt-3 max-w-[56ch] text-sm text-dept-white/70">{message}</p>
         <div className="mt-6 flex flex-wrap gap-3">
           {needsLogin && (
             <Button href={`/account/login?next=${encodeURIComponent(number ? `/orders/${number}` : "/account/orders")}`} variant="red" size="lg" arrow>

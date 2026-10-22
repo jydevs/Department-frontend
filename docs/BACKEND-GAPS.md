@@ -84,3 +84,12 @@ está conectado en el front.
   así al vaciarlos y solo exige el mínimo de 4 caracteres si hay valor. **Resuelto.**
 - **Stock por variante en el editor de productos:** `GET /admin/inventory` filtra por `productId`/`variantId`;
   `useVariantLevels` ya no busca por título. **Resuelto.**
+
+## 8. Peticiones al backend (auditoría 2)
+
+- **`GET /storefront/customers/me/orders/:orderNumber` incompleto.** Hoy devuelve el pedido sin `payment.instructions`
+  ni `variantId` / `productHandle` / `productId` por línea ni `reservedUntil`. Por eso `/orders/<n>` sin token pero con
+  sesión de cliente (el front lo lee de la cuenta) solo puede **mostrar** el pedido: no puede reintentar el pago ni
+  «Volver al carrito». **Petición:** que ese endpoint devuelva el mismo shape que `GET /storefront/orders/:n`
+  (`payment: { provider, status, method, instructions }` mientras el pedido sea pagable, `reservedUntil`, y por línea
+  `variantId`, `productId`, `productHandle`); el front ya usa `canRetry` / `hasLines` a partir de esos campos.
