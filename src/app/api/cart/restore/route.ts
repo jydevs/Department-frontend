@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   const cookie = Number.isInteger(number) ? await readOrderCookie(number) : null;
   if (!cookie || cookie.lines.length === 0) return fail({ code: "NOT_FOUND", message: "No pudimos recuperar los productos de ese pedido.", status: 404 });
 
-  let skipped = 0;
+  let skipped = cookie.truncated ?? 0;
   for (const [variantId, quantity] of cookie.lines) {
     const res = await addLine(req, variantId, Math.min(20, Math.max(1, quantity)));
     if (res.status >= 400) skipped++;

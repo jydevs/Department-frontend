@@ -14,6 +14,8 @@ import type { PaymentInstructions } from "@/lib/cart/types";
 export const ORDER_COOKIE_PREFIX = "dept_order_";
 export const LAST_ORDER_COOKIE = "dept_last_order";
 const ORDER_MAX_AGE_SECONDS = 3 * 24 * 60 * 60;
+/** Same limit as the API's cart (CART_MAX_LINES). */
+const CART_MAX_LINES = 50;
 const TOKEN_RE = /^[A-Za-z0-9_-]{20,128}$/;
 
 export interface OrderCookie {
@@ -21,14 +23,17 @@ export interface OrderCookie {
   payment: PaymentInstructions;
   /** [variantId, quantity] of the cart that became this order */
   lines: [string, number][];
+  /** lines of the cart that did not fit in the cookie (more than CART_MAX_LINES) */
+  truncated?: number;
 }
 
 const encode = (value: unknown) => Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 
 export async function saveOrderCookie(orderNumber: number, value: OrderCookie): Promise<void> {
   const jar = await cookies();
-  const lines = value.lines.slice(0, 25);
-  jar.set(`${ORDER_COOKIE_PREFIX}${orderNumber}`, encode({ ...value, lines }), cookieOptions(ORDER_MAX_AGE_SECONDS));
+  const lines = value.lines.slice(0, CART_MAX_LINES);
+  const truncated = value.lines.length - lines.length;
+  jar.set(`${ORDER_COOKIE_PREFIX}${orderNumber}`, encode({ ...value, lines, truncated }), cookieOptions(ORDER_MAX_AGE_SECONDS));
   jar.set(LAST_ORDER_COOKIE, String(orderNumber), cookieOptions(ORDER_MAX_AGE_SECONDS));
 }
 
@@ -38,7 +43,7 @@ export async function readOrderCookie(orderNumber: number): Promise<OrderCookie 
   try {
     const v = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as OrderCookie;
     if (typeof v.token !== "string" || !TOKEN_RE.test(v.token) || !v.payment || typeof v.payment.reference !== "string") return null;
-    return { token: v.token, payment: v.payment, lines: Array.isArray(v.lines) ? v.lines : [] };
+    return { token: v.token, payment: v.payment, lines: Array.isArray(v.lines) ? v.lines : [], truncated: Number.isInteger(v.truncated) && (v.truncated as number) > 0 ? v.truncated : 0 };
   } catch {
     return null;
   }
