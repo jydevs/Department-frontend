@@ -9,6 +9,8 @@ interface OgOptions {
   kicker?: string;
   title: string;
   subtitle?: string;
+  /** accent colour of the kicker rule (settings/site → theme.colors.accent) */
+  accent?: string;
 }
 
 const MAX_REMOTE_BYTES = 2 * 1024 * 1024;
@@ -56,7 +58,8 @@ async function loadPhoto(photo: string | null | undefined): Promise<string | nul
 }
 
 /** 1200×630 social card: cropped photo, dark falloff, big uppercase headline. */
-export async function renderOg({ photo, kicker, title, subtitle }: OgOptions) {
+export async function renderOg({ photo, kicker, title, subtitle, accent }: OgOptions) {
+  const rule = accent && /^#[0-9a-fA-F]{6}$/.test(accent) ? accent : "#e10e0e";
   const src = await loadPhoto(photo);
 
   return new ImageResponse(
@@ -83,7 +86,7 @@ export async function renderOg({ photo, kicker, title, subtitle }: OgOptions) {
         <div style={{ position: "absolute", left: 64, right: 64, bottom: 56, display: "flex", flexDirection: "column" }}>
           {kicker ? (
             <div style={{ display: "flex", alignItems: "center", color: "#ffffff", fontSize: 24, letterSpacing: 6, textTransform: "uppercase", opacity: 0.85 }}>
-              <div style={{ width: 56, height: 3, background: "#e10e0e", marginRight: 18 }} />
+              <div style={{ width: 56, height: 3, background: rule, marginRight: 18 }} />
               {kicker}
             </div>
           ) : null}

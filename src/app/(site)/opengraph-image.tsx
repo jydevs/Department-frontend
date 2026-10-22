@@ -30,5 +30,6 @@ export default async function Image() {
     photo: resolveMediaUrl(settings.seo.ogImageUrl) ?? hero ?? "/images/home-hero.jpg",
     kicker: settings.announcement.text || undefined,
     title: settings.brand.tagline || settings.brand.name,
+    accent: settings.theme.colors.accent,
   });
 }
