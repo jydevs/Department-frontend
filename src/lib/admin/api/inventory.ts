@@ -3,7 +3,7 @@
 import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/admin/api-client";
 import type { ApiError } from "@/lib/admin/errors";
-import { usePaged, type CursorPage, type PagedParams } from "@/lib/admin/query";
+import { usePaged, type CursorPage, type Paged, type PagedParams } from "@/lib/admin/query";
 
 export interface Location {
   id: string;
@@ -76,6 +76,8 @@ export const QTY_MAX = 1_000_000;
 export interface InventoryParams extends PagedParams {
   q?: string;
   locationId?: string;
+  variantId?: string;
+  productId?: string;
   lowStock?: boolean;
   lowStockThreshold?: number;
 }
@@ -106,26 +108,21 @@ export function useAdjustmentHistory(variantId?: string, enabled = true) {
 }
 
 /**
- * Niveles de las variantes de un producto. El API no filtra por variante, así que se busca por el título
- * de cada variante (`q`) y se filtra aquí por id.
+ * Niveles de todas las variantes de un producto: el API filtra por `productId` (y por `variantId`), así que es
+ * una consulta directa; solo se pagina si el producto tiene más de 100 filas (variantes × ubicaciones).
  */
-export function useVariantLevels(variantIds: string[], titles: string[], enabled = true) {
-  const key = [...variantIds].sort().join(",");
-  const distinct = [...new Set(titles)].slice(0, 30);
+export function useVariantLevels(productId: string, enabled = true) {
   return useQuery<InventoryLevel[], ApiError>({
-    queryKey: ["inventory", "variant-levels", key],
-    enabled: enabled && variantIds.length > 0,
+    queryKey: ["inventory", "variant-levels", productId],
+    enabled: enabled && Boolean(productId),
     queryFn: async ({ signal }) => {
-      const wanted = new Set(variantIds);
-      const found = new Map<string, InventoryLevel>();
-      for (const q of distinct) {
-        for (let page = 1; page <= 5; page++) {
-          const res = await api.get<{ items: InventoryLevel[]; totalPages: number }>("/admin/inventory", { query: { q, pageSize: 100, page }, signal });
-          for (const l of res.items) if (wanted.has(l.variantId)) found.set(l.id, l);
-          if (page >= res.totalPages) break;
-        }
+      const levels: InventoryLevel[] = [];
+      for (let page = 1; page <= 10; page++) {
+        const res = await api.get<Paged<InventoryLevel>>("/admin/inventory", { query: { productId, pageSize: 100, page }, signal });
+        levels.push(...res.items);
+        if (page >= res.totalPages) break;
       }
-      return [...found.values()];
+      return levels;
     },
   });
 }

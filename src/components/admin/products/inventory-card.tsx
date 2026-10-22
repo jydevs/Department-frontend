@@ -15,11 +15,7 @@ export function ProductInventoryCard({ product }: { product: ProductDetail }) {
   const canWrite = useCan("inventory:write");
   const active = product.variants.filter((v) => v.isActive);
   const locations = useLocations(canRead);
-  const levels = useVariantLevels(
-    active.map((v) => v.id),
-    active.map((v) => v.title),
-    canRead,
-  );
+  const levels = useVariantLevels(product.id, canRead);
   const [target, setTarget] = useState<{ t: AdjustTarget; locationId?: string } | null>(null);
 
   if (!canRead) return null;

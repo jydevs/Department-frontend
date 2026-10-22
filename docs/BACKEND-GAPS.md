@@ -60,16 +60,27 @@ catálogo. Por eso productos, colecciones, precios y disponibilidad se **revalid
 ## 6. Carrito, checkout y pagos
 
 Evidencia: `Department-backend/src/commerce/{cart,checkout,payments,shipping,pricing}` y la API de pruebas (`department_qa`).
+Estado tras las ramas `fix/backend-minor-gaps` (API) y `feat/front-endpoints-nuevos` (front): lo marcado **Resuelto** ya
+está conectado en el front.
 
-| # | Hueco | Qué hace el front mientras tanto | Petición exacta |
-| --- | --- | --- | --- |
-| 1 | No hay cotización con envío: `GET /storefront/carts/:id` devuelve siempre `shippingTotal: 0`. El `Quote` con `shippingRateId`/`department` solo se usa dentro del checkout. | El resumen suma el precio de la tarifa que devuelve `/storefront/shipping-rates` y no muestra el IVA exacto hasta que existe el pedido (el total final lo fija el servidor). | Aceptar `?shippingRateId=&department=` en `GET /storefront/carts/:id` (o un `POST …/quote`). |
-| 2 | El `Quote` no dice si el IVA está incluido (`prices_include_tax`). | Se infiere: `total == subtotal − descuento + envío`. | Añadir `pricesIncludeTax: boolean` (y `taxRatePercent`) al `Quote`. |
-| 3 | Las líneas del `Quote` no traen el `handle` del producto. | Se guarda `variantId → handle` en `localStorage` (solo metadatos de presentación, nunca precios). Una línea añadida desde otro navegador no enlaza a su ficha. | `productHandle` en `QuoteLine`. |
-| 4 | `GET /storefront/carts/:id` no indica `converted`: tras el checkout el carrito sigue respondiendo con sus líneas y las mutaciones dan 409 `CART_CONVERTED`. | Al crear el pedido, el BFF borra su cookie `dept_cart` (el carrito ya está convertido). | `convertedOrderNumber` (o 410) en `CartResponse`. |
-| 5 | Las líneas del pedido público no traen `variantId` y el pedido no devuelve las instrucciones de pago: no se puede reabrir el pago ni recuperar el carrito desde la API. | El BFF guarda en la cookie httpOnly del pedido las instrucciones de pago (no secretas) y `[variantId, cantidad]` de su carrito. Sin esa cookie (otro navegador) no hay reintento. | `GET /storefront/orders/:n?token=` con `payment.instructions` mientras `status=pending`, y `variantId` en las líneas. |
-| 6 | `redirectUrl` de Wompi es `${STOREFRONT_URL}/checkout/result` sin referencia ni número de pedido (Wompi solo añade `?id=`). | El pedido se identifica por la cookie `dept_last_order`. Si el comprador vuelve en otro navegador, la página pide el enlace de seguimiento o iniciar sesión. | Permitir `redirect-url` con `?order=<n>` o devolver `redirectUrl` que ya incluya el número de pedido. |
-| 7 | `GET /storefront/shipping-rates` exige `X-Cart-Token` (no documentado en `docs/API.md`, que no lo lista como «Auth»). | El BFF lo envía. | Documentarlo. |
-| 8 | `DISCOUNT_INVALID` en el carrito nunca trae `already_used` (necesita el email), solo aparece al pagar. | El checkout mapea el error a un mensaje claro. | Opcional: aceptar `email` al aplicar el código. |
-| 9 | Un pago `DECLINED`/`ERROR` deja el pedido `pending` (decisión documentada del backend). | El front lo muestra como «no aprobado» (`pending` + `payment.status=declined|error`) y permite reintentar con la misma referencia. | — (solo informativo). |
-| 10 | El stock del catálogo de pruebas es limitado y las reservas de pedidos `pending` (30 min) lo consumen: las pruebas automáticas agotan variantes. | Las pruebas rotan tallas. | — |
+| # | Hueco | Estado |
+| --- | --- | --- |
+| 1 | Cotización con envío en `GET /storefront/carts/:id`. | **Resuelto.** El checkout pide `GET /api/cart?shippingRateId&department[&email]` (BFF → `?shippingRateId=&department=&email=`) y el resumen muestra `shippingTotal`, IVA y `total` del backend; el cliente ya no suma. |
+| 2 | El `Quote` no decía si el IVA está incluido. | **Resuelto.** Se usa `taxIncluded` y `taxBreakdown` (carrito y checkout). |
+| 3 | Las líneas del `Quote` no traían el `handle`. | **Resuelto.** Se usa `productHandle`; se eliminó el mapa `variantId → handle` de `localStorage` (la clave antigua se borra). |
+| 4 | `GET /storefront/carts/:id` no indicaba `converted`. | **Resuelto.** Un carrito `converted` se descarta en el BFF (se borra la cookie `dept_cart`) y se responde vacío; el checkout sigue borrándola al crear el pedido. |
+| 5 | Las líneas del pedido público no traían `variantId` ni había `payment.instructions`. | **Resuelto.** «Reintentar el pago» y «Volver al carrito» salen del pedido de la API con el token (`/orders/<n>?token=`), también sin la cookie; `dept_order_<n>` guarda solo el token. |
+| 6 | `redirectUrl` de Wompi no lleva el número de pedido (Wompi solo añade `?id=`). | Abierto. El pedido se identifica por la cookie `dept_last_order`; en otro navegador la página pide el enlace de seguimiento o iniciar sesión. **Petición:** `redirect-url` con `?order=<n>`. |
+| 7 | `GET /storefront/shipping-rates` exige `X-Cart-Token`. | Documentado en `docs/API.md` del backend; el BFF lo envía. |
+| 8 | `DISCOUNT_INVALID` nunca traía `already_used` al aplicar el código. | **Resuelto.** El checkout envía `email` (si es válido) al aplicar el código y al cotizar; `already_used` se muestra en español. |
+| 9 | Un pago `DECLINED`/`ERROR` deja el pedido `pending`. | Informativo: el front lo muestra como «no aprobado» y permite reintentar con la misma referencia. |
+| 10 | El stock del catálogo de pruebas es limitado y las reservas de pedidos `pending` (30 min) lo consumen. | Informativo: las pruebas rotan tallas. |
+
+## 7. Cuenta, direcciones e inventario del panel
+
+- **Reenvío de verificación:** `POST /storefront/customers/auth/resend-verification` conectado (tras el registro y en el
+  enlace vencido); ya no se remite a «olvidé mi contraseña». **Resuelto.**
+- **Documento de dirección:** `PATCH …/addresses/:id` acepta `documentType`/`documentNumber` en `null`; el front los envía
+  así al vaciarlos y solo exige el mínimo de 4 caracteres si hay valor. **Resuelto.**
+- **Stock por variante en el editor de productos:** `GET /admin/inventory` filtra por `productId`/`variantId`;
+  `useVariantLevels` ya no busca por título. **Resuelto.**
