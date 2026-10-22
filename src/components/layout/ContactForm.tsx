@@ -36,7 +36,17 @@ export function ContactForm({ config = DEFAULT_CONTACT_FORM }: { config?: Contac
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          // the API accepts only name, email, subject and message (strict schema): the optional phone travels in the message
+          body: JSON.stringify({
+            name: formData.name.trim(),
+            email: formData.email.trim(),
+            ...(formData.subject.trim() ? { subject: formData.subject.trim() } : null),
+            message: formData.phone.trim()
+              ? `${formData.message.trim()}
+
+${config.phoneLabel}: ${formData.phone.trim()}`
+              : formData.message.trim(),
+          }),
         }
       );
 
