@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { clsx } from "@/lib/clsx";
@@ -97,6 +97,8 @@ export function Header({ config }: { config: HeaderConfig }) {
   const signedIn = sessionStatus === "authenticated" && customer !== null;
   const accountAria = signedIn ? `${config.accountLabel}, ${customer.firstName}` : config.accountLabel;
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const overlayPage = config.transparentOnHero && hasHero(pathname);
   const atTop = chrome === "top";
@@ -104,18 +106,28 @@ export function Header({ config }: { config: HeaderConfig }) {
   const hidden = chrome === "hidden" && !menuOpen;
   const { announcement } = config;
 
-  // Escape closes the mobile menu; lock body scroll while it is open
+  // Mobile menu as a modal: focus moves into it, the page behind (main + footer) is `inert`, Escape closes it and
+  // gives the focus back to the button that opened it; the body does not scroll meanwhile
   useEffect(() => {
     if (!menuOpen) return;
+    const behind = [document.getElementById("main"), ...Array.from(document.body.querySelectorAll(":scope > footer"))].filter((el): el is HTMLElement => el !== null);
+    behind.forEach((el) => el.setAttribute("inert", ""));
+    // the panel fades in from `visibility: hidden`, which cannot take focus until the transition has started
+    const focusTimer = window.setTimeout(() => menuRef.current?.querySelector<HTMLElement>("a[href], button")?.focus(), 60);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
     return () => {
+      window.clearTimeout(focusTimer);
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = overflow;
+      behind.forEach((el) => el.removeAttribute("inert"));
     };
   }, [menuOpen]);
 
@@ -201,6 +213,7 @@ export function Header({ config }: { config: HeaderConfig }) {
         <div className="relative grid h-[var(--header-h)] grid-cols-[1fr_auto_1fr] items-center px-gutter">
           <nav aria-label={config.navLabel} className="flex items-center">
             <button
+              ref={menuButtonRef}
               type="button"
               aria-label={menuOpen ? config.menuCloseLabel : config.menuOpenLabel}
               aria-expanded={menuOpen}
@@ -328,7 +341,8 @@ export function Header({ config }: { config: HeaderConfig }) {
       {/* full-screen mobile menu */}
       <div
         id="mobile-menu"
-        aria-hidden={!menuOpen}
+        ref={menuRef}
+        inert={!menuOpen}
         className={clsx(
           "fixed inset-0 z-40 flex flex-col justify-between bg-dept-black px-gutter pb-8 pt-[calc(var(--chrome-h)+1.5rem)] transition-[opacity,visibility] duration-500 md:hidden",
           menuOpen ? "visible opacity-100" : "invisible opacity-0",
