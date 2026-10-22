@@ -21,12 +21,40 @@ export interface RequestOptions {
 
 let accessToken: string | null = null;
 let expiresAt = 0;
+/** Cuenta los tokens recibidos (propios o de otra pestaña): permite saber si alguien renovó mientras esperábamos. */
+let tokenVersion = 0;
 let unauthorizedHandler: (() => void) | null = null;
 let refreshInFlight: Promise<string | null> | null = null;
+
+const REFRESH_LOCK = "dept-admin-refresh";
+const CHANNEL_NAME = "dept-admin-auth";
+/** Un token al que le queda menos de esto se considera a punto de caducar. */
+const FRESH_MARGIN_MS = 5_000;
+
+interface TokenMessage {
+  accessToken: string;
+  expiresIn: number;
+}
+
+let channel: BroadcastChannel | null = null;
+
+function authChannel(): BroadcastChannel | null {
+  if (channel || typeof BroadcastChannel === "undefined") return channel;
+  channel = new BroadcastChannel(CHANNEL_NAME);
+  // otra pestaña renovó la sesión: adoptamos su token (sin volver a presentar la cookie de refresco)
+  channel.onmessage = (event: MessageEvent<TokenMessage>) => {
+    const msg = event.data;
+    if (msg && typeof msg.accessToken === "string" && typeof msg.expiresIn === "number") {
+      setAccessToken(msg.accessToken, msg.expiresIn);
+    }
+  };
+  return channel;
+}
 
 export function setAccessToken(token: string | null, expiresInSeconds?: number): void {
   accessToken = token;
   expiresAt = token && expiresInSeconds ? Date.now() + expiresInSeconds * 1000 : 0;
+  if (token) tokenVersion++;
 }
 
 export function getAccessToken(): string | null {
@@ -48,32 +76,50 @@ export interface RefreshResult {
   expiresIn: number;
 }
 
+async function presentRefreshCookie(): Promise<string | null> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) {
+      setAccessToken(null);
+      return null;
+    }
+    const data = (await res.json()) as RefreshResult;
+    setAccessToken(data.accessToken, data.expiresIn);
+    try {
+      authChannel()?.postMessage({ accessToken: data.accessToken, expiresIn: data.expiresIn } satisfies TokenMessage);
+    } catch {
+      /* canal cerrado */
+    }
+    return data.accessToken;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * POST /auth/refresh con la cookie httpOnly. Las llamadas concurrentes comparten la misma promesa
- * (cola) para no rotar la cookie varias veces. Devuelve el token nuevo o null si no hay sesión.
+ * POST /auth/refresh con la cookie httpOnly. Las llamadas concurrentes de una pestaña comparten la misma promesa y
+ * las de varias pestañas se serializan con un lock del navegador: la cookie rota en cada uso y presentarla dos veces
+ * revocaría la sesión. Quien obtiene el lock tras otra pestaña que ya renovó usa el token que esta difundió por
+ * BroadcastChannel en lugar de volver a presentar la cookie. Sin Web Locks se renueva sin coordinar. Devuelve el
+ * token nuevo o null si no hay sesión.
  */
 export function refreshSession(): Promise<string | null> {
   if (refreshInFlight) return refreshInFlight;
-  refreshInFlight = (async () => {
-    try {
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
-        method: "POST",
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      });
-      if (!res.ok) {
-        setAccessToken(null);
-        return null;
-      }
-      const data = (await res.json()) as RefreshResult;
-      setAccessToken(data.accessToken, data.expiresIn);
-      return data.accessToken;
-    } catch {
-      return null;
-    } finally {
-      refreshInFlight = null;
-    }
-  })();
+  authChannel();
+  const versionBefore = tokenVersion;
+  const run = async (): Promise<string | null> => {
+    if (tokenVersion !== versionBefore && accessToken && expiresAt - Date.now() > FRESH_MARGIN_MS) return accessToken;
+    return presentRefreshCookie();
+  };
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  const pending: Promise<string | null> = (async () => (locks ? await locks.request(REFRESH_LOCK, run) : await run()))();
+  refreshInFlight = pending.finally(() => {
+    refreshInFlight = null;
+  });
   return refreshInFlight;
 }
 
