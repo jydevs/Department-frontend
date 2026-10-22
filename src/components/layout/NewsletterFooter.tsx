@@ -18,6 +18,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function NewsletterFooter({ config = DEFAULT_NEWSLETTER }: { config?: NewsletterConfig }) {
   const [state, setState] = useState<FormState>("idle");
   const [email, setEmail] = useState("");
+  const [apiError, setApiError] = useState<string | null>(null);
   const uid = useId();
   const headingId = `${uid}-heading`;
   const inputId = `${uid}-email`;
@@ -27,12 +28,13 @@ export function NewsletterFooter({ config = DEFAULT_NEWSLETTER }: { config?: New
     e.preventDefault();
 
     if (!EMAIL_RE.test(email.trim())) {
+      setApiError(null);
       setState("error");
       return;
     }
 
     setState("loading");
-    await new Promise((r) => setTimeout(r, 200));
+    setApiError(null);
 
     try {
       const res = await fetch(`${publicApiBase()}/storefront/newsletter`, {
@@ -42,14 +44,28 @@ export function NewsletterFooter({ config = DEFAULT_NEWSLETTER }: { config?: New
       });
 
       if (!res.ok) {
-        throw new Error("Newsletter subscription failed");
+        let code: string | null = null;
+        try {
+          code = ((await res.json()) as { code?: string }).code ?? null;
+        } catch {
+          /* non-JSON error */
+        }
+        setApiError(
+          code === "VALIDATION_ERROR"
+            ? config.errorMessage
+            : res.status === 429 || code === "RATE_LIMITED"
+              ? "Demasiados intentos. Espera un momento e inténtalo de nuevo."
+              : "No pudimos registrar tu correo. Inténtalo de nuevo en unos minutos.",
+        );
+        setState("error");
+        return;
       }
 
       setState("success");
       setEmail("");
     } catch {
-      setState("success");
-      setEmail("");
+      setApiError("No pudimos conectar con la tienda. Revisa tu conexión e inténtalo de nuevo.");
+      setState("error");
     }
   };
 
@@ -140,7 +156,7 @@ export function NewsletterFooter({ config = DEFAULT_NEWSLETTER }: { config?: New
                 <span data-testid="newsletter-loading">{config.loadingMessage}</span>
               )}
               {state === "error" && (
-                <span data-testid="newsletter-error">{config.errorMessage}</span>
+                <span data-testid="newsletter-error">{apiError ?? config.errorMessage}</span>
               )}
               {state === "success" && (
                 <span data-testid="newsletter-success">{config.successMessage}</span>

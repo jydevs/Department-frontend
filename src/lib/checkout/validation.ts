@@ -50,7 +50,6 @@ export const EMPTY_FORM: CheckoutForm = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE_RE = /^\+?[0-9]{7,20}$/;
-// eslint-disable-next-line no-control-regex
 const CONTROL_RE = /[\u0000-\u001f\u007f]/;
 
 /** "300 123-4567" → "3001234567" (the API only takes digits and an optional leading +). */

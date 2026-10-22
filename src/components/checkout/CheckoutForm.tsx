@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DiscountBox } from "@/components/cart/DiscountBox";
 import { Button } from "@/components/ui/Button";
 import { canOptimize } from "@/lib/api/media";
@@ -194,9 +194,9 @@ export function CheckoutForm() {
   useEffect(() => {
     if (!department || cart.lines.length === 0) return;
     let cancelled = false;
-    setRatesLoading(true);
-    setRatesError(null);
     (async () => {
+      setRatesLoading(true);
+      setRatesError(null);
       try {
         const res = await fetch(`/api/cart/shipping-rates?department=${encodeURIComponent(department)}`, { cache: "no-store" });
         const data = (await res.json()) as { rates?: ShippingOption[]; error?: ApiIssue };
@@ -227,10 +227,7 @@ export function CheckoutForm() {
 
   const rate = rates?.find((r) => r.id === form.shippingRateId) ?? null;
   const shipping = rate ? rate.price : 0;
-  const total = useMemo(
-    () => cart.subtotal - cart.discountTotal + shipping + (cart.taxIncluded ? 0 : cart.taxTotal),
-    [cart.subtotal, cart.discountTotal, cart.taxIncluded, cart.taxTotal, shipping],
-  );
+  const total = cart.subtotal - cart.discountTotal + shipping + (cart.taxIncluded ? 0 : cart.taxTotal);
 
   const focusFirst = (errs: FormErrors) => {
     const first = FIELD_ORDER.find((k) => errs[k]) ?? Object.keys(errs)[0];
