@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { optionalSession, setSessionCookies } from "@/lib/account/server/bff";
 import { issueFrom } from "@/lib/cart/messages";
 import {
   badRequest,
@@ -70,14 +71,20 @@ export async function POST(req: NextRequest) {
   if (billing) payload.billingAddress = billing;
   if (typeof body.customerNote === "string" && body.customerNote.trim()) payload.customerNote = body.customerNote.trim();
 
+  // with a customer session the API ties the order to the account (it shows up in "Mis pedidos" at once); a guest, or
+  // a token the API does not accept, simply gets a guest order
+  const session = await optionalSession(req);
   const result = await callApi<ApiCheckout>(req, "POST", "/storefront/checkouts", {
     cartToken: cart.token,
+    accessToken: session.accessToken ?? undefined,
     idempotencyKey: key,
     body: payload,
   });
   if (!result.ok) {
     if (isCartGone(result.issue) || result.issue.code === "CART_ALREADY_CONVERTED") await clearCartCookie();
-    return fail(result.issue);
+    const failure = fail(result.issue);
+    if (session.rotated) setSessionCookies(failure, session.rotated);
+    return failure;
   }
 
   const { orderNumber, accessToken, total, currency, payment } = result.data;
@@ -96,5 +103,7 @@ export async function POST(req: NextRequest) {
   await clearCartCookie();
 
   const out: CheckoutResult = { orderNumber, total, currency, payment: instructions };
-  return json(out, 201);
+  const res = json(out, 201);
+  if (session.rotated) setSessionCookies(res, session.rotated);
+  return res;
 }

@@ -235,6 +235,21 @@ export async function withSession(
   return res;
 }
 
+/**
+ * Access token of the customer for a call that also works without a session (checkout as guest). It never fails the
+ * request: no session, a refused refresh or an unavailable API all mean "guest". When it had to rotate, `rotated` holds
+ * the new tokens and the caller must put them on its response with `setSessionCookies` so the cookies are not lost.
+ */
+export async function optionalSession(req: NextRequest): Promise<{ accessToken: string | null; rotated: SessionTokens | null }> {
+  const access = req.cookies.get(ACCESS_COOKIE)?.value ?? null;
+  if (access) return { accessToken: access, rotated: null };
+  const refresh = req.cookies.get(REFRESH_COOKIE)?.value ?? null;
+  if (!refresh) return { accessToken: null, rotated: null };
+  const outcome = await refreshSession(req, refresh);
+  if (outcome.kind !== "ok") return { accessToken: null, rotated: null };
+  return { accessToken: outcome.tokens.accessToken, rotated: outcome.tokens };
+}
+
 /** Whether the visitor carries any session cookie (server components: cheap check, no API call). */
 export function hasSessionCookie(req: NextRequest): boolean {
   return Boolean(req.cookies.get(ACCESS_COOKIE)?.value || req.cookies.get(REFRESH_COOKIE)?.value);

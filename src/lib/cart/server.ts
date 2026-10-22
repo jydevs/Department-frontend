@@ -131,6 +131,8 @@ export type ApiResult<T> = { ok: true; status: number; data: T } | { ok: false; 
 
 interface CallOptions {
   cartToken?: string;
+  /** customer's access token: lets the API tie the order to the account (optional, ignored by the API if invalid) */
+  accessToken?: string;
   idempotencyKey?: string;
   body?: unknown;
   query?: Record<string, string | number | undefined | null>;
@@ -161,6 +163,7 @@ export async function callApi<T>(req: Request, method: string, path: string, opt
   const key = process.env.STOREFRONT_SERVER_KEY;
   if (key) headers["X-Storefront-Key"] = key;
   if (options.cartToken) headers["X-Cart-Token"] = options.cartToken;
+  if (options.accessToken) headers.Authorization = `Bearer ${options.accessToken}`;
   if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
 
