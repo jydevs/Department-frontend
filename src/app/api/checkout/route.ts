@@ -1,5 +1,4 @@
 import type { NextRequest } from "next/server";
-import { readCart } from "@/lib/cart/bff";
 import { issueFrom } from "@/lib/cart/messages";
 import {
   badRequest,
@@ -59,7 +58,6 @@ export async function POST(req: NextRequest) {
 
   const cart = await readCartCookie();
   if (!cart) return fail(issueFrom("CART_EMPTY", 400));
-  const before = await readCart(req);
 
   const payload: Record<string, unknown> = {
     cartId: cart.id,
@@ -92,11 +90,7 @@ export async function POST(req: NextRequest) {
     signatureIntegrity: payment.signatureIntegrity,
     redirectUrl: payment.redirectUrl,
   };
-  await saveOrderCookie(orderNumber, {
-    token: accessToken,
-    payment: instructions,
-    lines: before.lines.map((l) => [l.variantId, l.quantity] as [string, number]),
-  });
+  await saveOrderCookie(orderNumber, accessToken);
   // the API marked the cart as converted: from now on the order is what matters
   await clearCartCookie();
 

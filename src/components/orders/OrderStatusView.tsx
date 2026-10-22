@@ -117,7 +117,7 @@ export function OrderStatusView({ mode, number, token }: Props) {
     setActing("pay");
     setActionError(null);
     try {
-      const res = await fetch("/api/checkout/pay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number: loaded.order.orderNumber }) });
+      const res = await fetch("/api/checkout/pay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number: loaded.order.orderNumber, token }) });
       const data = (await res.json().catch(() => null)) as ({ orderNumber?: number; payment?: CheckoutResult["payment"]; error?: ApiIssue }) | null;
       if (!res.ok || !data?.payment) {
         setActionError(data?.error?.message ?? "No pudimos reabrir el pago.");
@@ -144,7 +144,7 @@ export function OrderStatusView({ mode, number, token }: Props) {
     setActing("restore");
     setActionError(null);
     try {
-      const res = await fetch("/api/cart/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number: loaded.order.orderNumber }) });
+      const res = await fetch("/api/cart/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number: loaded.order.orderNumber, token }) });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { error?: ApiIssue } | null;
         setActionError(data?.error?.message ?? "No pudimos recuperar tu carrito.");
@@ -243,12 +243,12 @@ export function OrderStatusView({ mode, number, token }: Props) {
         )}
 
         <div className="mt-6 flex flex-wrap gap-3">
-          {phase === "declined" && loaded.canRetry && mode === "result" && (
+          {phase === "declined" && loaded.canRetry && (
             <Button variant="red" size="lg" arrow disabled={acting !== null} onClick={retryPayment} data-testid="order-retry-pay">
               {acting === "pay" ? "Abriendo la pasarela…" : "Reintentar el pago"}
             </Button>
           )}
-          {(phase === "declined" || phase === "cancelled" || phase === "expired") && loaded.hasLines && mode === "result" && (
+          {(phase === "declined" || phase === "cancelled" || phase === "expired") && loaded.hasLines && (
             <Button variant="outline" size="lg" disabled={acting !== null} onClick={backToCart} data-testid="order-back-to-cart">
               {acting === "restore" ? "Recuperando…" : "Volver al carrito"}
             </Button>
@@ -295,7 +295,11 @@ export function OrderStatusView({ mode, number, token }: Props) {
                     {img && <Image src={img} unoptimized={!canOptimize(img)} alt="" fill sizes="56px" className="object-cover" />}
                   </span>
                   <span className="font-condensed min-w-0 text-xs tracking-[0.08em]">
-                    <span className="block">{l.title}</span>
+                    {l.productHandle ? (
+                      <Link href={`/products/${l.productHandle}`} className="block underline-offset-4 hover:underline">{l.title}</Link>
+                    ) : (
+                      <span className="block">{l.title}</span>
+                    )}
                     {l.variantTitle && l.variantTitle.toLowerCase() !== "default title" && <span className="block text-dept-gray-500">Talla {l.variantTitle}</span>}
                     <span className="block text-dept-gray-500">{l.quantity} × {formatCOP(l.unitPrice)}</span>
                   </span>

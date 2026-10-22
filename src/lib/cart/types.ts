@@ -122,6 +122,10 @@ export interface CheckoutResult {
 }
 
 export interface OrderLineView {
+  variantId: string | null;
+  productId: string | null;
+  /** null when the product no longer exists */
+  productHandle: string | null;
   title: string;
   variantTitle: string;
   imageUrl: string | null;
@@ -148,7 +152,7 @@ export interface OrderView {
   shippingAddress: Record<string, unknown> | null;
   lines: OrderLineView[];
   fulfillments: { status: string; carrier: string | null; trackingNumber: string | null; trackingUrl: string | null; shippedAt: string }[];
-  payment: { provider: string; status: string; method: string | null } | null;
+  payment: { provider: string; status: string; method: string | null; instructions: PaymentInstructions | null } | null;
   createdAt: string;
   paidAt: string | null;
   reservedUntil: string | null;
