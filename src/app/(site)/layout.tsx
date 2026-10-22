@@ -22,6 +22,8 @@ import { themeMeta, themeStyle } from "@/lib/theme";
 export async function generateMetadata(): Promise<Metadata> {
   const { brand, seo } = await getSiteSettingsOrDefault();
   const og = resolveMediaUrl(seo.ogImageUrl);
+  // tab icon from the CMS (settings/site → brand.faviconMediaUrl); the built-in /favicon.svg otherwise
+  const favicon = resolveMediaUrl(brand.faviconMediaUrl) ?? "/favicon.svg";
   // Next only substitutes "%s": a template without it would replace every page title by the template itself
   const titleTemplate = seo.titleTemplate.includes("%s") ? seo.titleTemplate : `%s — ${brand.name}`;
   return {
@@ -32,6 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: seo.defaultDescription,
     applicationName: brand.name,
+    icons: { icon: favicon, shortcut: favicon, apple: favicon },
     openGraph: {
       type: "website",
       siteName: brand.name,
@@ -88,7 +91,7 @@ export default async function RootLayout({
             <SiteFooter config={layout.footer} />
           </OverlayProvider>
         </CustomerProvider>
-        <div className="grain" aria-hidden />
+        {layout.settings.theme.grain !== false && <div className="grain" aria-hidden />}
         {draft.isEnabled && <PreviewBar />}
       </body>
     </html>

@@ -63,6 +63,7 @@ function buildHeader(
   const header: HeaderConfig = {
     brandName: settings.brand.name,
     logoUrl: resolveMediaUrl(settings.brand.logoMediaUrl) ?? undefined,
+    logoText: settings.brand.logoText?.trim() || "Dept",
     logoVariant: r.oneOf("logoVariant", ["red", "black"], "red"),
     nav,
     mobileLinks: flattenNav(nav).map((n) => ({ id: n.id, label: n.label, href: n.href })),

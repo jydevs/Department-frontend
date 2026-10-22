@@ -11,6 +11,8 @@ export const FALLBACK_SETTINGS: SiteSettings = {
     tagline: "Uniforms for the unnoticed.",
     description:
       "Este proyecto es el primer lanzamiento oficial de Disruptive Dept, una marca que no diseña ropa, sino mensajes.",
+    logoText: "Dept",
+    faviconMediaUrl: "/favicon.svg",
   },
   theme: {
     colors: {
@@ -29,6 +31,7 @@ export const FALLBACK_SETTINGS: SiteSettings = {
     },
     fonts: { heading: "Anton", body: "Inter", condensed: "Oswald", script: "Pinyon Script" },
     colorScheme: "dark",
+    grain: true,
   },
   seo: {
     titleTemplate: "%s — Daregular Dept.",
@@ -66,6 +69,7 @@ export function mergeSettings(data: Partial<SiteSettings>): SiteSettings {
       colors: group(FALLBACK_SETTINGS.theme.colors, theme.colors),
       fonts: group(FALLBACK_SETTINGS.theme.fonts, theme.fonts),
       colorScheme: theme.colorScheme === "light" || theme.colorScheme === "dark" ? theme.colorScheme : "dark",
+      grain: typeof theme.grain === "boolean" ? theme.grain : true,
     },
     seo: group(FALLBACK_SETTINGS.seo, data.seo),
     social: group(FALLBACK_SETTINGS.social, data.social),
