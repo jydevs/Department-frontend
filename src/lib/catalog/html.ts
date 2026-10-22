@@ -17,7 +17,6 @@ function escapeStray(text: string): string {
 function safeHref(raw: string): string | null {
   const value = raw.trim();
   if (value.length === 0 || value.length > 2000) return null;
-  // eslint-disable-next-line no-control-regex
   if (/[\u0000- \u007f]/.test(value)) return null;
   if (value.startsWith("/")) return value.startsWith("//") || value.includes("\\") ? null : value;
   if (value.startsWith("https://")) return value;

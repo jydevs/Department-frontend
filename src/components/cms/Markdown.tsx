@@ -8,14 +8,13 @@ import { isSafeLink } from "@/lib/cms/reader";
  * must pass the same safe-URL rule the backend enforces.
  */
 
-const INLINE = /\[([^\]]+)\]\(([^)\s]+)\)|\*\*([^*]+)\*\*|\*([^*\n]+)\*|_([^_\n]+)_/g;
+const INLINE_SOURCE = String.raw`\[([^\]]+)\]\(([^)\s]+)\)|\*\*([^*]+)\*\*|\*([^*\n]+)\*|_([^_\n]+)_`;
 
 export function InlineMarkdown({ text }: { text: string }): ReactNode {
   const nodes: ReactNode[] = [];
   let last = 0;
   let key = 0;
-  INLINE.lastIndex = 0;
-  for (let m = INLINE.exec(text); m !== null; m = INLINE.exec(text)) {
+  for (const m of text.matchAll(new RegExp(INLINE_SOURCE, "g"))) {
     if (m.index > last) nodes.push(text.slice(last, m.index));
     last = m.index + m[0].length;
     if (m[1] !== undefined && m[2] !== undefined) {
@@ -106,6 +105,7 @@ export function Markdown({ source, className }: { source: string; className?: st
             </List>
           );
         }
+        if (block.kind !== "p") return null;
         return (
           <p key={i} className="mt-5 first:mt-0">
             <InlineMarkdown text={block.text} />

@@ -6,7 +6,6 @@ const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 /** True for `/path`, `https://…`, `mailto:` and `tel:` (same rule the backend applies when saving). */
 export function isSafeLink(value: string): boolean {
   if (value.length === 0 || value.length > 2000) return false;
-  // eslint-disable-next-line no-control-regex
   if (/[\u0000- \u007f]/.test(value)) return false;
   if (value.startsWith("/")) return !value.startsWith("//") && !value.includes("\\");
   if (value.startsWith("https://")) return true;

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { NewsletterFooter, type NewsletterConfig } from "./NewsletterFooter";
+import { NewsletterFooter } from "./NewsletterFooter";
+import type { NewsletterConfig } from "./config";
 import { FooterAccountLinks } from "./FooterAccountLinks";
 import { BackToTopButton } from "./BackToTopButton";
 import { footerLinkClass } from "./footerStyles";

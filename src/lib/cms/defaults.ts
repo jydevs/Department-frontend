@@ -51,7 +51,7 @@ function group<T extends object>(base: T, override: unknown): T {
 
 /** Overlays a (possibly partial / malformed) CMS settings document on the defaults. */
 export function mergeSettings(data: Partial<SiteSettings>): SiteSettings {
-  const theme = isRecord(data.theme) ? data.theme : {};
+  const theme: Partial<SiteSettings["theme"]> = isRecord(data.theme) ? data.theme : {};
   return {
     brand: group(FALLBACK_SETTINGS.brand, data.brand),
     theme: {
