@@ -62,6 +62,7 @@ export function OrderStatusView({ mode, number, token }: Props) {
   const [gaveUp, setGaveUp] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [acting, setActing] = useState<null | "pay" | "restore">(null);
+  const [confirmingCart, setConfirmingCart] = useState(false);
   const startedAt = useRef(0);
   const cartRefreshed = useRef(false);
 
@@ -249,15 +250,34 @@ export function OrderStatusView({ mode, number, token }: Props) {
           </p>
         )}
 
+        {phase === "pending" && loaded.canRetry && (
+          <p className="mt-4 max-w-[60ch] text-sm leading-relaxed text-dept-white/75" data-testid="order-pending-hint">
+            {order.reservedUntil ? `Tus productos siguen reservados hasta las ${new Date(order.reservedUntil).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}: ` : ""}
+            si cerraste la pasarela sin terminar, puedes continuar con el pago del mismo pedido sin que se cobre dos veces.
+          </p>
+        )}
+        {confirmingCart && phase === "pending" && (
+          <p role="alert" data-testid="order-cart-warning" className="mt-4 max-w-[60ch] border border-white/20 p-3 text-sm leading-relaxed text-dept-white/80">
+            Este pedido todavía puede cobrarse{order.reservedUntil ? ` (sus productos siguen reservados hasta las ${new Date(order.reservedUntil).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })})` : ""}.
+            Si vuelves al carrito y pagas de nuevo, <strong className="text-dept-white">podrías pagar dos veces</strong>. Hazlo solo si ya no quieres pagar este pedido.
+          </p>
+        )}
+
         <div className="mt-6 flex flex-wrap gap-3">
-          {phase === "declined" && loaded.canRetry && (
+          {(phase === "declined" || phase === "pending") && loaded.canRetry && (
             <Button variant="red" size="lg" arrow disabled={acting !== null} onClick={retryPayment} data-testid="order-retry-pay">
-              {acting === "pay" ? "Abriendo la pasarela…" : "Reintentar el pago"}
+              {acting === "pay" ? "Abriendo la pasarela…" : phase === "pending" ? "Continuar con el pago" : "Reintentar el pago"}
             </Button>
           )}
-          {(phase === "declined" || phase === "cancelled" || phase === "expired") && loaded.hasLines && (
-            <Button variant="outline" size="lg" disabled={acting !== null} onClick={backToCart} data-testid="order-back-to-cart">
-              {acting === "restore" ? "Recuperando…" : "Volver al carrito"}
+          {(phase === "declined" || phase === "cancelled" || phase === "expired" || phase === "pending") && loaded.hasLines && (
+            <Button
+              variant="outline"
+              size="lg"
+              disabled={acting !== null}
+              onClick={phase === "pending" && !confirmingCart ? () => setConfirmingCart(true) : backToCart}
+              data-testid="order-back-to-cart"
+            >
+              {acting === "restore" ? "Recuperando…" : confirmingCart ? "Sí, volver al carrito" : "Volver al carrito"}
             </Button>
           )}
           <Button href="/collections/all" variant={phase === "paid" ? "red" : "outline"} size="lg" arrow={phase === "paid"} data-testid="order-continue">
