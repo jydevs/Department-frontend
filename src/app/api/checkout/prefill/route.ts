@@ -1,29 +1,33 @@
 import type { NextRequest } from "next/server";
-import { json } from "@/lib/cart/server";
+import { json, withSession } from "@/lib/account/server/bff";
+import { upstream } from "@/lib/account/server/upstream";
+import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/account/config";
 
 export const dynamic = "force-dynamic";
 
-const SESSION_COOKIES = ["dept_at", "dept_rt_c"];
+const str = (v: unknown) => (typeof v === "string" ? v : "");
 
 /**
- * Optional checkout prefill. Asks the account area (`/api/account/me`, built apart) who the visitor is, from the
- * server, only when a session cookie exists. ALWAYS answers 200: `{ customer: null }` when there is no session or the
- * account area is unavailable, so the browser console never shows a failing request.
+ * Optional checkout prefill. Reads the customer straight from the API through the account BFF helper (`withSession`),
+ * so a refresh-token rotation is single-flight and its new cookies reach the browser (no internal fetch, no origin
+ * taken from the request). ALWAYS answers 200: `{ customer: null }` when there is no session or the account area is
+ * unavailable, so the browser console never shows a failing request.
  */
 export async function GET(req: NextRequest) {
-  if (!SESSION_COOKIES.some((name) => req.cookies.get(name)?.value)) return json({ customer: null });
+  if (!req.cookies.get(ACCESS_COOKIE)?.value && !req.cookies.get(REFRESH_COOKIE)?.value) return json({ customer: null });
   try {
-    const res = await fetch(new URL("/api/account/me", req.nextUrl.origin), {
-      headers: { cookie: req.headers.get("cookie") ?? "", Accept: "application/json" },
-      cache: "no-store",
-      signal: AbortSignal.timeout(4000),
+    const res = await withSession(req, (accessToken) => upstream("/storefront/customers/me", { accessToken, req }), {
+      map: (body) => {
+        const c = body as Record<string, unknown> | null;
+        if (!c || typeof c.email !== "string") return { customer: null };
+        return { customer: { email: c.email, firstName: str(c.firstName), lastName: str(c.lastName), phone: str(c.phone) } };
+      },
     });
-    if (!res.ok) return json({ customer: null });
-    const data = (await res.json()) as { customer?: Record<string, unknown> | null };
-    const c = data.customer;
-    if (!c || typeof c.email !== "string") return json({ customer: null });
-    const str = (v: unknown) => (typeof v === "string" ? v : "");
-    return json({ customer: { email: c.email, firstName: str(c.firstName), lastName: str(c.lastName), phone: str(c.phone) } });
+    if (res.ok) return res;
+    // expired / unavailable: anonymous answer, keeping any Set-Cookie (rotated or cleared session)
+    const anonymous = json({ customer: null });
+    for (const cookie of res.cookies.getAll()) anonymous.cookies.set(cookie);
+    return anonymous;
   } catch {
     return json({ customer: null });
   }
