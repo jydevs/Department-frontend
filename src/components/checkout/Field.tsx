@@ -15,7 +15,7 @@ interface FieldProps {
   error?: string;
   hint?: string;
   className?: string;
-  children: (props: { id: string; "aria-invalid": boolean | undefined; "aria-describedby": string | undefined; className: string }) => ReactNode;
+  children: (props: { id: string; "aria-invalid": boolean | undefined; "aria-required": boolean | undefined; "aria-describedby": string | undefined; className: string }) => ReactNode;
 }
 
 /** Label + control + error/hint, wired for assistive tech (`aria-invalid`, `aria-describedby`, announced error). */
@@ -34,6 +34,7 @@ export function Field({ id, label, required, optionalHint, error, hint, classNam
       {children({
         id,
         "aria-invalid": error ? true : undefined,
+        "aria-required": required ? true : undefined,
         "aria-describedby": describedBy,
         className: clsx(inputClass, error ? "border-dept-red" : "border-white/20"),
       })}
