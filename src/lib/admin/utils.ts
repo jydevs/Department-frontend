@@ -7,11 +7,13 @@ export function cn(...inputs: ClassValue[]): string {
 
 /**
  * Valida un enlace antes de usarlo como `href`: solo `https:`, `http:` (solo localhost),
- * `mailto:`, `tel:` o rutas internas `/ruta`. Devuelve `null` si no es seguro.
+ * `mailto:`, `tel:` o rutas internas `/ruta`. Rechaza espacios y caracteres de control (igual que `isSafeLink` de la
+ * tienda). Devuelve `null` si no es seguro.
  */
 export function safeHref(url: string | null | undefined): string | null {
   if (!url) return null;
   const v = url.trim();
+  if (/[\x00-\x20\x7f]/.test(v)) return null;
   if (v.startsWith("/") && !v.startsWith("//") && !v.startsWith("/\\")) return v;
   try {
     const u = new URL(v);
