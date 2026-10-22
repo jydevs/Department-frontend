@@ -158,11 +158,14 @@ async function migrateLegacyCart(): Promise<void> {
   const lost: string[] = [];
   for (const line of old) {
     if (line.handle) rememberMeta(line.variantId, { handle: line.handle, size: line.size ?? "" });
-    const r = await call("POST", "/api/cart", { variantId: line.variantId, quantity: Math.min(MAX_LINE_QUANTITY, Math.max(1, line.qty)) });
-    if (r.ok) set({ cart: r.cart });
-    else lost.push(line.name ?? "un producto");
+    // same queue as every other mutation: it cannot interleave with the visitor's own clicks
+    const issue = await mutate(null, () =>
+      call("POST", "/api/cart", { variantId: line.variantId, quantity: Math.min(MAX_LINE_QUANTITY, Math.max(1, line.qty)) }),
+    );
+    if (issue) lost.push(line.name ?? "un producto");
   }
   set({
+    error: null, // the notice already explains what was lost
     notice: lost.length
       ? `Recuperamos tu carrito anterior, pero no pudimos añadir: ${lost.join(", ")} (sin inventario o ya no disponible).`
       : "Recuperamos los productos de tu carrito anterior.",
