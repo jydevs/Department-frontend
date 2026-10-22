@@ -44,7 +44,7 @@ export function decodePreviewTarget(token: string): PreviewTarget | null {
 export function safeInternalPath(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 500) return null;
   if (!INTERNAL_PATH.test(value) || value.includes("://")) return null;
-  // also the DECODED form: `/%09/evil.com` or `/%5Cx` X
+  // also the DECODED form: an encoded tab or backslash must not become a protocol-relative URL for a lenient client
   try {
     if (!INTERNAL_PATH.test(decodeURIComponent(value))) return null;
   } catch {
