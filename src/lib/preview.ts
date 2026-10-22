@@ -15,7 +15,7 @@ export const PREVIEW_COOKIE_MAX_AGE = 3600;
 const JWT_FORMAT = /^[\w-]+\.[\w-]+\.[\w-]+$/;
 const MAX_TOKEN_LENGTH = 4000;
 const HANDLE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const INTERNAL_PATH = /^\/(?!\/)[^\\s]*$/;
+const INTERNAL_PATH = /^\/(?!\/)[^\s\\\u0000-\u001f\u007f]*$/;
 
 export function isPreviewToken(value: unknown): value is string {
   return typeof value === "string" && value.length <= MAX_TOKEN_LENGTH && JWT_FORMAT.test(value);
@@ -44,6 +44,12 @@ export function decodePreviewTarget(token: string): PreviewTarget | null {
 export function safeInternalPath(value: unknown): string | null {
   if (typeof value !== "string" || value.length > 500) return null;
   if (!INTERNAL_PATH.test(value) || value.includes("://")) return null;
+  // also the DECODED form: `/%09/evil.com` or `/%5Cx` X
+  try {
+    if (!INTERNAL_PATH.test(decodeURIComponent(value))) return null;
+  } catch {
+    return null;
+  }
   return value;
 }
 
