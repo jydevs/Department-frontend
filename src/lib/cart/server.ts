@@ -6,7 +6,7 @@ import { visitorHeaders } from "@/lib/api/http";
 import { resolveMediaUrl } from "@/lib/api/media";
 import { SITE_URL } from "@/lib/site";
 import { issueFrom } from "./messages";
-import type { ApiIssue, CartState } from "./types";
+import type { ApiIssue, CartState, CartTaxBreakdown } from "./types";
 
 /**
  * Server-only plumbing shared by the cart and checkout BFF routes (`/api/cart/**`, `/api/checkout/**`).
@@ -217,6 +217,7 @@ export async function callApi<T>(req: Request, method: string, path: string, opt
 
 interface ApiQuoteLine {
   variantId: string;
+  productHandle: string | null;
   productTitle: string;
   variantTitle: string;
   imageUrl: string | null;
@@ -232,6 +233,7 @@ export interface ApiCartResponse {
   id: string;
   discountCode: string | null;
   itemCount: number;
+  converted?: boolean;
   quote: {
     lines: ApiQuoteLine[];
     subtotal: number;
@@ -240,6 +242,9 @@ export interface ApiCartResponse {
     shippingTotal: number;
     taxTotal: number;
     total: number;
+    taxIncluded?: boolean;
+    taxBreakdown?: CartTaxBreakdown | null;
+    shippingRate?: { id: string; name: string } | null;
     warnings: { code: "VARIANT_UNAVAILABLE" | "INSUFFICIENT_STOCK" | "DISCOUNT_INVALID"; message: string; variantId?: string }[];
   };
 }
@@ -259,6 +264,7 @@ export function cartStateFrom(cart: ApiCartResponse): CartState {
     discount: q.discount,
     lines: q.lines.map((l) => ({
       variantId: l.variantId,
+      productHandle: l.productHandle ?? null,
       productTitle: l.productTitle,
       variantTitle: l.variantTitle,
       imageUrl: resolveMediaUrl(l.imageUrl),
@@ -274,7 +280,10 @@ export function cartStateFrom(cart: ApiCartResponse): CartState {
     shippingTotal: q.shippingTotal,
     taxTotal: q.taxTotal,
     total: q.total,
-    taxIncluded: q.total === q.subtotal - q.discountTotal + q.shippingTotal,
+    taxIncluded: q.taxIncluded ?? q.total === q.subtotal - q.discountTotal + q.shippingTotal,
+    taxBreakdown: q.taxBreakdown ?? null,
+    shippingRate: q.shippingRate ?? null,
+    converted: cart.converted === true,
     warnings: q.warnings.map((w) => ({ code: w.code, message: WARNING_COPY[w.code] ?? w.message, variantId: w.variantId })),
   };
 }

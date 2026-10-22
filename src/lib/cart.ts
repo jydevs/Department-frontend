@@ -15,9 +15,11 @@ export {
   removeFromCart,
   removeVariant,
   setLineQty,
+  setShippingQuote,
   setVariantQty,
   useCart,
   MAX_LINE_QUANTITY,
   type AddToCartInput,
   type CartItem,
+  type ShippingQuoteParams,
 } from "./cart/store";

@@ -41,7 +41,6 @@ export interface AddToCartInput {
 
 export const MAX_LINE_QUANTITY = 20;
 const LEGACY_KEY = "dept-cart-v2";
-const META_KEY = "dept-cart-meta";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STALE_MS = 60_000;
 
@@ -59,33 +58,31 @@ function set(patch: Partial<CartSnapshot>) {
   listeners.forEach((l) => l());
 }
 
-/* ── presentation metadata (handle + size of a variant: the quote has no product handle) ─────────────────── */
+/* ── shipping quote (set by the checkout once a shipping rate is chosen) ─────────────────── */
 
-interface LineMeta {
-  handle: string;
-  size: string;
+export interface ShippingQuoteParams {
+  shippingRateId: string;
+  department: string;
+  /** only needed to validate single-use discount codes */
+  email?: string;
 }
 
-function readMeta(): Record<string, LineMeta> {
-  try {
-    const raw = window.localStorage.getItem(META_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === "object" ? (parsed as Record<string, LineMeta>) : {};
-  } catch {
-    return {};
-  }
+let quoteParams: ShippingQuoteParams | null = null;
+
+function quoteUrl(): string {
+  if (!quoteParams) return "/api/cart";
+  const q = new URLSearchParams({ shippingRateId: quoteParams.shippingRateId, department: quoteParams.department });
+  if (quoteParams.email) q.set("email", quoteParams.email);
+  return `/api/cart?${q}`;
 }
 
-function rememberMeta(variantId: string, meta: LineMeta) {
-  try {
-    const all = readMeta();
-    all[variantId] = meta;
-    const keys = Object.keys(all);
-    if (keys.length > 200) for (const k of keys.slice(0, keys.length - 200)) delete all[k];
-    window.localStorage.setItem(META_KEY, JSON.stringify(all));
-  } catch {
-    /* blocked storage: lines just lose their product link */
-  }
+/** Asks the server to quote the cart with shipping to a destination (null = back to the plain cart). */
+export function setShippingQuote(next: ShippingQuoteParams | null): Promise<void> {
+  const same = JSON.stringify(next) === JSON.stringify(quoteParams);
+  quoteParams = next;
+  if (same) return Promise.resolve();
+  start();
+  return refresh();
 }
 
 /* ── network ─────────────────────────────────────────────── */
@@ -125,10 +122,14 @@ function broadcast() {
 /* ── reading ─────────────────────────────────────────────── */
 
 async function refresh(): Promise<void> {
-  const r = await call("GET", "/api/cart");
+  const r = await call("GET", quoteUrl());
   lastRead = Date.now();
   if (r.ok) set({ cart: r.cart, ready: true });
-  else set({ ready: true, error: snap.cart.lines.length === 0 ? snap.error : r.issue });
+  else {
+    // the chosen rate stopped being valid for that destination: go back to the plain cart
+    if (quoteParams && r.issue.code === "SHIPPING_RATE_INVALID") quoteParams = null;
+    set({ ready: true, error: snap.cart.lines.length === 0 ? snap.error : r.issue });
+  }
 }
 
 async function migrateLegacyCart(): Promise<void> {
@@ -157,7 +158,6 @@ async function migrateLegacyCart(): Promise<void> {
   }
   const lost: string[] = [];
   for (const line of old) {
-    if (line.handle) rememberMeta(line.variantId, { handle: line.handle, size: line.size ?? "" });
     // same queue as every other mutation: it cannot interleave with the visitor's own clicks
     const issue = await mutate(null, () =>
       call("POST", "/api/cart", { variantId: line.variantId, quantity: Math.min(MAX_LINE_QUANTITY, Math.max(1, line.qty)) }),
@@ -176,6 +176,11 @@ async function migrateLegacyCart(): Promise<void> {
 function start() {
   if (started || typeof window === "undefined") return;
   started = true;
+  try {
+    window.localStorage.removeItem("dept-cart-meta"); // old variant→handle map: the quote carries the handle now
+  } catch {
+    /* blocked storage */
+  }
   try {
     channel = new BroadcastChannel("dept-cart");
     channel.onmessage = () => void refresh();
@@ -207,6 +212,13 @@ function mutate(optimistic: Optimistic | null, send: () => Promise<Outcome>): Pr
     const r = await send();
     const remaining = snap.busy - 1;
     if (r.ok) {
+      // mutations answer without shipping: with a destination chosen, re-quote once the queue is empty
+      if (remaining === 0 && quoteParams) {
+        set({ busy: remaining });
+        await refresh();
+        broadcast();
+        return null;
+      }
       // while more mutations are queued the screen already shows their optimistic result: the last answer wins
       set({ busy: remaining, ...(remaining === 0 ? { cart: r.cart } : null) });
       lastRead = Date.now();
@@ -228,7 +240,6 @@ export function addToCart(input: AddToCartInput, qty = 1): boolean {
   if (!UUID_RE.test(input.variantId) || !input.handle || !input.name) return false;
   start();
   const quantity = Math.min(MAX_LINE_QUANTITY, Math.max(1, Math.floor(qty) || 1));
-  rememberMeta(input.variantId, { handle: input.handle, size: input.size });
   void mutate(
     (cart) => {
       const existing = cart.lines.find((l) => l.variantId === input.variantId);
@@ -240,6 +251,7 @@ export function addToCart(input: AddToCartInput, qty = 1): boolean {
             ...cart.lines,
             {
               variantId: input.variantId,
+              productHandle: input.handle,
               productTitle: input.name,
               variantTitle: input.size,
               imageUrl: input.image ?? null,
@@ -286,9 +298,9 @@ export function removeVariant(variantId: string): Promise<ApiIssue | null> {
   );
 }
 
-export function applyDiscount(code: string): Promise<ApiIssue | null> {
+export function applyDiscount(code: string, email?: string): Promise<ApiIssue | null> {
   start();
-  return mutate(null, () => call("PUT", "/api/cart/discount", { code }));
+  return mutate(null, () => call("PUT", "/api/cart/discount", { code, ...(email ? { email } : null) }));
 }
 
 export function removeDiscount(): Promise<ApiIssue | null> {
@@ -324,11 +336,7 @@ export function setCartState(cart: CartState) {
 /* ── legacy name-based API (kept for the existing components) ─ */
 
 function variantOf(handle: string, size: string): string | null {
-  const meta = readMeta();
-  const match = snap.cart.lines.find((l) => {
-    const m = meta[l.variantId];
-    return m ? m.handle === handle && (m.size === size || l.variantTitle === size) : false;
-  });
+  const match = snap.cart.lines.find((l) => l.productHandle === handle && (l.variantTitle === size || (size === "" && DEFAULT_VARIANT_TITLES.has(l.variantTitle.trim().toLowerCase()))));
   return match?.variantId ?? null;
 }
 
@@ -383,13 +391,12 @@ export function useCart() {
   const current = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   return useMemo(() => {
-    const meta = typeof window === "undefined" ? {} : readMeta();
     const items: CartItem[] = current.cart.lines.map((line) => {
       const size = DEFAULT_VARIANT_TITLES.has(line.variantTitle.trim().toLowerCase()) ? "" : line.variantTitle;
       const image = line.imageUrl ?? undefined;
       return {
         variantId: line.variantId,
-        handle: meta[line.variantId]?.handle ?? "",
+        handle: line.productHandle ?? "",
         size,
         qty: line.quantity,
         max: Math.max(1, Math.min(MAX_LINE_QUANTITY, line.maxQuantity ?? MAX_LINE_QUANTITY)),

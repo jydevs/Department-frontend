@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DiscountBox } from "@/components/cart/DiscountBox";
 import { Button } from "@/components/ui/Button";
 import { canOptimize } from "@/lib/api/media";
-import { refreshCart, useCart } from "@/lib/cart";
+import { refreshCart, setShippingQuote, useCart } from "@/lib/cart";
 import type { ApiIssue, CheckoutResult, ShippingOption } from "@/lib/cart/types";
 import { DEPARTMENTS, DOCUMENT_TYPES } from "@/lib/checkout/departments";
 import { paymentDestination } from "@/lib/checkout/payment";
@@ -22,6 +22,7 @@ import {
   type CheckoutForm,
   type FormErrors,
 } from "@/lib/checkout/validation";
+import { validEmail } from "@/lib/account/validation";
 import { clsx } from "@/lib/clsx";
 import { formatCOP } from "@/lib/format";
 import { Field } from "./Field";
@@ -203,8 +204,24 @@ export function CheckoutForm() {
   }, [department, cart.subtotal, cart.discountTotal, cart.discountCode, cart.lines.length]);
 
   const rate = rates?.find((r) => r.id === form.shippingRateId) ?? null;
-  const shipping = rate ? rate.price : 0;
-  const total = cart.subtotal - cart.discountTotal + shipping + (cart.taxIncluded ? 0 : cart.taxTotal);
+
+  /* the API prices the cart WITH the chosen shipping (and the tax over it): the summary only shows its quote */
+  const rateId = rate?.id ?? null;
+  const email = form.email.trim();
+  const quoteEmail = cart.discountCode && validEmail(email) ? email : undefined;
+  useEffect(() => {
+    if (!rateId || !department) {
+      void setShippingQuote(null);
+      return;
+    }
+    // the email only matters for single-use discount codes: wait for the typing to settle
+    const timer = window.setTimeout(() => void setShippingQuote({ shippingRateId: rateId, department, email: quoteEmail }), quoteEmail ? 600 : 0);
+    return () => window.clearTimeout(timer);
+  }, [rateId, department, quoteEmail]);
+  // leaving the checkout, the cart goes back to its plain quote (the drawer has no destination)
+  useEffect(() => () => void setShippingQuote(null), []);
+
+  const quoted = rate !== null && cart.shippingRate?.id === rate.id;
 
   const focusFirst = (errs: FormErrors) => {
     const first = FIELD_ORDER.find((k) => errs[k]) ?? Object.keys(errs)[0];
@@ -494,7 +511,7 @@ export function CheckoutForm() {
           </p>
 
           <div className="mt-5">
-            <DiscountBox discountCode={cart.discountCode} discountAmount={cart.discountTotal} />
+            <DiscountBox discountCode={cart.discountCode} discountAmount={cart.discountTotal} email={validEmail(email) ? email : undefined} />
           </div>
 
           <dl className="font-condensed mt-5 space-y-3 text-xs tracking-[0.1em]">
@@ -511,22 +528,34 @@ export function CheckoutForm() {
             <div className="flex justify-between text-dept-gray-400">
               <dt>Envío</dt>
               <dd data-testid="checkout-shipping" className="tabular-nums text-dept-white">
-                {rate ? (rate.price === 0 ? "Gratis" : formatCOP(rate.price)) : <span className="text-dept-gray-500">Elige un envío</span>}
+                {!rate ? (
+                  <span className="text-dept-gray-500">Elige un envío</span>
+                ) : !quoted ? (
+                  <span className="text-dept-gray-500">Calculando…</span>
+                ) : cart.shippingTotal === 0 ? (
+                  "Gratis"
+                ) : (
+                  formatCOP(cart.shippingTotal)
+                )}
               </dd>
             </div>
             {!cart.taxIncluded && (
               <div className="flex justify-between text-dept-gray-400">
                 <dt>IVA</dt>
-                <dd className="tabular-nums text-dept-white">{formatCOP(cart.taxTotal)}</dd>
+                <dd data-testid="checkout-tax" className="tabular-nums text-dept-white">{formatCOP(cart.taxTotal)}</dd>
               </div>
             )}
             <div className="flex justify-between border-t border-white/10 pt-4 text-sm font-semibold text-dept-white">
-              <dt>Total{rate ? "" : " estimado"}</dt>
-              <dd data-testid="checkout-total" className="text-base tabular-nums">{formatCOP(total)}</dd>
+              <dt>Total{quoted ? "" : " estimado"}</dt>
+              <dd data-testid="checkout-total" className="text-base tabular-nums">{formatCOP(cart.total)}</dd>
             </div>
           </dl>
-          <p className="font-condensed mt-3 text-[11px] tracking-[0.1em] text-dept-gray-500">
-            {cart.taxIncluded ? "Todos los precios incluyen IVA. El desglose exacto aparece en tu pedido." : "El IVA se suma al total."}
+          <p data-testid="checkout-tax-note" className="font-condensed mt-3 text-[11px] tracking-[0.1em] text-dept-gray-500">
+            {cart.taxIncluded
+              ? cart.taxBreakdown
+                ? `Incluye ${cart.taxBreakdown.label} (${cart.taxBreakdown.ratePercent}%): ${formatCOP(cart.taxBreakdown.taxAmount)} sobre una base de ${formatCOP(cart.taxBreakdown.netAmount)}.`
+                : "Todos los precios incluyen IVA."
+              : "El IVA se suma al total."}
           </p>
         </div>
       </aside>

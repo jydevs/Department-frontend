@@ -1,10 +1,9 @@
 import type { NextRequest } from "next/server";
-import { addLine, onCart } from "@/lib/cart/bff";
+import { addLine, onCart, readCartResult } from "@/lib/cart/bff";
 import { issueFrom } from "@/lib/cart/messages";
 import {
   badRequest,
   callApi,
-  cartStateFrom,
   clearCartCookie,
   fail,
   guardMutation,
@@ -13,23 +12,25 @@ import {
   json,
   readCartCookie,
   readJson,
-  type ApiCartResponse,
 } from "@/lib/cart/server";
 import { EMPTY_CART_STATE } from "@/lib/cart/types";
 
 export const dynamic = "force-dynamic";
 
-/** The visitor's cart with the server's quote. No cart yet → an empty one (no API call, no cart created). */
+/**
+ * The visitor's cart with the server's quote. No cart yet → an empty one (no API call, no cart created).
+ * `?shippingRateId=&department=[&email=]` asks the API to quote the shipping and the tax over it.
+ */
 export async function GET(req: NextRequest) {
-  const cart = await readCartCookie();
-  if (!cart) return json({ cart: EMPTY_CART_STATE });
-  const result = await callApi<ApiCartResponse>(req, "GET", `/storefront/carts/${cart.id}`, { cartToken: cart.token });
-  if (result.ok) return json({ cart: cartStateFrom(result.data) });
-  if (isCartGone(result.issue)) {
-    await clearCartCookie();
-    return json({ cart: EMPTY_CART_STATE });
+  const q = req.nextUrl.searchParams;
+  const shippingRateId = q.get("shippingRateId") ?? "";
+  const department = q.get("department")?.trim() ?? "";
+  const email = q.get("email")?.trim() ?? "";
+  if (Boolean(shippingRateId) !== Boolean(department) || (shippingRateId && !isUuid(shippingRateId)) || department.length > 60 || email.length > 255) {
+    return badRequest("Método de envío o destino no válidos.");
   }
-  return fail(result.issue);
+  const result = await readCartResult(req, { shippingRateId, department, ...(email ? { email } : null) });
+  return result.ok ? json({ cart: result.data }) : fail(result.issue);
 }
 
 function quantityOf(value: unknown, min: number): number | null {

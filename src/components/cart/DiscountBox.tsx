@@ -5,7 +5,7 @@ import { useCart } from "@/lib/cart";
 import { formatCOP } from "@/lib/format";
 
 /** Discount code field of the cart drawer and of the checkout summary: applies / removes the code on the server cart. */
-export function DiscountBox({ discountCode, discountAmount }: { discountCode: string | null; discountAmount: number }) {
+export function DiscountBox({ discountCode, discountAmount, email }: { discountCode: string | null; discountAmount: number; email?: string }) {
   const { applyDiscount, removeDiscount } = useCart();
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -22,7 +22,7 @@ export function DiscountBox({ discountCode, discountAmount }: { discountCode: st
     }
     setWorking(true);
     setMessage(null);
-    const issue = await applyDiscount(value);
+    const issue = await applyDiscount(value, email);
     setWorking(false);
     if (issue) setMessage(issue.fields?.code ?? issue.message);
     else setCode("");

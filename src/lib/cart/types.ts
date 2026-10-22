@@ -5,6 +5,8 @@
 
 export interface CartLineView {
   variantId: string;
+  /** handle of the line's product (null when the API cannot resolve it) */
+  productHandle: string | null;
   productTitle: string;
   variantTitle: string;
   imageUrl: string | null;
@@ -31,6 +33,14 @@ export interface CartWarningView {
   variantId?: string;
 }
 
+export interface CartTaxBreakdown {
+  label: string;
+  ratePercent: number;
+  /** base without tax */
+  netAmount: number;
+  taxAmount: number;
+}
+
 export interface CartState {
   /** null while the visitor has no cart on the server */
   cartId: string | null;
@@ -45,6 +55,11 @@ export interface CartState {
   total: number;
   /** true when the tax is already part of the prices (total = subtotal - discount + shipping) */
   taxIncluded: boolean;
+  taxBreakdown: CartTaxBreakdown | null;
+  /** the shipping rate the quote was computed with (only when the cart was read with one) */
+  shippingRate: { id: string; name: string } | null;
+  /** the API says this cart already became an order: the BFF drops it and reports an empty cart */
+  converted: boolean;
   warnings: CartWarningView[];
 }
 
@@ -60,6 +75,9 @@ export const EMPTY_CART_STATE: CartState = {
   taxTotal: 0,
   total: 0,
   taxIncluded: true,
+  taxBreakdown: null,
+  shippingRate: null,
+  converted: false,
   warnings: [],
 };
 

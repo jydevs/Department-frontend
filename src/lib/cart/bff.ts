@@ -75,11 +75,36 @@ export async function addLine(req: Request, variantId: string, quantity: number)
   return settle(result);
 }
 
-export async function readCart(req: Request): Promise<CartState> {
+/** Optional shipping destination: with it the API quotes the cart with the shipping (and the tax over it). */
+export interface QuoteQuery {
+  shippingRateId?: string;
+  department?: string;
+  email?: string;
+}
+
+/**
+ * Reads the visitor's cart (optionally quoted with shipping). A cart the API reports as `converted` is already an
+ * order: its cookie is dropped here, so the visitor never keeps acting on it, and an empty cart comes back.
+ */
+export async function readCartResult(req: Request, quote: QuoteQuery = {}): Promise<ApiResult<CartState>> {
   const cart = await readCartCookie();
-  if (!cart) return EMPTY_CART_STATE;
-  const result = await callApi<ApiCartResponse>(req, "GET", `/storefront/carts/${cart.id}`, { cartToken: cart.token });
-  if (result.ok) return cartStateFrom(result.data);
-  if (isCartGone(result.issue)) await clearCartCookie();
-  return EMPTY_CART_STATE;
+  if (!cart) return { ok: true, status: 200, data: EMPTY_CART_STATE };
+  const result = await callApi<ApiCartResponse>(req, "GET", `/storefront/carts/${cart.id}`, { cartToken: cart.token, query: { ...quote } });
+  if (!result.ok) {
+    if (isCartGone(result.issue)) {
+      await clearCartCookie();
+      return { ok: true, status: 200, data: EMPTY_CART_STATE };
+    }
+    return result;
+  }
+  if (result.data.converted) {
+    await clearCartCookie();
+    return { ok: true, status: 200, data: { ...EMPTY_CART_STATE, converted: true } };
+  }
+  return { ok: true, status: result.status, data: cartStateFrom(result.data) };
+}
+
+export async function readCart(req: Request): Promise<CartState> {
+  const result = await readCartResult(req);
+  return result.ok ? result.data : EMPTY_CART_STATE;
 }

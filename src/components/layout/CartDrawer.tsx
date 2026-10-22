@@ -341,7 +341,14 @@ function CartPanel({ onClose, config, onOpenAccount }: { onClose: () => void; co
                   </dd>
                 </div>
               </dl>
-              {cart.taxIncluded && <p className="font-condensed text-[11px] tracking-[0.1em] text-dept-gray-500">Precios con IVA incluido. El envío se suma al elegir tu dirección.</p>}
+              {cart.taxIncluded && (
+                <p data-testid="cart-tax-note" className="font-condensed text-[11px] tracking-[0.1em] text-dept-gray-500">
+                  {cart.taxBreakdown
+                    ? `Incluye ${cart.taxBreakdown.label} (${cart.taxBreakdown.ratePercent}%): ${formatCOP(cart.taxBreakdown.taxAmount)}. `
+                    : "Precios con IVA incluido. "}
+                  El envío se suma al elegir tu dirección.
+                </p>
+              )}
 
               {blocked ? (
                 <Button variant="red" size="lg" disabled className="w-full" data-testid="checkout-btn">
