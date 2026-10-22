@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { draftMode } from "next/headers";
+import { cookies, draftMode } from "next/headers";
 import { connection } from "next/server";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { OverlayProvider } from "@/components/layout/OverlayProvider";
 import { PreviewBar } from "@/components/layout/PreviewBar";
+import { ACCESS_COOKIE, REFRESH_COOKIE } from "@/lib/account/config";
+import { CustomerProvider } from "@/lib/account/useCustomer";
 import { getSiteSettingsOrDefault } from "@/lib/api/content";
 import { resolveMediaUrl } from "@/lib/api/media";
 import { loadLayout } from "@/lib/cms/layout";
@@ -59,7 +61,9 @@ export default async function RootLayout({
   // Rendered per request: CMS content is read through the Next data cache (revalidated by tag / every 60 s),
   // so a build never needs the API and an outage can never freeze an error page into the cache.
   await connection();
-  const [layout, draft] = await Promise.all([loadLayout(), draftMode()]);
+  const [layout, draft, jar] = await Promise.all([loadLayout(), draftMode(), cookies()]);
+  // the session cookies are httpOnly: the server only learns whether they exist (no API call, no token read)
+  const hasSession = Boolean(jar.get(ACCESS_COOKIE)?.value || jar.get(REFRESH_COOKIE)?.value);
 
   return (
     <html
@@ -71,17 +75,19 @@ export default async function RootLayout({
         <a href="#main" className="skip-link">
           {layout.skipLinkLabel}
         </a>
-        <OverlayProvider
-          searchConfig={layout.searchConfig}
-          cartConfig={layout.cartConfig}
-          popularProducts={layout.popularProducts}
-        >
-          <Header config={layout.header} />
-          <main id="main" className="flex-1">
-            {children}
-          </main>
-          <SiteFooter config={layout.footer} />
-        </OverlayProvider>
+        <CustomerProvider hasSession={hasSession}>
+          <OverlayProvider
+            searchConfig={layout.searchConfig}
+            cartConfig={layout.cartConfig}
+            popularProducts={layout.popularProducts}
+          >
+            <Header config={layout.header} />
+            <main id="main" className="flex-1">
+              {children}
+            </main>
+            <SiteFooter config={layout.footer} />
+          </OverlayProvider>
+        </CustomerProvider>
         <div className="grain" aria-hidden />
         {draft.isEnabled && <PreviewBar />}
       </body>
