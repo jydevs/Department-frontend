@@ -36,6 +36,8 @@ export interface ApiProductSummary {
   available: boolean;
   /** not sent today; used when a future API version adds it */
   compareAtPrice?: number | null;
+  /** not sent today (see docs/BACKEND-GAPS.md); the sitemap uses it as `lastModified` when it arrives */
+  updatedAt?: string;
 }
 
 export interface ApiOptionValue {

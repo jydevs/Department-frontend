@@ -99,3 +99,8 @@ está conectado en el front.
   logs de acceso del proxy. **Petición:** aceptar el correo también en una cabecera `X-Customer-Email` (o un
   `POST /storefront/carts/:id/quote` con body `{ shippingRateId, department, email }`) y quitar la query de los logs;
   el BFF cambiará a esa vía en cuanto exista.
+- **Los listados de productos no traen `updatedAt`.** `GET /storefront/products` devuelve por item
+  `{ id, handle, title, price, image, available }`; el sitemap necesitaba la fecha real de cada producto y pedía el detalle
+  de hasta 500 productos (lecturas que consumen el cupo por `X-Storefront-Key`). Ahora el sitemap **no** pide detalles:
+  emite los productos sin `lastModified` mientras el listado no la traiga. **Petición:** añadir
+  `updatedAt: Date` a `StorefrontProductSummary` (los tres endpoints de listado); el sitemap ya la usa si llega.
