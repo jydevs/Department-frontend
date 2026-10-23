@@ -16,7 +16,7 @@ function codeError(e: unknown): string {
   return apiMessage(e);
 }
 
-const RECOVERY_OR_TOTP_RE = /^(d{6}|[A-Za-z0-9]{8})$/;
+const RECOVERY_OR_TOTP_RE = /^(\d{6}|[A-Za-z0-9]{8})$/;
 
 /** Muestra los códigos de recuperación (una sola vez) con copiar/descargar; `onDone` se habilita al confirmar que se guardaron. */
 function RecoveryCodesDialog({
@@ -174,7 +174,7 @@ function DisableDialog({ onClose }: { onClose: () => void }) {
 
   const submit = async () => {
     setError(null);
-    if (!/^\d{6}$/.test(code)) return setError("Escribe el código de 6 dígitos de tu app.");
+    if (!RECOVERY_OR_TOTP_RE.test(code)) return setError("Escribe el código de 6 dígitos de tu app o un código de recuperación de 8 caracteres.");
     if (!password) return setError("Escribe tu contraseña actual.");
     try {
       await disable.mutateAsync({ code: code.toUpperCase(), password });
@@ -211,7 +211,7 @@ function DisableDialog({ onClose }: { onClose: () => void }) {
           void submit();
         }}
       >
-        <Input label="Código de 6 dígitos" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} data-autofocus="" />
+        <Input label="Código de verificación" autoComplete="one-time-code" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.replace(/\s+/g, ""))} hint="Código de tu app o código de recuperación" data-autofocus="" />
         <Input label="Contraseña actual" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         {error ? <Notice tone="danger">{error}</Notice> : null}
         <button type="submit" className="sr-only" tabIndex={-1} aria-hidden>
@@ -276,7 +276,7 @@ function RegenerateDialog({ onClose }: { onClose: () => void }) {
           void submit();
         }}
       >
-        <Input label="Código de verificación" autoComplete="one-time-code" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.replace(/s+/g, ""))} hint="Código de tu app o código de recuperación" data-autofocus="" />
+        <Input label="Código de verificación" autoComplete="one-time-code" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.replace(/\s+/g, ""))} hint="Código de tu app o código de recuperación" data-autofocus="" />
         <Input label="Contraseña actual" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         {error ? <Notice tone="danger">{error}</Notice> : null}
         <button type="submit" className="sr-only" tabIndex={-1} aria-hidden>

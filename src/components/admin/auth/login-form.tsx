@@ -180,7 +180,7 @@ export function LoginForm() {
                   inputMode="text"
                   maxLength={8}
                   value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/s+/g, ""))}
+                  onChange={(e) => setCode(e.target.value.replace(/\s+/g, ""))}
                   disabled={busy}
                   hint="Opcional: 6 dígitos de tu app o un código de recuperación."
                   className="tracking-widest tabular-nums"
