@@ -52,7 +52,7 @@ export function CreateStaffDialog({ roles, actorIsOwner, onClose, onCreated }: O
       onClose={onClose}
       dismissible={!create.isPending}
       title="Nuevo miembro del equipo"
-      description="Se generará una contraseña temporal que verás una sola vez."
+      description="Se generará una contraseña temporal que verás una sola vez; la persona deberá cambiarla en su primer ingreso."
       footer={
         <>
           <Button onClick={onClose} disabled={create.isPending}>
@@ -176,7 +176,10 @@ export function PasswordRevealDialog({ created, onClose }: { created: CreatedSta
     >
       <div className="space-y-4">
         <Notice tone="warning" title="Se muestra una sola vez">
-          Esta contraseña no se podrá volver a ver. Cópiala ahora y entrégala por un canal seguro; la persona debería cambiarla al entrar.
+          Esta contraseña no se podrá volver a ver. Cópiala ahora y entrégala por un canal seguro.
+        </Notice>
+        <Notice tone="info" title="Deberá cambiarla en su primer ingreso">
+          Hasta que elija una contraseña propia no podrá usar el panel. Si su rol es propietario o administrador, también deberá activar la verificación en dos pasos.
         </Notice>
         <dl className="space-y-2 text-sm">
           <div className="flex justify-between gap-3">
