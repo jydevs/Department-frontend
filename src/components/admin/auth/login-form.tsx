@@ -16,6 +16,14 @@ type Step = "credentials" | "totp";
 
 const CODE_RE = /^(\d{6}|[A-Za-z0-9]{8})$/;
 
+/** 75 → «1 min 15 s»; 40 → «40 s». */
+function formatWait(totalSeconds: number): string {
+  if (totalSeconds < 60) return `${totalSeconds} s`;
+  const m = Math.floor(totalSeconds / 60);
+  const sec = totalSeconds % 60;
+  return sec ? `${m} min ${sec} s` : `${m} min`;
+}
+
 function destination(): string {
   const next = new URLSearchParams(window.location.search).get("next");
   return isInternalPath(next) ? next : "/";
@@ -89,9 +97,8 @@ export function LoginForm() {
         const until = Date.now() + secs * 1000;
         setNow(Date.now());
         setLockedUntil(until);
-        setError("Demasiados intentos de acceso.");
       } else if (err instanceof ApiError && (err.code === "INVALID_CREDENTIALS" || err.status === 401)) {
-        setError(step === "totp" ? "Código incorrecto o caducado. Inténtalo de nuevo." : "Correo o contraseña incorrectos.");
+        setError(step === "totp" ? "Código incorrecto o caducado. Inténtalo de nuevo." : "Correo o contraseña incorrectos. Si fallas varias veces seguidas, la cuenta se bloquea unos minutos.");
         if (step === "totp") setCode("");
       } else {
         setError(errorMessage(err));
@@ -176,13 +183,12 @@ export function LoginForm() {
 
             {error || locked ? (
               <div role="alert" className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
-                {error}
-                {locked ? <span className="block text-[13px]">Vuelve a intentarlo en {lockSeconds} s.</span> : null}
+                {locked ? `Demasiados intentos, espera ${formatWait(lockSeconds)}.` : error}
               </div>
             ) : null}
 
             <Button type="submit" variant="primary" size="lg" loading={busy} disabled={locked} className="w-full">
-              {locked ? `Espera ${lockSeconds} s` : step === "credentials" ? "Entrar" : "Verificar"}
+              {locked ? `Espera ${formatWait(lockSeconds)}` : step === "credentials" ? "Entrar" : "Verificar"}
             </Button>
 
             {step === "totp" ? (
