@@ -25,6 +25,7 @@ let expiresAt = 0;
 let tokenVersion = 0;
 let unauthorizedHandler: (() => void) | null = null;
 let refreshInFlight: Promise<string | null> | null = null;
+let securityGateHandler: (() => void) | null = null;
 
 const REFRESH_LOCK = "dept-admin-refresh";
 const CHANNEL_NAME = "dept-admin-auth";
@@ -69,6 +70,25 @@ export function accessTokenTtlMs(): number {
 /** El AuthProvider registra aquí qué hacer cuando la sesión ya no se puede renovar. */
 export function setUnauthorizedHandler(fn: (() => void) | null): void {
   unauthorizedHandler = fn;
+}
+
+/**
+ * El AuthProvider registra aquí qué hacer cuando la API responde 403 PASSWORD_CHANGE_REQUIRED o
+ * TWO_FACTOR_SETUP_REQUIRED: volver a leer /auth/me para que el panel muestre la pantalla correspondiente.
+ */
+export function setSecurityGateHandler(fn: (() => void) | null): void {
+  securityGateHandler = fn;
+}
+
+const SECURITY_GATE_CODES = ["PASSWORD_CHANGE_REQUIRED", "TWO_FACTOR_SETUP_REQUIRED"];
+
+async function isSecurityGateError(res: Response): Promise<boolean> {
+  try {
+    const body = (await res.clone().json()) as Partial<ApiErrorBody>;
+    return typeof body.code === "string" && SECURITY_GATE_CODES.includes(body.code);
+  } catch {
+    return false;
+  }
 }
 
 export interface RefreshResult {
@@ -211,6 +231,7 @@ async function send(method: string, path: string, init: { body?: BodyInit; json?
       unauthorizedHandler?.();
     }
   }
+  if (res.status === 403 && (await isSecurityGateError(res))) securityGateHandler?.();
   return res;
 }
 

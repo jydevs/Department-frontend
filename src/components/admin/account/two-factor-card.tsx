@@ -16,7 +16,11 @@ function codeError(e: unknown): string {
   return apiMessage(e);
 }
 
-function EnableDialog({ uri, onClose }: { uri: string; onClose: () => void }) {
+/**
+ * Diálogo de activación (QR, código, códigos de recuperación). `required`: no se puede cancelar (activación obligatoria);
+ * `onClose` se llama al confirmar que se guardaron los códigos y entonces se relee la sesión.
+ */
+export function EnableDialog({ uri, onClose, required = false }: { uri: string; onClose: () => void; required?: boolean }) {
   const toast = useToast();
   const { reloadUser } = useAuth();
   const enable = useEnable2fa();
@@ -25,7 +29,19 @@ function EnableDialog({ uri, onClose }: { uri: string; onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
   const [saved, setSaved] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const secret = secretFromOtpauth(uri);
+
+  // se relee /auth/me al terminar, no al activar: si 2FA era obligatoria, la pantalla se cierra y los códigos se perderían
+  const finish = async () => {
+    setFinishing(true);
+    try {
+      await reloadUser();
+    } catch {
+      /* la sesión se resuelve sola (401 → login) */
+    }
+    onClose();
+  };
 
   const submit = async () => {
     setError(null);
@@ -35,7 +51,6 @@ function EnableDialog({ uri, onClose }: { uri: string; onClose: () => void }) {
       const res = await enable.mutateAsync({ code, password });
       setCodes(res.recoveryCodes);
       toast.success("Verificación en dos pasos activada");
-      await reloadUser();
     } catch (e) {
       setError(codeError(e));
     }
@@ -51,7 +66,7 @@ function EnableDialog({ uri, onClose }: { uri: string; onClose: () => void }) {
         title="Guarda tus códigos de recuperación"
         description="Cada código sirve una sola vez si pierdes acceso a tu app de autenticación."
         footer={
-          <Button variant="primary" disabled={!saved} onClick={onClose}>
+          <Button variant="primary" disabled={!saved} loading={finishing} onClick={finish}>
             Listo
           </Button>
         }
@@ -81,15 +96,17 @@ function EnableDialog({ uri, onClose }: { uri: string; onClose: () => void }) {
     <Dialog
       open
       onClose={onClose}
-      dismissible={!enable.isPending}
+      dismissible={!enable.isPending && !required}
       size="lg"
       title="Activar verificación en dos pasos"
       description="Escanea el QR con Google Authenticator, Authy, 1Password o similar."
       footer={
         <>
-          <Button onClick={onClose} disabled={enable.isPending}>
-            Cancelar
-          </Button>
+          {required ? null : (
+            <Button onClick={onClose} disabled={enable.isPending}>
+              Cancelar
+            </Button>
+          )}
           <Button variant="primary" onClick={submit} loading={enable.isPending}>
             Verificar y activar
           </Button>

@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "@/lib/admin/navigation";
 import { useEffect, type ReactNode } from "react";
 import { useAuth } from "@/lib/admin/auth";
 import { Skeleton, Spinner } from "@/components/admin/ui/spinner";
+import { SecurityGate } from "@/components/admin/auth/security-gate";
 
 export function ShellSkeleton() {
   return (
@@ -25,9 +26,9 @@ export function ShellSkeleton() {
   );
 }
 
-/** loading → esqueleto; anon → /login?next=…; authed → hijos. */
+/** loading → esqueleto; anon → /login?next=…; authed con restricción → pantalla de seguridad; authed → hijos. */
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { status, loggedOut } = useAuth();
+  const { status, loggedOut, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -38,5 +39,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [status, loggedOut, pathname, router]);
 
   if (status !== "authed") return <ShellSkeleton />;
+  // cuenta con restricción de seguridad: ni el panel ni sus peticiones hasta resolverla
+  if (user?.mustChangePassword || user?.twoFactorSetupRequired) return <SecurityGate />;
   return <>{children}</>;
 }

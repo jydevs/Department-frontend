@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { api, refreshSession, setAccessToken, setUnauthorizedHandler } from "@/lib/admin/api-client";
+import { api, refreshSession, setAccessToken, setSecurityGateHandler, setUnauthorizedHandler } from "@/lib/admin/api-client";
 
 export interface StaffUser {
   id: string;
@@ -11,6 +11,10 @@ export interface StaffUser {
   role: string;
   permissions: string[];
   totpEnabled: boolean;
+  /** Contraseña temporal: el backend solo deja cambiarla hasta que lo haga. */
+  mustChangePassword?: boolean;
+  /** Owner/admin sin 2FA con REQUIRE_STAFF_2FA: solo deja activar la verificación en dos pasos. */
+  twoFactorSetupRequired?: boolean;
 }
 
 export type AuthStatus = "loading" | "authed" | "anon";
@@ -81,6 +85,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return () => setUnauthorizedHandler(null);
   }, [queryClient]);
+
+  // 403 PASSWORD_CHANGE_REQUIRED / TWO_FACTOR_SETUP_REQUIRED: el estado de seguridad cambió; releer /auth/me
+  useEffect(() => {
+    let inFlight = false;
+    setSecurityGateHandler(() => {
+      if (inFlight) return;
+      inFlight = true;
+      api
+        .get<StaffUser>("/auth/me")
+        .then((me) => setUser(me))
+        .catch(() => undefined)
+        .finally(() => {
+          inFlight = false;
+        });
+    });
+    return () => setSecurityGateHandler(null);
+  }, []);
 
   const login = useCallback(async (email: string, password: string, totp?: string) => {
     const body: { email: string; password: string; totp?: string } = { email: email.trim(), password };

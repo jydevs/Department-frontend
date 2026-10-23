@@ -5,8 +5,8 @@ import { Badge, Button, Card, Input, PageHeader, Skeleton, useToast } from "@/co
 import { Notice, ROLE_LABELS, ACTION_LABELS, groupPermissions, apiMessage } from "@/components/admin/settings/shared";
 import { useAuth } from "@/lib/admin/auth";
 import { ApiError } from "@/lib/admin/errors";
-import { cn } from "@/lib/admin/utils";
 import { passwordStrength, useChangePassword } from "@/lib/admin/api/account";
+import { PasswordStrengthMeter, validateNewPassword } from "./password-strength";
 import { TwoFactorCard } from "./two-factor-card";
 
 function ProfileCard() {
@@ -42,8 +42,6 @@ function ProfileCard() {
   );
 }
 
-const STRENGTH_COLORS = ["bg-surface-3", "bg-danger", "bg-warning", "bg-info", "bg-success"];
-
 function PasswordCard() {
   const { logout } = useAuth();
   const toast = useToast();
@@ -57,13 +55,7 @@ function PasswordCard() {
 
   const submit = async () => {
     setFormError(null);
-    const e: Record<string, string> = {};
-    if (!current) e.current = "Escribe tu contraseña actual.";
-    if (next.length < 12) e.new = "Mínimo 12 caracteres.";
-    else if (next.length > 256) e.new = "Máximo 256 caracteres.";
-    else if (next === current) e.new = "Debe ser distinta de la actual.";
-    else if (strength.score < 2) e.new = "Es demasiado débil: mezcla mayúsculas, números y símbolos.";
-    if (confirm !== next) e.confirm = "Las contraseñas no coinciden.";
+    const e = validateNewPassword(current, next, confirm, strength);
     setErrors(e);
     if (Object.keys(e).length) return;
     try {
@@ -91,21 +83,7 @@ function PasswordCard() {
         <Input label="Contraseña actual" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} error={errors.current} />
         <div>
           <Input label="Nueva contraseña" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} error={errors.new} hint="Mínimo 12 caracteres." />
-          {next ? (
-            <div className="mt-2" aria-live="polite">
-              <div className="flex gap-1" aria-hidden>
-                {[1, 2, 3, 4].map((i) => (
-                  <span key={i} className={cn("h-1.5 flex-1 rounded-full", i <= strength.score ? STRENGTH_COLORS[strength.score] : "bg-surface-3")} />
-                ))}
-              </div>
-              <p className="mt-1 text-xs text-muted">Fortaleza: {strength.label}</p>
-              <ul className="mt-1 space-y-0.5 text-xs text-muted">
-                {strength.checks.map((c) => (
-                  <li key={c.label} className={c.ok ? "text-success" : undefined}>{c.ok ? "✓" : "○"} {c.label}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          {next ? <PasswordStrengthMeter strength={strength} /> : null}
         </div>
         <Input label="Confirmar nueva contraseña" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} error={errors.confirm} />
         {formError ? <Notice tone="danger">{formError}</Notice> : null}
