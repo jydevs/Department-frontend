@@ -107,6 +107,12 @@ Todo el contenido editorial (textos, menús, secciones, tema) sale del CMS de la
 - **Sin API:** menú, newsletter y pie vuelven a los textos originales (`src/lib/cms/fallback.ts`) y las páginas de
   contenido muestran un error con la marca en lugar de una pantalla en blanco.
 
+## Recuperación de acceso del personal
+
+Si alguien del equipo pierde su app de 2FA y sus códigos de recuperación, o su cuenta queda bloqueada, se resuelve desde
+el **backend** (no desde el panel): `yarn staff:reset-2fa <email>` desactiva el 2FA de esa cuenta y
+`yarn staff:unlock <email>` levanta el bloqueo por intentos fallidos.
+
 ## Cuenta del cliente
 
 El navegador **no** habla con la API de clientes: lo hace un BFF de route handlers de Next bajo `/api/account/*`
