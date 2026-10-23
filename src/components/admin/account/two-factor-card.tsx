@@ -31,8 +31,7 @@ function RecoveryCodesDialog({
   warning?: string;
 }) {
   const [saved, setSaved] = useState(false);
-  const text = codes.join("
-");
+  const text = codes.join("\n");
   return (
     <Dialog
       open
@@ -57,10 +56,7 @@ function RecoveryCodesDialog({
         </ul>
         <div className="flex flex-wrap gap-2">
           <CopyButton value={text} label="Copiar todos" />
-          <Button size="sm" leftIcon={<Download aria-hidden size={14} />} onClick={() => saveBlob(new Blob([`Códigos de recuperación - Daregular Dept.
-
-${text}
-`], { type: "text/plain;charset=utf-8" }), "codigos-recuperacion.txt")}>
+          <Button size="sm" leftIcon={<Download aria-hidden size={14} />} onClick={() => saveBlob(new Blob([`Códigos de recuperación - Daregular Dept.\n\n${text}\n`], { type: "text/plain;charset=utf-8" }), "codigos-recuperacion.txt")}>
             Descargar .txt
           </Button>
         </div>
