@@ -79,6 +79,10 @@ export function LoginForm() {
       setError("Introduce tu correo y tu contraseña.");
       return;
     }
+    if (step === "credentials" && code.trim() && !CODE_RE.test(code.trim())) {
+      setError("El código de verificación son 6 dígitos o un código de recuperación de 8 caracteres.");
+      return;
+    }
     if (step === "totp" && !CODE_RE.test(code.trim())) {
       setError("Introduce el código de 6 dígitos o un código de recuperación de 8 caracteres.");
       return;
@@ -86,19 +90,26 @@ export function LoginForm() {
 
     setBusy(true);
     try {
-      await login(email, password, step === "totp" ? code : undefined);
+      await login(email, password, code.trim() ? code : undefined);
       router.replace(destination());
     } catch (err) {
       if (err instanceof ApiError && err.code === "TWO_FACTOR_REQUIRED") {
         setStep("totp");
         setCode("");
+        setError(null);
       } else if (err instanceof ApiError && err.status === 429) {
         const secs = err.retryAfter ?? 60;
         const until = Date.now() + secs * 1000;
         setNow(Date.now());
         setLockedUntil(until);
       } else if (err instanceof ApiError && (err.code === "INVALID_CREDENTIALS" || err.status === 401)) {
-        setError(step === "totp" ? "Código incorrecto o caducado. Inténtalo de nuevo." : "Correo o contraseña incorrectos. Si fallas varias veces seguidas, la cuenta se bloquea unos minutos.");
+        setError(
+          step === "totp"
+            ? "Código incorrecto o caducado. Inténtalo de nuevo."
+            : code.trim()
+              ? "Correo, contraseña o código incorrectos. Si fallas varias veces seguidas, la cuenta se bloquea unos minutos."
+              : "Correo o contraseña incorrectos. Si fallas varias veces seguidas, la cuenta se bloquea unos minutos. Si tu cuenta tiene 2FA, introduce también el código de verificación.",
+        );
         if (step === "totp") setCode("");
       } else {
         setError(errorMessage(err));
@@ -161,6 +172,18 @@ export function LoginForm() {
                       onClick={() => setShowPw((v) => !v)}
                     />
                   }
+                />
+                <Input
+                  label="Código de verificación (si tienes 2FA)"
+                  name="totp"
+                  autoComplete="one-time-code"
+                  inputMode="text"
+                  maxLength={8}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/s+/g, ""))}
+                  disabled={busy}
+                  hint="Opcional: 6 dígitos de tu app o un código de recuperación."
+                  className="tracking-widest tabular-nums"
                 />
               </>
             ) : (
