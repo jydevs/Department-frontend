@@ -1,19 +1,73 @@
 "use client";
 
 import { useState } from "react";
-import { Download, ShieldCheck, ShieldOff } from "lucide-react";
+import { Download, RefreshCw, ShieldCheck, ShieldOff } from "lucide-react";
 import { Badge, Button, Card, Checkbox, CopyButton, Dialog, Input, useToast } from "@/components/admin/ui";
 import { Notice, apiMessage } from "@/components/admin/settings/shared";
 import { saveBlob } from "@/lib/admin/api-client";
 import { useAuth } from "@/lib/admin/auth";
 import { ApiError } from "@/lib/admin/errors";
-import { secretFromOtpauth, useDisable2fa, useEnable2fa, useSetup2fa } from "@/lib/admin/api/account";
+import { secretFromOtpauth, useDisable2fa, useEnable2fa, useRegenerateRecoveryCodes, useSetup2fa } from "@/lib/admin/api/account";
 import { QrCode } from "./qr-code";
 
 function codeError(e: unknown): string {
   if (e instanceof ApiError && e.code === "INVALID_OTP") return "El código no es correcto. Revisa que la hora de tu teléfono esté sincronizada.";
   if (e instanceof ApiError && e.code === "INVALID_CREDENTIALS") return "La contraseña no es correcta.";
   return apiMessage(e);
+}
+
+const RECOVERY_OR_TOTP_RE = /^(d{6}|[A-Za-z0-9]{8})$/;
+
+/** Muestra los códigos de recuperación (una sola vez) con copiar/descargar; `onDone` se habilita al confirmar que se guardaron. */
+function RecoveryCodesDialog({
+  codes,
+  finishing = false,
+  onDone,
+  warning = "No volverás a ver estos códigos. Guárdalos en un gestor de contraseñas o impresos en un lugar seguro.",
+}: {
+  codes: string[];
+  finishing?: boolean;
+  onDone: () => void;
+  warning?: string;
+}) {
+  const [saved, setSaved] = useState(false);
+  const text = codes.join("
+");
+  return (
+    <Dialog
+      open
+      onClose={() => undefined}
+      dismissible={false}
+      title="Guarda tus códigos de recuperación"
+      description="Cada código sirve una sola vez si pierdes acceso a tu app de autenticación."
+      footer={
+        <Button variant="primary" disabled={!saved} loading={finishing} onClick={onDone}>
+          Listo
+        </Button>
+      }
+    >
+      <div className="space-y-4">
+        <Notice tone="warning" title="Se muestran una sola vez">
+          {warning}
+        </Notice>
+        <ul data-testid="recovery-codes" className="grid grid-cols-2 gap-2 rounded-md border border-border-strong bg-surface-2 p-3 font-mono text-sm">
+          {codes.map((c) => (
+            <li key={c} className="select-all">{c}</li>
+          ))}
+        </ul>
+        <div className="flex flex-wrap gap-2">
+          <CopyButton value={text} label="Copiar todos" />
+          <Button size="sm" leftIcon={<Download aria-hidden size={14} />} onClick={() => saveBlob(new Blob([`Códigos de recuperación - Daregular Dept.
+
+${text}
+`], { type: "text/plain;charset=utf-8" }), "codigos-recuperacion.txt")}>
+            Descargar .txt
+          </Button>
+        </div>
+        <Checkbox checked={saved} onChange={(e) => setSaved(e.target.checked)} label="Ya guardé mis códigos de recuperación" />
+      </div>
+    </Dialog>
+  );
 }
 
 /**
@@ -28,7 +82,6 @@ export function EnableDialog({ uri, onClose, required = false }: { uri: string; 
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
-  const [saved, setSaved] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const secret = secretFromOtpauth(uri);
 
@@ -57,39 +110,7 @@ export function EnableDialog({ uri, onClose, required = false }: { uri: string; 
   };
 
   if (codes) {
-    const text = codes.join("\n");
-    return (
-      <Dialog
-        open
-        onClose={() => undefined}
-        dismissible={false}
-        title="Guarda tus códigos de recuperación"
-        description="Cada código sirve una sola vez si pierdes acceso a tu app de autenticación."
-        footer={
-          <Button variant="primary" disabled={!saved} loading={finishing} onClick={finish}>
-            Listo
-          </Button>
-        }
-      >
-        <div className="space-y-4">
-          <Notice tone="warning" title="Se muestran una sola vez">
-            No volverás a ver estos códigos. Guárdalos en un gestor de contraseñas o impresos en un lugar seguro.
-          </Notice>
-          <ul data-testid="recovery-codes" className="grid grid-cols-2 gap-2 rounded-md border border-border-strong bg-surface-2 p-3 font-mono text-sm">
-            {codes.map((c) => (
-              <li key={c} className="select-all">{c}</li>
-            ))}
-          </ul>
-          <div className="flex flex-wrap gap-2">
-            <CopyButton value={text} label="Copiar todos" />
-            <Button size="sm" leftIcon={<Download aria-hidden size={14} />} onClick={() => saveBlob(new Blob([`Códigos de recuperación - Daregular Dept.\n\n${text}\n`], { type: "text/plain;charset=utf-8" }), "codigos-recuperacion.txt")}>
-              Descargar .txt
-            </Button>
-          </div>
-          <Checkbox checked={saved} onChange={(e) => setSaved(e.target.checked)} label="Ya guardé mis códigos de recuperación" />
-        </div>
-      </Dialog>
-    );
+    return <RecoveryCodesDialog codes={codes} finishing={finishing} onDone={finish} />;
   }
 
   return (
@@ -160,7 +181,7 @@ function DisableDialog({ onClose }: { onClose: () => void }) {
     if (!/^\d{6}$/.test(code)) return setError("Escribe el código de 6 dígitos de tu app.");
     if (!password) return setError("Escribe tu contraseña actual.");
     try {
-      await disable.mutateAsync({ code, password });
+      await disable.mutateAsync({ code: code.toUpperCase(), password });
       toast.success("Verificación en dos pasos desactivada");
       await reloadUser();
       onClose();
@@ -205,12 +226,78 @@ function DisableDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+function RegenerateDialog({ onClose }: { onClose: () => void }) {
+  const regenerate = useRegenerateRecoveryCodes();
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [codes, setCodes] = useState<string[] | null>(null);
+
+  const submit = async () => {
+    setError(null);
+    if (!RECOVERY_OR_TOTP_RE.test(code)) return setError("Escribe el código de 6 dígitos de tu app o un código de recuperación de 8 caracteres.");
+    if (!password) return setError("Escribe tu contraseña actual.");
+    try {
+      const res = await regenerate.mutateAsync({ code: code.toUpperCase(), password });
+      setCodes(res.recoveryCodes);
+    } catch (e) {
+      setError(codeError(e));
+    }
+  };
+
+  if (codes) {
+    return (
+      <RecoveryCodesDialog
+        codes={codes}
+        onDone={onClose}
+        warning="Los códigos anteriores ya no sirven. Guarda estos nuevos en un gestor de contraseñas o impresos en un lugar seguro: no volverás a verlos."
+      />
+    );
+  }
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      dismissible={!regenerate.isPending}
+      title="Regenerar códigos de recuperación"
+      description="Se crearán 8 códigos nuevos y los anteriores dejarán de servir."
+      footer={
+        <>
+          <Button onClick={onClose} disabled={regenerate.isPending}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={submit} loading={regenerate.isPending}>
+            Regenerar
+          </Button>
+        </>
+      }
+    >
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <Input label="Código de verificación" autoComplete="one-time-code" maxLength={8} value={code} onChange={(e) => setCode(e.target.value.replace(/s+/g, ""))} hint="Código de tu app o código de recuperación" data-autofocus="" />
+        <Input label="Contraseña actual" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        {error ? <Notice tone="danger">{error}</Notice> : null}
+        <button type="submit" className="sr-only" tabIndex={-1} aria-hidden>
+          Regenerar
+        </button>
+      </form>
+    </Dialog>
+  );
+}
+
 export function TwoFactorCard() {
   const { user } = useAuth();
   const toast = useToast();
   const setup = useSetup2fa();
   const [uri, setUri] = useState<string | null>(null);
   const [disabling, setDisabling] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const enabled = user?.totpEnabled ?? false;
 
   const start = async () => {
@@ -231,9 +318,14 @@ export function TwoFactorCard() {
       {enabled ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted">Al iniciar sesión se te pedirá un código de 6 dígitos (o un código de recuperación).</p>
-          <Button variant="danger" leftIcon={<ShieldOff aria-hidden size={15} />} onClick={() => setDisabling(true)}>
-            Desactivar 2FA
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button leftIcon={<RefreshCw aria-hidden size={15} />} onClick={() => setRegenerating(true)}>
+              Regenerar códigos de recuperación
+            </Button>
+            <Button variant="danger" leftIcon={<ShieldOff aria-hidden size={15} />} onClick={() => setDisabling(true)}>
+              Desactivar 2FA
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -245,6 +337,7 @@ export function TwoFactorCard() {
       )}
       {uri ? <EnableDialog uri={uri} onClose={() => setUri(null)} /> : null}
       {disabling ? <DisableDialog onClose={() => setDisabling(false)} /> : null}
+      {regenerating ? <RegenerateDialog onClose={() => setRegenerating(false)} /> : null}
     </Card>
   );
 }
