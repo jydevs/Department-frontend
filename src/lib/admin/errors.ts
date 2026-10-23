@@ -67,6 +67,7 @@ const CODE_MESSAGES: Record<string, string> = {
   SERVICE_UNAVAILABLE: "El servicio no está disponible por ahora. Inténtalo en unos minutos.",
   INTERNAL_ERROR: "Ocurrió un error inesperado. Inténtalo de nuevo.",
   INVALID_CREDENTIALS: "Correo o contraseña incorrectos.",
+  PASSWORD_UNCHANGED: "La nueva contraseña debe ser distinta de la actual.",
 };
 
 /** Mensaje legible en español para cualquier error. */

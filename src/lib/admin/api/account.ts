@@ -1,12 +1,31 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { api } from "@/lib/admin/api-client";
+import { api, setAccessToken } from "@/lib/admin/api-client";
 import type { ApiError } from "@/lib/admin/errors";
 
+export interface ChangePasswordResponse {
+  accessToken: string;
+  expiresIn: number;
+  mustChangePassword: false;
+  twoFactorSetupRequired: boolean;
+}
+
+/** El backend revoca las sesiones y devuelve una nueva: se guarda el token y el panel sigue conectado. */
 export function useChangePassword() {
-  return useMutation<{ message: string }, ApiError, { current: string; new: string }>({
-    mutationFn: (body) => api.post<{ message: string }>("/auth/change-password", body),
+  return useMutation<ChangePasswordResponse, ApiError, { current: string; new: string }>({
+    mutationFn: async (body) => {
+      const res = await api.post<ChangePasswordResponse>("/auth/change-password", body);
+      setAccessToken(res.accessToken, res.expiresIn);
+      return res;
+    },
+  });
+}
+
+/** `code`: TOTP de 6 dígitos o código de recuperación de 8 caracteres. */
+export function useRegenerateRecoveryCodes() {
+  return useMutation<{ recoveryCodes: string[]; message: string }, ApiError, { password: string; code: string }>({
+    mutationFn: (body) => api.post<{ recoveryCodes: string[]; message: string }>("/auth/2fa/recovery-codes", body),
   });
 }
 

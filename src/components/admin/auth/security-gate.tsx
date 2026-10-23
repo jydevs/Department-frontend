@@ -7,7 +7,6 @@ import { Notice, apiMessage } from "@/components/admin/settings/shared";
 import { Brand } from "@/components/admin/shell/sidebar";
 import { EnableDialog } from "@/components/admin/account/two-factor-card";
 import { PasswordStrengthMeter, validateNewPassword } from "@/components/admin/account/password-strength";
-import { setAccessToken } from "@/lib/admin/api-client";
 import { useAuth } from "@/lib/admin/auth";
 import { ApiError } from "@/lib/admin/errors";
 import { passwordStrength, useChangePassword, useSetup2fa } from "@/lib/admin/api/account";
@@ -52,14 +51,12 @@ function ChangeTemporaryPassword() {
     setErrors(e);
     if (Object.keys(e).length) return;
     try {
-      const res = await change.mutateAsync({ current, new: next });
-      // si el backend rota la sesión y devuelve un token nuevo, seguimos con él
-      const issued = res as { accessToken?: string; expiresIn?: number };
-      if (typeof issued.accessToken === "string") setAccessToken(issued.accessToken, issued.expiresIn);
+      await change.mutateAsync({ current, new: next }); // guarda la sesión nueva: no se vuelve al login
       toast.success("Contraseña actualizada");
-      await reloadUser(); // limpia mustChangePassword (y, si procede, pasa a pedir el 2FA)
+      await reloadUser(); // limpia mustChangePassword (y, si procede, pasa a la pantalla del 2FA)
     } catch (err) {
       if (err instanceof ApiError && err.code === "INVALID_CREDENTIALS") setErrors({ current: "La contraseña temporal no es correcta." });
+      else if (err instanceof ApiError && err.code === "PASSWORD_UNCHANGED") setErrors({ new: "La nueva contraseña debe ser distinta de la temporal." });
       else {
         setErrors(err instanceof ApiError && err.code === "VALIDATION_ERROR" ? err.fieldErrors() : {});
         setFormError(apiMessage(err));

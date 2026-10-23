@@ -43,7 +43,6 @@ function ProfileCard() {
 }
 
 function PasswordCard() {
-  const { logout } = useAuth();
   const toast = useToast();
   const change = useChangePassword();
   const [current, setCurrent] = useState("");
@@ -59,11 +58,15 @@ function PasswordCard() {
     setErrors(e);
     if (Object.keys(e).length) return;
     try {
-      await change.mutateAsync({ current, new: next });
-      toast.success("Contraseña cambiada. Inicia sesión de nuevo.");
-      await logout(); // el servidor revoca todas las sesiones
+      await change.mutateAsync({ current, new: next }); // las demás sesiones se cierran; esta sigue con token nuevo
+      toast.success("Contraseña cambiada. Se cerraron tus otras sesiones.");
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+      setErrors({});
     } catch (err) {
       if (err instanceof ApiError && err.code === "INVALID_CREDENTIALS") setErrors({ current: "La contraseña actual no es correcta." });
+      else if (err instanceof ApiError && err.code === "PASSWORD_UNCHANGED") setErrors({ new: "La nueva contraseña debe ser distinta de la actual." });
       else {
         setErrors(err instanceof ApiError && err.code === "VALIDATION_ERROR" ? err.fieldErrors() : {});
         setFormError(apiMessage(err));
@@ -72,7 +75,7 @@ function PasswordCard() {
   };
 
   return (
-    <Card title="Cambiar contraseña" description="Al cambiarla se cerrarán todas tus sesiones y tendrás que volver a entrar.">
+    <Card title="Cambiar contraseña" description="Al cambiarla se cerrarán tus otras sesiones; esta seguirá abierta.">
       <form
         className="grid max-w-md gap-4"
         onSubmit={(e) => {
