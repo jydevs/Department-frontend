@@ -1,4 +1,5 @@
 import "server-only";
+import { isIP } from "node:net";
 import { cookies, draftMode } from "next/headers";
 import { decodePreviewTarget, PREVIEW_COOKIE, type PreviewTarget } from "@/lib/preview";
 import { API_REVALIDATE_SECONDS, API_TIMEOUT_MS, apiBase } from "./config";
@@ -158,6 +159,6 @@ export function visitorHeaders(req: Request): Record<string, string> {
   if (!process.env.STOREFRONT_SERVER_KEY) return {};
   const forwarded = req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim();
   const ip = req.headers.get("x-real-ip")?.trim() || forwarded || "";
-  // an IPv4 / IPv6 literal only: anything else (spoofed text) is dropped
-  return ip.length > 0 && ip.length <= 45 && /^[0-9a-fA-F:.]+$/.test(ip) ? { "X-Visitor-Ip": ip } : {};
+  // a real IPv4 / IPv6 literal only: anything else (spoofed text, hex noise) is dropped
+  return isIP(ip) !== 0 ? { "X-Visitor-Ip": ip } : {};
 }
