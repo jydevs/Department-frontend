@@ -6,10 +6,10 @@
  */
 export default function GlobalError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
     <html lang="es">
@@ -35,7 +35,7 @@ export default function GlobalError({
         <div style={{ marginTop: "2rem" }}>
           <button
             type="button"
-            onClick={reset}
+            onClick={retry}
             style={{ background: "#e10e0e", color: "#fff", border: 0, padding: "1rem 2rem", letterSpacing: "0.12em", textTransform: "uppercase", cursor: "pointer" }}
           >
             Reintentar

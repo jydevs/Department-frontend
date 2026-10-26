@@ -1,85 +1,89 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProduct, getRelatedProducts, products } from "@/data/products";
-import { Reveal } from "@/components/ui/Reveal";
-import { ProductGallery } from "@/components/product/ProductGallery";
-import { ProductGrid } from "@/components/product/ProductGrid";
-import { ProductInfo } from "@/components/product/ProductInfo";
-import { SITE_NAME, absoluteUrl } from "@/lib/site";
+import { SectionRenderer, productDetailLabels } from "@/components/cms/SectionRenderer";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { getProduct, plainText } from "@/lib/api/catalog";
+import { getTemplate } from "@/lib/cms/content";
+import { FALLBACK_PRODUCT } from "@/lib/cms/fallback";
+import { getSite } from "@/lib/cms/site";
+import { sectionOf } from "@/lib/cms/types";
+import { breadcrumbLd } from "@/lib/jsonld";
+import { absoluteMedia, pageMetadata } from "@/lib/seo";
+import { absoluteUrl } from "@/lib/site";
 
 type PageProps = { params: Promise<{ handle: string }> };
 
-export function generateStaticParams() {
-  return products.map(({ handle }) => ({ handle }));
+export const dynamicParams = true;
+// Los productos se generan bajo demanda (ISR): el build no depende de la API ni la satura de peticiones.
+export async function generateStaticParams() {
+  return [];
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { handle } = await params;
-  const product = getProduct(handle);
+  const [product, site] = await Promise.all([getProduct(handle), getSite()]);
   if (!product) return {};
-  return {
-    title: product.name,
-    description: product.description,
-    alternates: { canonical: `/products/${product.handle}` },
-    openGraph: { type: "website", title: product.name, description: product.description },
-  };
+  return pageMetadata({
+    title: product.seoTitle || product.name,
+    description: product.seoDescription || plainText(product.description, 160),
+    path: `/products/${encodeURIComponent(product.handle)}`,
+    image: product.images[0] ? { url: product.images[0], alt: product.imageLabel } : undefined,
+    brand: site.client.brandName,
+    titleTemplate: site.settings?.seo?.titleTemplate,
+  });
 }
 
 /**
- * Product detail. Desktop: photo column (60%) + sticky info panel (40%).
- * Mobile: swipeable gallery, then the info panel and a sticky add-to-cart bar.
+ * Ficha de producto: plantilla `product` del CMS (detalle + relacionados) con el producto real de la API.
+ * Desktop: fotos (60%) + panel sticky (40%). Móvil: carrusel, panel y barra "añadir" fija.
  */
 export default async function ProductPage({ params }: PageProps) {
   const { handle } = await params;
-  const product = getProduct(handle);
+  const [product, template, site] = await Promise.all([getProduct(handle), getTemplate("product"), getSite()]);
   if (!product) notFound();
 
-  const related = getRelatedProducts(handle, 4);
+  const sections = template?.sections ?? FALLBACK_PRODUCT;
+  const labels = productDetailLabels(sectionOf(sections, "product-detail")?.settings);
+  const url = absoluteUrl(`/products/${encodeURIComponent(product.handle)}`);
 
-  // schema.org Product (rich results). Prices are COP, exactly as shown on the page.
+  // schema.org Product (rich results): una Offer por variante con su `sku` y disponibilidad. Precios en COP, tal como se muestran.
+  const offer = (price: number, available: boolean, sku?: string, name?: string) => ({
+    "@type": "Offer",
+    ...(sku ? { sku } : {}),
+    ...(name ? { name } : {}),
+    priceCurrency: "COP",
+    price,
+    availability: available ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+    url,
+  });
+  const multi = product.variants.length > 1;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
-    description: product.description,
-    image: product.images.map((src) => absoluteUrl(src)),
-    brand: { "@type": "Brand", name: SITE_NAME },
-    url: absoluteUrl(`/products/${product.handle}`),
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "COP",
-      price: product.price,
-      availability:
-        product.badge === "agotado" ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
-      url: absoluteUrl(`/products/${product.handle}`),
-    },
+    description: plainText(product.description, 300),
+    image: product.images.map(absoluteMedia),
+    brand: { "@type": "Brand", name: site.client.brandName },
+    url,
+    ...(product.variants.find((v) => v.sku)?.sku ? { sku: product.variants.find((v) => v.sku)?.sku } : {}),
+    offers: product.variants.length
+      ? product.variants.map((v) => offer(v.price, v.available, v.sku, multi ? v.title : undefined))
+      : offer(product.price, product.badge !== "agotado"),
   };
 
   return (
     <article className="pt-[var(--chrome-h)]">
-      <script
-        type="application/ld+json"
-        // JSON.stringify output only; `<` escaped so the payload cannot close the tag
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\u003c") }}
+      <JsonLd
+        data={[
+          jsonLd,
+          breadcrumbLd([
+            { name: labels.home, url: absoluteUrl("/") },
+            { name: labels.collection, url: absoluteUrl(`/collections/${encodeURIComponent(labels.collectionHandle)}`) },
+            { name: product.name, url },
+          ]),
+        ]}
       />
-      <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:items-start">
-        <ProductGallery images={product.images} name={product.name} imageLabel={product.imageLabel} />
-        <ProductInfo product={product} />
-      </div>
-
-      <section aria-labelledby="related-title" className="border-t border-white/10 py-section">
-        <Reveal>
-          <div className="px-gutter mb-10 md:mb-14">
-            <p className="text-[11px] tracking-[0.2em] text-dept-gray-500 uppercase">
-              01 — Selección
-            </p>
-            <h2 id="related-title" className="font-display text-display-lg mt-4">
-              Te puede interesar
-            </h2>
-          </div>
-          <ProductGrid products={related} />
-        </Reveal>
-      </section>
+      <SectionRenderer sections={sections} ctx={{ product }} />
     </article>
   );
 }

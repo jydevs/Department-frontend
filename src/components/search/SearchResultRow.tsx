@@ -44,17 +44,19 @@ export function SearchResultRow({ product, id, active, onHover, onSelect }: Sear
         )}
       >
         <span className="relative block h-24 w-[72px] shrink-0 overflow-hidden bg-dept-gray-900">
-          <Image
-            src={product.images[0]}
-            alt=""
-            fill
-            sizes="72px"
-            className={clsx(
-              "object-cover transition-transform duration-500 ease-out-expo",
-              active && "scale-[1.05]",
-              soldOut && "opacity-60",
-            )}
-          />
+          {product.images[0] && (
+            <Image
+              src={product.images[0]}
+              alt=""
+              fill
+              sizes="72px"
+              className={clsx(
+                "object-cover transition-transform duration-500 ease-out-expo",
+                active && "scale-[1.05]",
+                soldOut && "opacity-60",
+              )}
+            />
+          )}
         </span>
 
         <span className="flex min-w-0 flex-1 flex-col gap-2">

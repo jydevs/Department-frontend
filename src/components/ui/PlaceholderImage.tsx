@@ -22,11 +22,14 @@ interface PlaceholderImageProps {
    * sizing itself by `ratio`. Use for full-bleed backgrounds.
    */
   fill?: boolean;
+  /** imagen LCP (above the fold): se carga sin diferir y con prioridad alta. Úsalo solo en la imagen LCP real de la página. */
   priority?: boolean;
   /** `sizes` attribute for next/image (default 100vw) */
   sizes?: string;
   /** extra classes for the <img> itself (hover zoom, grayscale…) */
   imgClassName?: string;
+  /** imagen secundaria (p. ej. foto al pasar el cursor): se pide con prioridad baja para no competir con la LCP */
+  lowPriority?: boolean;
 }
 
 const toneStyles: Record<Tone, string> = {
@@ -51,6 +54,7 @@ export function PlaceholderImage({
   priority = false,
   sizes = "100vw",
   imgClassName,
+  lowPriority = false,
 }: PlaceholderImageProps) {
   if (src) {
     return (
@@ -66,7 +70,8 @@ export function PlaceholderImage({
           src={src}
           alt={label}
           fill
-          priority={priority}
+          // Next 16 deprecó `priority`: la imagen LCP va con `loading="eager"` + `fetchPriority="high"`
+          {...(priority ? { loading: "eager" as const, fetchPriority: "high" as const } : lowPriority ? { fetchPriority: "low" as const } : {})}
           sizes={sizes}
           className={clsx("object-cover", imgClassName)}
         />

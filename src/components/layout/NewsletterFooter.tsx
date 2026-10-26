@@ -3,6 +3,9 @@
 import { useId, useState } from "react";
 import { clsx } from "@/lib/clsx";
 import { Reveal } from "@/components/ui/Reveal";
+import { apiFetch } from "@/lib/api/client";
+import { ApiError } from "@/lib/api/errors";
+import { str, type Settings } from "@/lib/cms/types";
 
 type FormState = "idle" | "loading" | "success" | "error";
 
@@ -13,7 +16,15 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * <footer> landmark lives in SiteFooter). The form always stays visible —
  * errors and success are announced through the aria-live status line.
  */
-export function NewsletterFooter() {
+export function NewsletterFooter({ settings = {} }: { settings?: Settings }) {
+  const T = {
+    eyebrow: str(settings, "eyebrow", "Newsletter"), heading: str(settings, "heading", "Únete a Regular Members Only."),
+    placeholder: str(settings, "placeholder", "Dirección de correo electrónico"), inputLabel: str(settings, "inputLabel", "Dirección de correo electrónico"),
+    button: str(settings, "buttonLabel", "Suscribirse"), loading: str(settings, "loadingMessage", "Enviando..."),
+    // la suscripción requiere confirmar por correo (doble opt-in): el mensaje no depende del CMS
+    success: "Revisa tu correo para confirmar tu suscripción.", error: str(settings, "errorMessage", "Introduce un correo válido."),
+  };
+  const [failMsg, setFailMsg] = useState("");
   const [state, setState] = useState<FormState>("idle");
   const [email, setEmail] = useState("");
   const uid = useId();
@@ -23,32 +34,28 @@ export function NewsletterFooter() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (state === "loading") return;
 
     if (!EMAIL_RE.test(email.trim())) {
+      setFailMsg("");
       setState("error");
       return;
     }
 
     setState("loading");
-    await new Promise((r) => setTimeout(r, 200));
-
+    setFailMsg("");
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-      const res = await fetch(`${baseUrl}/api/v1/storefront/newsletter`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-
-      if (!res.ok) {
-        throw new Error("Newsletter subscription failed");
-      }
-
+      await apiFetch("/storefront/newsletter", { method: "POST", body: { email: email.trim() } });
       setState("success");
       setEmail("");
-    } catch {
-      setState("success");
-      setEmail("");
+    } catch (err) {
+      // errores reales de la API, no un "éxito" falso: un correo inválido (400) se distingue de un fallo de red / servidor
+      setFailMsg(
+        err instanceof ApiError && err.status === 429 ? "Demasiados intentos. Prueba en un minuto."
+          : err instanceof ApiError && err.status >= 400 && err.status < 500 ? ""
+          : "No se pudo enviar. Inténtalo de nuevo.",
+      );
+      setState("error");
     }
   };
 
@@ -58,10 +65,10 @@ export function NewsletterFooter() {
         <div className="md:col-span-7">
           <p className="mb-6 text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">
             <span aria-hidden className="mr-3 inline-block h-px w-8 bg-dept-red align-middle" />
-            Newsletter
+            {T.eyebrow}
           </p>
           <h2 id={headingId} className="font-display text-display-lg text-dept-white">
-            Únete a Regular Members Only.
+            {T.heading}
           </h2>
         </div>
 
@@ -76,7 +83,7 @@ export function NewsletterFooter() {
               )}
             >
               <label htmlFor={inputId} className="sr-only">
-                Dirección de correo electrónico
+                {T.inputLabel}
               </label>
               <input
                 id={inputId}
@@ -89,7 +96,7 @@ export function NewsletterFooter() {
                   setEmail(e.target.value);
                   if (state !== "idle") setState("idle");
                 }}
-                placeholder="Dirección de correo electrónico"
+                placeholder={T.placeholder}
                 aria-invalid={state === "error"}
                 aria-describedby={msgId}
                 className="h-14 min-w-0 flex-1 rounded-none bg-transparent text-lg text-dept-white placeholder:text-dept-gray-500 focus:outline-none md:h-16 md:text-xl"
@@ -97,8 +104,9 @@ export function NewsletterFooter() {
               <button
                 type="submit"
                 data-testid="newsletter-subscribe"
-                aria-label="Suscribirse"
-                className="group/arrow grid size-14 shrink-0 place-items-center text-dept-white transition-colors duration-300 ease-out-expo hover:text-dept-red md:size-16"
+                aria-label={T.button}
+                disabled={state === "loading"}
+                className="group/arrow grid size-14 shrink-0 place-items-center text-dept-white transition-colors duration-300 ease-out-expo hover:text-dept-red disabled:opacity-40 md:size-16"
               >
                 <svg
                   width="28"
@@ -129,13 +137,13 @@ export function NewsletterFooter() {
               )}
             >
               {state === "loading" && (
-                <span data-testid="newsletter-loading">Enviando...</span>
+                <span data-testid="newsletter-loading">{T.loading}</span>
               )}
               {state === "error" && (
-                <span data-testid="newsletter-error">Introduce un correo válido.</span>
+                <span data-testid="newsletter-error">{failMsg || T.error}</span>
               )}
               {state === "success" && (
-                <span data-testid="newsletter-success">Gracias por suscribirte.</span>
+                <span data-testid="newsletter-success">{T.success}</span>
               )}
             </p>
           </form>

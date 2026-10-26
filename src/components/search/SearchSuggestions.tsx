@@ -1,25 +1,28 @@
 "use client";
 
 import Link from "next/link";
-
-const SUGGESTIONS = [
-  { label: "Clothes", href: "/collections/all" },
-  { label: "Men", href: "/collections/men" },
-  { label: "Women", href: "/collections/women" },
-] as const;
+import { safeHref } from "@/lib/url";
+import { cfg, useSite } from "@/components/layout/SiteProvider";
 
 interface SearchSuggestionsProps {
   onNavigate: () => void;
 }
 
-/** "Sugerencias": quick links into the collections. Regular links in the Tab order. */
+/** "Sugerencias": accesos rápidos editables en el CMS (bloques `suggestion` de la plantilla `search`). Enlaces normales en el orden de Tab. */
 export function SearchSuggestions({ onNavigate }: SearchSuggestionsProps) {
+  const { search } = useSite();
+  const title = cfg(search.settings).str("suggestionsTitle", "Sugerencias");
+  const items = search.suggestions.flatMap((s) => {
+    const href = safeHref(s.url);
+    return href && s.label ? [{ label: s.label, href }] : [];
+  });
+  if (!items.length) return null;
   return (
-    <nav aria-label="Sugerencias">
-      <p className="mb-4 text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">Sugerencias</p>
+    <nav aria-label={title}>
+      <p className="mb-4 text-[11px] uppercase tracking-[0.2em] text-dept-gray-500">{title}</p>
       <ul className="flex flex-wrap gap-3">
-        {SUGGESTIONS.map((s) => (
-          <li key={s.href}>
+        {items.map((s, i) => (
+          <li key={`${s.href}-${i}`}>
             <Link
               href={s.href}
               onClick={onNavigate}

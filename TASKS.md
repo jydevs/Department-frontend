@@ -148,3 +148,17 @@ axe (a11y) y flujos E2E sobre el build de producción.
 SEO (metadata, OG, sitemap, robots, JSON-LD), `error.tsx`, cabeceras de seguridad, carrito validado
 (tallas / agotados), CI de GitHub y LCP del hero mejorado (Lighthouse móvil: perf 82 → 89).
 Pendiente: despliegue (Vercel), backend, assets reales.
+
+
+---
+
+## Panel `/admin` y conexión con el backend (rama `claude/tender-heisenberg-w6jnxy`)
+
+Estado detallado y hoja de ruta: [`docs/ESTADO.md`](docs/ESTADO.md). Panel: [`docs/ADMIN.md`](docs/ADMIN.md).
+
+| Bloque | Estado |
+| --- | --- |
+| Panel `/admin` (diseño de la tienda, a11y y auditoría corregidas) | ✅ commiteado y pushed |
+| Plan de producción (`docs/PLAN-PRODUCCION.md`) | ✅ |
+| F1–F6 Integración con la API (tienda, cuenta, panel, entornos QA/producción) | ✅ commiteado y pushed |
+| F7 E2E automatizados, despliegue | ⬜ pendiente |

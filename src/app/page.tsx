@@ -1,25 +1,45 @@
-import { Hero } from "@/components/home/Hero";
-import { MarqueeBand } from "@/components/home/MarqueeBand";
-import { NewArrivals } from "@/components/home/NewArrivals";
-import { SplitBanner } from "@/components/home/SplitBanner";
-import { CampaignSection } from "@/components/home/CampaignSection";
-import { EditorialBlock } from "@/components/home/EditorialBlock";
-import { ValueProps } from "@/components/home/ValueProps";
+import type { Metadata } from "next";
+import { SectionRenderer } from "@/components/cms/SectionRenderer";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { getTemplate } from "@/lib/cms/content";
+import { fallbackHome } from "@/lib/cms/fallback";
+import { getSite } from "@/lib/cms/site";
+import { SITE_DESCRIPTION, SITE_URL, absoluteUrl } from "@/lib/site";
+import { safeHref } from "@/lib/url";
+
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 /**
- * Home. Rhythm: hero → ticker → new arrivals → collections → campaign grid →
- * manifesto → values (the footer / newsletter is rendered by the root layout).
+ * Home dirigida por el CMS (`template/home`): hero, marquesina, novedades, colecciones, campaña, manifiesto y valores.
+ * Se edita en `/admin/content/templates/home`; publicar revalida la página (etiqueta `content:template:home`).
  */
-export default function HomePage() {
+export default async function HomePage() {
+  const [home, site] = await Promise.all([getTemplate("home"), getSite()]);
+  const brand = site.client.brandName;
+  const description = site.settings?.seo?.defaultDescription ?? site.settings?.brand?.description ?? SITE_DESCRIPTION;
+  const logo = site.settings?.brand?.logoMediaUrl;
+  const sameAs = Object.values(site.settings?.social ?? {}).flatMap((u) => {
+    const href = u && /^https:\/\//i.test(u) ? safeHref(u) : null;
+    return href ? [href] : [];
+  });
+
   return (
     <>
-      <Hero />
-      <MarqueeBand />
-      <NewArrivals />
-      <SplitBanner />
-      <CampaignSection />
-      <EditorialBlock />
-      <ValueProps />
+      <JsonLd
+        data={[
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: brand,
+            url: SITE_URL,
+            description,
+            ...(logo ? { logo: /^https?:\/\//i.test(logo) ? logo : absoluteUrl(logo) } : {}),
+            ...(sameAs.length ? { sameAs } : {}),
+          },
+          { "@context": "https://schema.org", "@type": "WebSite", name: brand, url: SITE_URL, inLanguage: "es-CO" },
+        ]}
+      />
+      <SectionRenderer sections={home?.sections ?? fallbackHome(brand, site.client.tagline)} />
     </>
   );
 }

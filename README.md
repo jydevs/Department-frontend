@@ -28,11 +28,21 @@ yarn dev          # http://localhost:3000
 | `yarn lint` | ESLint |
 | `yarn typecheck` | `tsc --noEmit` |
 
+## Panel de administración (`/admin`)
+
+Panel integrado en esta misma app (vistas bajo `/admin`, sin proyecto aparte), con el mismo diseño de la tienda.
+Conectado a la API real (login, permisos, 2FA). Ver [`docs/ADMIN.md`](docs/ADMIN.md) y [`docs/ENTORNOS.md`](docs/ENTORNOS.md) (QA vs producción).
+
+```bash
+yarn dev          # tienda http://localhost:3000 · panel http://localhost:3000/admin
+```
+
 ## Variables de entorno
 
 | Variable | Default | Uso |
 | --- | --- | --- |
 | `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Origen canónico (metadata, Open Graph, sitemap, JSON-LD). Sin `/` final. |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:4000` | URL del backend (la usará la integración; hoy solo la lee `src/lib/admin/api-client.ts`, sin uso). |
 | `NEXT_PUBLIC_INDEXABLE` | `false` | `true` permite indexación. Por defecto el sitio es `noindex` y `robots.txt` bloquea todo (es una réplica). |
 
 ## SEO y producción
@@ -53,8 +63,14 @@ src/
     home/              secciones de la home
     product/           ProductCard, ProductGrid, FilterBar
     ui/                primitivas (PlaceholderImage, …)
-  data/                catálogo mock + tipos
+    admin/             kit UI y módulos del panel /admin
+  app/admin/           rutas del panel
+  data/                tipos del catálogo
   lib/                 utilidades (formato de precios, clsx)
+  lib/admin/           cliente de API, hooks por módulo y utilidades del panel
+docs/ESTADO.md         estado actual, contrato con el backend y hoja de ruta de la integración
+docs/ADMIN.md          panel /admin
+docs/PLAN-PRODUCCION.md plan para llevar frontend y backend a producción
 docs/ASSETS.md         estado de imágenes / fuentes / tokens
 TASKS.md               backlog y plan de ramas
 ```

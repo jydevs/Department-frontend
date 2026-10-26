@@ -369,7 +369,7 @@ describe('API Client - Error Handling', () => {
       .mockResolvedValueOnce({ ok: false, status: 500 })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ data: 'success' }) });
 
-    const response = await fetch('http://api/test');
+    await fetch('http://api/test');
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
